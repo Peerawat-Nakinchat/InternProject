@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-200">
+  <div class="min-h-screen flex items-center justify-center bg-primary-50">
     <div class="w-full max-w-md mx-4">
       <div class="mb-6 text-center">
-        <h1 class="text-xl font-semibold tracking-tight text-slate-900">MANGO ISO</h1>
+        <h1 class="text-xl font-semibold tracking-tight text-neutral-900">MANGO ISO</h1>
         <!-- <p class="text-xs text-slate-500">Login Page</p> -->
       </div>
 

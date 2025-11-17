@@ -3,8 +3,7 @@
     <AuthLayout>
       <form class="space-y-5" @submit.prevent>
         <header class="space-y-1 text-center">
-          <h2 class="text-lg font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h2>
-          <p class="text-xs text-slate-500">กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งานระบบ</p>
+          <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>
         </header>
 
         <BaseInput
@@ -12,7 +11,7 @@
           label="อีเมล"
           type="email"
           autocomplete="email"
-          placeholder="your E-mail"
+          placeholder="your@example.com"
         />
 
         <BaseInput
@@ -20,7 +19,7 @@
           label="รหัสผ่าน"
           type="password"
           autocomplete="current-password"
-          placeholder="••••••••"
+          placeholder="****************"
         />
 
         <div class="flex items-center justify-between text-xs">
@@ -28,12 +27,12 @@
             <input
               v-model="form.remember"
               type="checkbox"
-              class="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+              class="h-3.5 w-3.5 rounded border-primary-300 text-primary-600 focus:ring-primary-500 accent-violet-500"
             />
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
             </label>
 
-          <button type="button" class="font-medium text-purple-600 text-purple-400 hover:underline">
+          <button type="button" class="font-medium text-primary-600 text-primary-400 hover:underline">
             ลืมรหัสผ่าน?
           </button>
         </div>
@@ -50,15 +49,15 @@
         </div>
         <div class="flex items-center my-4">
           <hr class="flex-1 border-slate-500" />
-          <span class="mx-3 text-xs text-slate-500">or</span>
+          <span class="mx-3 text-xs text-slate-500">หรือ</span>
           <hr class="flex-1 border-slate-500" />
         </div>
 
         <div class="space-y-3 pt-2">
-          <a
+          <button
             href="/auth/google"
             role="button"
-            class="flex items-center justify-center gap-3 w-full rounded-md border px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            class="flex items-center justify-center gap-3 w-full rounded-md border px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 border-gray-500"
             aria-label="Sign in with Google"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -80,12 +79,12 @@
               />
             </svg>
             <span>เข้าสู่ระบบ / ลงทะเบียน ด้วย Google</span>
-          </a>
+          </button>
 
-          <a
+          <button
             href="/auth/microsoft"
             role="button"
-            class="flex items-center justify-center gap-3 w-full rounded-md border px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            class="flex items-center justify-center gap-3 w-full rounded-md border px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 border-gray-500"
             aria-label="Sign in with Microsoft"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -95,7 +94,7 @@
               <rect x="12.5" y="12.5" width="8.5" height="8.5" fill="#FFBA08" />
             </svg>
             <span>เข้าสู่ระบบ / ลงทะเบียน ด้วย Microsoft</span>
-          </a>
+          </button>
         </div>
       </form>
     </AuthLayout>
@@ -104,7 +103,6 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
-
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
