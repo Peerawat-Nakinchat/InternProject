@@ -1,5 +1,5 @@
 <template>
-<<<<<<< HEAD
+
   <div class="p-10">
     <h1 class="text-4xl font-bold text-blue-600">
       Tailwind ทำงานแล้ว
@@ -9,9 +9,11 @@
       ทดสอบปุ่ม Tailwind
     </button>
   </div>
-=======
+
   <Navbar/>
->>>>>>> 7837ee6bbe3bdcc0696e71943b6af4bca7cc67a2
+
+  <Navbar/>
+
 </template>
 
 <script setup lang="ts">
