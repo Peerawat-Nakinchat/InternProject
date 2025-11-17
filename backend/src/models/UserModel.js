@@ -1,21 +1,27 @@
-import { pool } from '../config/db.js';
+import pool from '../config/db.js';
 
-export const UserModel = {
-  async create(email, password, name=null) {
-    const q = 'INSERT INTO users (email, password, name) VALUES ($1,$2,$3) RETURNING id,email,name,created_at';
-    const { rows } = await pool.query(q, [email, password, name]);
-    return rows[0];
-  },
+// ดึงผู้ใช้ทั้งหมด
+export async function getAllUsers() {
+  const result = await pool.query('SELECT id, name, email FROM users');
+  return result.rows;
+}
 
-  async findByEmail(email) {
-    const q = 'SELECT id,email,password,name,created_at FROM users WHERE email=$1';
-    const { rows } = await pool.query(q, [email]);
-    return rows[0] || null;
-  },
+// ดึงผู้ใช้ตาม id
+export async function getUserById(id) {
+  const result = await pool.query(
+    'SELECT id, name, email FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0] || null;
+}
 
-  async findById(id) {
-    const q = 'SELECT id,email,name,created_at FROM users WHERE id=$1';
-    const { rows } = await pool.query(q, [id]);
-    return rows[0] || null;
-  }
-};
+// เพิ่มผู้ใช้ใหม่
+export async function createUser({ name, email, password }) {
+  const result = await pool.query(
+    `INSERT INTO users (name, email, password)
+     VALUES ($1, $2, $3)
+     RETURNING id, name, email`,
+    [name, email, password]
+  );
+  return result.rows[0];
+}
