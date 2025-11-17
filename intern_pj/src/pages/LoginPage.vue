@@ -24,26 +24,26 @@
         />
 
         <div class="flex items-center justify-between text-xs">
-          <label class="inline-flex items-center gap-2 select-none">
+            <label class="inline-flex items-center gap-2 select-none">
             <input
               v-model="form.remember"
               type="checkbox"
-              class="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              class="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
             />
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
-          </label>
+            </label>
 
-          <button type="button" class="text-sky-600 hover:text-sky-700 font-medium">
+          <button type="button" class="font-medium text-purple-600 text-purple-400 hover:underline">
             ลืมรหัสผ่าน?
           </button>
         </div>
 
-        <BaseButton type="submit" variant="primary" class="w-full"> เข้าสู่ระบบ </BaseButton>
+        <BaseButton type="submit" variant="Submit" class="w-full"> เข้าสู่ระบบ </BaseButton>
 
         <div class="register text-center">
           <p class="text-xs text-slate-500">
             ยังไม่มีบัญชีใช่ไหม?
-            <a href="/registerPage" class="text-sky-600 hover:text-sky-700 font-medium"
+            <a href="/registerPage" class="font-medium text-purple-600 text-purple-400 hover:underline"
               >ลงทะเบียน</a
             >
           </p>
