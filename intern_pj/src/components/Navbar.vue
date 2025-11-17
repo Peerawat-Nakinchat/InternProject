@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-screen bg-gray-100">
     <!-- Side Bar -->
-    <aside :class="`bg-[#3b0187] text-white ${rail ? 'w-16' : 'w-64'} transition-all duration-300 rounded-l-lg`">
+    <aside :class="`bg-[#682DB5] text-white ${rail ? 'w-16' : 'w-64'} transition-all duration-300 rounded-l-lg`">
       <div class="flex flex-col items-center py-4" :class="rail ? 'px-1' : 'px-4'">
         <template v-if="rail">
           <img src="/img/logoMango.png"
@@ -21,7 +21,7 @@
               <i :class="`${item.icon} text-xl`"></i>
             </button>
             <div
-              class="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap px-3 py-1 bg-[#3b0187] text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
+              class="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap px-3 py-1 bg-[#682DB5] text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
             >
               {{ item.title }}
             </div>
@@ -40,7 +40,7 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col">
       <!-- App Bar -->
-      <header class="flex items-center justify-between bg-[#3b0187] text-white h-12 px-4 rounded-tr-lg shadow">
+      <header class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg shadow">
         <button @click="rail = !rail" class="p-2 hover:bg-gray-700 rounded transition-colors">
           <i :class="rail ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
         </button>
