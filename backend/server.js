@@ -1,18 +1,22 @@
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
+
 dotenv.config();
-import authRoutes from './src/routes/authRoutes.js';
-import companyRoutes from './src/routes/companyRoutes.js';
-import memberRoutes from './src/routes/memberRoutes.js';
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/members', memberRoutes);
+import userRoutes from './src/routes/memberRoutes.js';
 
-app.get('/', (req, res) => res.json({ ok: true, env: process.env.NODE_ENV || 'dev' }));
+app.use('/api/users', userRoutes);
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.get('/', (req, res) => {
+    res.send('API server is running');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
