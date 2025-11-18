@@ -86,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
     } catch (err: any) {
       error.value = err.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
-      return { success: false, error: error.value }
+      return { success: false, error: error.value ?? undefined }
     } finally {
       isLoading.value = false
     }
@@ -112,7 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: false, error: 'ลงทะเบียนไม่สำเร็จ' }
     } catch (err: any) {
       error.value = err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
-      return { success: false, error: error.value }
+      return { success: false, error: error.value ?? undefined }
     } finally {
       isLoading.value = false
     }

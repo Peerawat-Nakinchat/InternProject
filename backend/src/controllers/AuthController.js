@@ -35,7 +35,7 @@ export const registerUser = async (req, res) => {
         }
 
         const checkEmail = await client.query(
-            'SELECT id FROM users WHERE email = $1',
+            'SELECT id FROM sys_users WHERE email = $1',
             [email]
         );
 
@@ -50,7 +50,7 @@ export const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const result = await client.query(
-            `INSERT INTO users (email, password, name, created_at, updated_at) 
+            `INSERT INTO sys_users (email, password, name, created_at, updated_at) 
              VALUES ($1, $2, $3, NOW(), NOW()) 
              RETURNING id, email, name, created_at`,
             [email, hashedPassword, name]
@@ -104,7 +104,7 @@ export const loginUser = async (req, res) => {
         }
 
         const result = await client.query(
-            'SELECT id, email, password, name FROM users WHERE email = $1',
+            'SELECT id, email, password, name FROM sys_users WHERE email = $1',
             [email]
         );
 
@@ -141,7 +141,7 @@ export const loginUser = async (req, res) => {
         );
 
         await client.query(
-            'UPDATE users SET last_login = NOW() WHERE id = $1',
+            'UPDATE sys_users SET last_login = NOW() WHERE id = $1',
             [user.id]
         );
 
@@ -176,7 +176,7 @@ export const getProfile = async (req, res) => {
         const userId = req.user.id;
 
         const result = await client.query(
-            'SELECT id, email, name, created_at, last_login FROM users WHERE id = $1',
+            'SELECT id, email, name, created_at, last_login FROM sys_users WHERE id = $1',
             [userId]
         );
 
