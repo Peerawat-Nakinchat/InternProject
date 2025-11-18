@@ -1,32 +1,65 @@
-import { UserModel } from '../models/UserModel.js';
-import { MemberModel } from '../models/MemberModel.js';
-import { comparePassword, hashPassword } from '../config/auth.js';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token.js';
-import { v4 as uuidv4 } from 'uuid';
+import * as UserModel from '../models/UserModel.js';
+import * as TokenModel from '../models/TokenModel.js';
+import { hashPassword, comparePassword } from '../utils/crypto.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/token.js';
 
-export const AuthService = {
-  async register(email, password, name) {
-    const hashed = await hashPassword(password);
-    return await UserModel.create(email, hashed, name);
-  },
+/**
+ * Registers a new user.
+ */
+const register = async (userData) => {
+    const existingUser = await UserModel.findByEmail(userData.email);
+    if (existingUser) {
+        throw new Error('User with this email already exists.');
+    }
+    const passwordHash = await hashPassword(userData.password);
+    const newUser = await UserModel.createUser({
+        ...userData,
+        passwordHash
+    });
+    return newUser;
+};
 
-  async login(email, password) {
+/**
+ * Logs in a user.
+ */
+const login = async (email, password) => {
     const user = await UserModel.findByEmail(email);
-    if (!user) throw new Error('User not found');
-    const ok = await comparePassword(password, user.password);
-    if (!ok) throw new Error('Invalid password');
+    if (!user || !(await comparePassword(password, user.password_hash))) {
+        throw new Error('Invalid email or password.');
+    }
 
-    const companies = await MemberModel.getUserCompanies(user.id);
-    const accessToken = generateAccessToken({ user_id: user.id });
-    const refreshToken = generateRefreshToken({ user_id: user.id, jti: uuidv4() });
-    const expiresAt = new Date(Date.now() + 7*24*60*60*1000);
-    await MemberModel.saveRefreshToken(user.id, refreshToken, expiresAt);
-    return { user, companies, accessToken, refreshToken };
-  },
+    const payload = { 
+        user_id: user.user_id, 
+        email: user.email, 
+        role_id: user.role_id 
+    };
 
-  async refresh(refreshToken) {
-    const payload = verifyRefreshToken(refreshToken);
-    const accessToken = generateAccessToken({ user_id: payload.user_id });
-    return { accessToken };
-  }
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken({ user_id: user.user_id, role_id: user.role_id });
+    
+    await TokenModel.saveRefreshToken(user.user_id, refreshToken);
+
+    const safeUser = {
+        user_id: user.user_id,
+        email: user.email,
+        full_name: user.full_name,
+        role_id: user.role_id,
+    };
+
+    return { accessToken, refreshToken, user: safeUser };
+};
+
+const logout = async (refreshToken) => {
+    await TokenModel.deleteRefreshToken(refreshToken);
+};
+
+const logoutAll = async (userId) => {
+    await TokenModel.deleteAllTokensForUser(userId);
+};
+
+
+export {
+    register,
+    login,
+    logout,
 };

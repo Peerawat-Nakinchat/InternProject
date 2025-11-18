@@ -1,87 +1,144 @@
-import { UserModel } from '../models/UserModel.js';
-import { MemberModel } from '../models/MemberModel.js';
-import { hashPassword, comparePassword } from '../config/auth.js';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token.js';
-import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-dotenv.config();
+import * as AuthService from '../services/AuthService.js';
 
-const REFRESH_EXPIRES = process.env.REFRESH_EXPIRES || '7d';
-
-export const AuthController = {
-  async register(req, res) {
+/**
+ * Handles user registration request.
+ * POST /api/auth/register
+ */
+const registerUser = async (req, res) => {
     try {
-      const { email, password, name } = req.body;
-      if (!email || !password) return res.status(400).json({ error: 'email and password required' });
-      const existing = await UserModel.findByEmail(email);
-      if (existing) return res.status(400).json({ error: 'Email already registered' });
+        const { email, password, name, surname } = req.body;
 
-      const hashed = await hashPassword(password);
-      const user = await UserModel.create(email, hashed, name);
-      return res.status(201).json({ user });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+        if (!email || !password || !name || !surname) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'กรุณากรอกข้อมูลให้ครบถ้วน: อีเมล, รหัสผ่าน, ชื่อ, และนามสกุล' 
+            });
+        }
+
+        const newUser = await AuthService.register({ email, password, name, surname });
+        
+        res.status(201).json({ 
+            success: true, 
+            message: 'ลงทะเบียนสำเร็จ', 
+            user: newUser 
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error.message);
+        if (error.message.includes('exists')) {
+            return res.status(409).json({ success: false, message: 'อีเมลนี้ถูกใช้แล้ว' });
+        }
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลงทะเบียน' });
     }
-  },
+};
 
-  async login(req, res) {
+/**
+ * Handles user login request.
+ * POST /api/auth/login
+ */
+const loginUser = async (req, res) => {
     try {
-      const { email, password } = req.body;
-      const user = await UserModel.findByEmail(email);
-      if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+        const { email, password } = req.body;
 
-      const ok = await comparePassword(password, user.password);
-      if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
+        if (!email || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'กรุณากรอกอีเมลและรหัสผ่าน' 
+            });
+        }
 
-      const companies = await MemberModel.getUserCompanies(user.id);
+        const { accessToken, refreshToken, user } = await AuthService.login(email, password);
+        
+        res.status(200).json({
+            success: true,
+            message: 'เข้าสู่ระบบสำเร็จ',
+            accessToken: accessToken, 
+            refreshToken: refreshToken, 
+            user: user,
+        });
 
-      const accessToken = generateAccessToken({ user_id: user.id });
-      const refreshToken = generateRefreshToken({ user_id: user.id, jti: uuidv4() });
-
-      // store refresh token with expiry (simple: uses jwt expiry)
-      const decoded = JSON.parse(JSON.stringify({})); // placeholder
-      const expiresAt = new Date(Date.now() + 7*24*60*60*1000);
-      await MemberModel.saveRefreshToken(user.id, refreshToken, expiresAt);
-
-      return res.json({
-        user: { id: user.id, email: user.email, name: user.name },
-        accessToken,
-        refreshToken,
-        companies
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+    } catch (error) {
+        console.error('Login error:', error.message);
+        if (error.message.includes('Invalid')) {
+            return res.status(401).json({ success: false, message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+        }
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
     }
-  },
+};
 
-  async refresh(req, res) {
+/**
+ * Handles token refresh request.
+ * POST /api/auth/token
+ */
+const refreshAccessToken = (req, res) => {
+    const newAccessToken = res.locals.newAccessToken;
+
+    if (!newAccessToken) {
+        return res.status(403).json({ success: false, message: 'ไม่สามารถสร้าง Access Token ใหม่ได้' });
+    }
+    
+    res.status(200).json({
+        success: true,
+        message: 'Access Token ถูกรีเฟรชแล้ว',
+        accessToken: newAccessToken,
+    });
+};
+
+/**
+ * Get user profile (Protected route for testing auth)
+ * GET /api/auth/profile
+ */
+const getProfile = async (req, res) => {
+    res.json({
+        success: true,
+        message: 'ข้อมูลโปรไฟล์',
+        user: req.user,
+    });
+};
+
+const logoutUser = async (req, res) => {
     try {
-      const { refreshToken } = req.body;
-      if (!refreshToken) return res.status(400).json({ error: 'refreshToken required' });
+        const { refreshToken } = req.body;
 
-      const saved = await MemberModel.findRefreshToken(refreshToken);
-      if (!saved) return res.status(401).json({ error: 'Invalid refresh token' });
+        if (!refreshToken) {
+            return res.status(400).json({ success: false, message: 'ต้องส่ง Refresh Token' });
+        }
 
-      // verify JWT
-      const payload = verifyRefreshToken(refreshToken);
-      const accessToken = generateAccessToken({ user_id: payload.user_id });
-      return res.json({ accessToken });
-    } catch (err) {
-      console.error(err);
-      res.status(401).json({ error: 'Invalid token' });
+        await AuthService.logout(refreshToken);
+
+        res.status(200).json({
+            success: true,
+            message: 'ออกจากระบบสำเร็จ'
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการออกจากระบบ' });
     }
-  },
+};
 
-  async logout(req, res) {
+const logoutAllUser = async (req, res) => {
     try {
-      const { refreshToken } = req.body;
-      if (refreshToken) await MemberModel.revokeRefreshToken(refreshToken);
-      return res.json({ ok: true });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+        const userId = req.user.user_id;
+
+        await AuthService.logoutAll(userId);
+
+        res.status(200).json({
+            success: true,
+            message: 'ออกจากระบบทุกอุปกรณ์สำเร็จ'
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
     }
-  }
+};
+
+
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    logoutAllUser,
+    refreshAccessToken,
+    getProfile,
 };
