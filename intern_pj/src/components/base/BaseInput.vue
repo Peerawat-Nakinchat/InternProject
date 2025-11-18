@@ -10,7 +10,6 @@
       v-model="innerValue"
       class="w-80 rounded-xl border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
     />
-
     <p v-if="error" class="text-xs text-red-500">
       {{ error }}
     </p>

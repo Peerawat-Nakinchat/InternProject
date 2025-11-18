@@ -81,7 +81,17 @@ async function initializeDatabase() {
             );
         `);
 
-        console.log('PostgreSQL: All tables (roles, users, orgs, members) checked/created successfully.');
+        // ✅ FIX 3: เพิ่มตาราง sys_refresh_tokens
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sys_refresh_tokens (
+                token_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                user_id UUID NOT NULL REFERENCES sys_users(user_id),
+                refresh_token TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        console.log('PostgreSQL: All tables (roles, users, orgs, members, refresh_tokens) checked/created successfully.');
 
     } catch (error) {
         console.error('PostgreSQL: Error during database initialization:', error.message);
