@@ -31,12 +31,9 @@
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
           </label>
 
-          <button
-            type="button"
-            class="font-medium text-primary-600 text-primary-400 hover:underline"
-          >
+          <a href="" class="font-medium text-primary-600 text-primary-400 hover:underline">
             ลืมรหัสผ่าน?
-          </button>
+          </a>
         </div>
 
         <BaseButton type="submit" variant="Submit" class="w-full"> เข้าสู่ระบบ </BaseButton>
