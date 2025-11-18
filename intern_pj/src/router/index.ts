@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import HomePage from '@/pages/HomePage.vue'
+import path from 'path'
 
 const routes = [
   {
@@ -21,10 +22,17 @@ const routes = [
     component: () => import('@/pages/RegisterPage.vue'),
     //meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
   },
+
   {
     path: '/profile',
     name: 'profile',
     component: () => import('@/pages/ProfilePage.vue'),
+    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
+  },
+  {
+    path: '/company',
+    name: 'company',
+    component: () => import('@/pages/CompanyPage.vue'),
     //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
 ]

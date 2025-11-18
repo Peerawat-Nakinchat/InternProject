@@ -1,12 +1,10 @@
 <template>
   <div class="flex flex-col min-h-screen">
-
     <!-- Navbar -->
     <Navbar />
 
     <!-- Sidebar + Content -->
     <div class="flex flex-1">
-
       <!-- Sidebar -->
       <Sidebar />
 
@@ -14,12 +12,11 @@
       <main class="flex-1 bg-gray-200 p-6 overflow-auto">
         <router-view />
       </main>
-
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Navbar from '@/components/Navbar.vue'
 import Sidebar from '@/components/Sidebar.vue'
 </script>

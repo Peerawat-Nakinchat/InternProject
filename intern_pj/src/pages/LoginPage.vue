@@ -1,6 +1,6 @@
 <template>
   <div>
-    <AuthLayout>
+    <AuthLayout variant="Login">
       <form class="space-y-5" @submit.prevent="handleLogin">
         <header class="space-y-1 text-left">
           <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>
@@ -69,10 +69,7 @@
         <div class="register text-center">
           <p class="text-xs text-slate-500">
             ยังไม่มีบัญชีใช่ไหม?
-            <router-link
-              to="/registerPage"
-              class="font-medium text-purple-600 hover:underline"
-            >
+            <router-link to="/registerPage" class="font-medium text-purple-600 hover:underline">
               ลงทะเบียน
             </router-link>
           </p>
