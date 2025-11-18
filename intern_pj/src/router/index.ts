@@ -18,6 +18,11 @@ const routes = [
     name: 'registerPage',
     component: () => import('@/pages/RegisterPage.vue'),
   },
+  {
+    path: '/company',
+    name: 'company',
+    component: () => import('@/pages/CompanyPage.vue'),
+  },
 ]
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
