@@ -2,22 +2,28 @@ import express from 'express';
 import { 
     registerUser, 
     loginUser, 
-    getProfile, 
-    refreshAccessToken,
+    getProfile,
     logoutUser,
     logoutAllUser
 } from '../controllers/AuthController.js';
+
+import { refreshAccessToken } from '../middleware/refreshTokenMiddleware.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { refreshAccessToken as refreshMiddleware } from '../middleware/refreshTokenMiddleware.js';
 
 const router = express.Router();
 
-// Public Routes
+// Public
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 
-router.post('/token', refreshMiddleware, refreshAccessToken);
+// Refresh Token Route
+router.post('/token', refreshAccessToken, (req, res) => {
+    return res.json({
+        success: true,
+        accessToken: res.locals.newAccessToken,
+    });
+});
 
 // Protected
 router.post('/logout-all', protect, logoutAllUser);
