@@ -7,12 +7,18 @@
         </header>
 
         <!-- แสดง Error Message -->
-        <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div
+          v-if="errorMessage"
+          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+        >
           {{ errorMessage }}
         </div>
 
         <!-- แสดง Success Message -->
-        <div v-if="successMessage" class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+        <div
+          v-if="successMessage"
+          class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
+        >
           {{ successMessage }}
         </div>
 
@@ -55,12 +61,7 @@
           </a>
         </div>
 
-        <BaseButton 
-          type="submit" 
-          variant="Submit" 
-          class="w-full" 
-          :disabled="isLoading"
-        > 
+        <BaseButton type="submit" variant="Submit" class="w-full" :disabled="isLoading">
           <span v-if="isLoading">กำลังเข้าสู่ระบบ...</span>
           <span v-else>เข้าสู่ระบบ</span>
         </BaseButton>
@@ -180,7 +181,7 @@ const handleLogin = async () => {
 
     if (result?.success) {
       successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
-      
+
       // Redirect to home page
       setTimeout(() => {
         router.push('/')

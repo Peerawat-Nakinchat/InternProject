@@ -22,29 +22,16 @@
           type="text"
           placeholder="ตั้งรหัสบริษัท (เช่น CMP001)"
         />
+        <div class="w-full space-y-1">
+          <label class="block text-xs font-medium text-neutral-700"> ที่อยู่บริษัท</label>
+          <BaseInput v-model="form.org_address1" type="text" placeholder="ที่อยู่ 1" />
+          <BaseInput v-model="form.org_address2" type="text" placeholder="ที่อยู่ 2" />
 
-        <BaseInput
-          v-model="form.org_address1"
-          label="ที่อยู่บริษัท 1"
-          type="text"
-          placeholder="ที่อยู่ 1"
-        />
-        <BaseInput
-          v-model="form.org_address2"
-          label="ที่อยู่บริษัท 2"
-          type="text"
-          placeholder="ที่อยู่ 2"
-        />
-
-        <BaseInput
-          v-model="form.org_address3"
-          label="ที่อยู่บริษัท 3"
-          type="text"
-          placeholder="ที่อยู่ 3"
-        />
+          <BaseInput v-model="form.org_address3" type="text" placeholder="ที่อยู่ 3" />
+        </div>
 
         <div class="w-full space-y-1">
-          <label class="block text-xs font-medium text-neutral-700"> Integrate</label>
+          <label class="block text-xs font-medium text-neutral-700"> Integrate System</label>
 
           <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
             <template #trigger>
@@ -84,25 +71,30 @@
           </BaseDropdown>
         </div>
 
+        <div class="flex w-full justify-between gap-4">
+          <div class="flex-1/2">
+            <BaseInput
+              v-model="form.org_integrate_provider_id"
+              label="Integration Provider"
+              type="text"
+              placeholder="กรอก Provider ID"
+            />
+          </div>
+          <div class="flex-1/2">
+            <BaseInput
+              v-model="form.org_integrate_passcode"
+              label="Integration Passcode"
+              type="password"
+              placeholder="กรอกรหัสจากระบบภายนอก"
+            />
+          </div>
+        </div>
+
         <BaseInput
           v-model="form.org_integrate_url"
           label="Integration URL"
           type="url"
           placeholder="https://..."
-        />
-
-        <BaseInput
-          v-model="form.org_integrate_provider_id"
-          label="Integration Provider ID"
-          type="text"
-          placeholder="กรอก Provider ID"
-        />
-
-        <BaseInput
-          v-model="form.org_integrate_passcode"
-          label="Integration Passcode / Secret"
-          type="password"
-          placeholder="กรอกรหัสลับจากระบบภายนอก"
         />
 
         <BaseButton type="submit" variant="Submit" class="w-full" :loading="loading">

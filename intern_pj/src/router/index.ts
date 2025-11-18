@@ -13,19 +13,19 @@ const routes = [
     path: '/login',
     name: 'login',
     component: () => import('@/pages/LoginPage.vue'),
-    meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
+    //meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
   },
   {
     path: '/registerPage',
     name: 'registerPage',
     component: () => import('@/pages/RegisterPage.vue'),
-    meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
+    //meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
   },
   {
     path: '/profile',
     name: 'profile',
     component: () => import('@/pages/ProfilePage.vue'),
-    meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
+    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
 ]
 
@@ -37,7 +37,7 @@ const router = createRouter({
 // Navigation Guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
-  
+
   // ตรวจสอบว่ามี token และ user หรือไม่
   const isAuthenticated = authStore.isAuthenticated
 
