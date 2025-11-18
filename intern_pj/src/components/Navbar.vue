@@ -3,7 +3,7 @@
         <button @click="toggleRail" class="p-2 hover:bg-gray-700 rounded transition-colors">
           <i :class="railState.value ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
     </button>
-    <span class="font-bold text-sm uppercase">ISO: International Organization for Standardization</span>
+    <span class="font-bold text-sm uppercase">ISO: International Organization for Standardization OO</span>
     <div class="flex items-center space-x-2">
      <button class="flex items-center px-2 py-1 bg-green-600 rounded text-white text-sm hover:bg-green-700">
       <i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Approve Document

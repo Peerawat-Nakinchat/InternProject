@@ -7,7 +7,7 @@
        class="w-12 h-12 mx-auto"/>
     </template>
     <template v-else>
-     <div class="text-center font-bold text-lg">MANGO ISO</div>
+     <div class="text-center font-bold text-lg">MANGO ISOOO</div>
     </template>
    </div>
    <hr class="border-gray-500" />
