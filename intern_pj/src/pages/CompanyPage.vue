@@ -2,7 +2,7 @@
   <div>
     <AuthLayout variant="Company">
       <form class="space-y-3" @submit.prevent="onSubmit">
-        <header class="space-y-1 text-center">
+        <header class="space-y-1 text-left">
           <h1 class="mb-4 text-xl font-semibold tracking-tight text-neutral-900">
             สร้างบริษัทใหม่
           </h1>
@@ -105,7 +105,12 @@
           placeholder="กรอกรหัสลับจากระบบภายนอก"
         />
 
-        <BaseButton type="submit" variant="Submit" class="w-full"> สร้างบริษัท </BaseButton>
+        <BaseButton type="submit" variant="Submit" class="w-full" :loading="loading">
+          สร้างบริษัท
+        </BaseButton>
+        <p v-if="errorMessage" class="mt-2 text-sm text-red-500">
+          {{ errorMessage }}
+        </p>
       </form>
     </AuthLayout>
   </div>
@@ -118,24 +123,8 @@ import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseDropdown from '@/components/base/BaseDropdown.vue'
 
-interface CreateCompanyForm {
-  org_id: string
-  org_name: string
-  org_code: string
-  owner_user_id: string
-  org_address1: string
-  org_address2: string
-  org_address3: string
-  org_intergrate: string
-  org_integrate_url: string
-  org_integrate_provider_id: string
-  org_integrate_passcode: string
-}
-
-interface IntegrationOption {
-  label: string
-  value: string
-}
+import type { CreateCompanyForm, IntegrationOption } from '@/types/company'
+import { createCompany } from '@/services/useCompany'
 
 const form = reactive<CreateCompanyForm>({
   org_id: '',
@@ -168,7 +157,22 @@ const onSelectIntegration = (option: IntegrationOption) => {
   form.org_intergrate = option.value
 }
 
-const onSubmit = () => {
-  console.log('submit create company form', { ...form })
+const loading = ref(false)
+const errorMessage = ref<string | null>(null)
+
+const onSubmit = async () => {
+  errorMessage.value = null
+  loading.value = true
+
+  try {
+    const result = await createCompany({ ...form })
+    console.log('สร้างบริษัทสำเร็จ', result)
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      errorMessage.value = err.message
+    } else {
+      errorMessage.value = 'เกิดข้อผิดพลาดในการสร้างบริษัท'
+    }
+  }
 }
 </script>
