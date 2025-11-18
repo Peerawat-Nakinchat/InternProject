@@ -70,7 +70,7 @@
             ยังไม่มีบัญชีใช่ไหม?
             <router-link
               to="/registerPage"
-              class="font-medium text-purple-600 text-purple-400 hover:underline"
+              class="font-medium text-purple-600 hover:underline"
             >
               ลงทะเบียน
             </router-link>
