@@ -1,25 +1,13 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-primary-50">
-    <div class="w-full max-w-4xl mx-auto">
+    <div class="w-full max-w-md mx-4">
       <div class="mb-6 text-center">
         <h1 class="text-xl font-semibold tracking-tight text-neutral-900">MANGO ISO</h1>
         <!-- <p class="text-xs text-slate-500">Login Page</p> -->
       </div>
 
-      <div class="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-xl">
-        <div class="flex flex-col overflow-y-auto md:flex-row">
-          <div class="h-32 md:h-auto md:w-1/2">
-            <img
-              aria-hidden="true"
-              class="object-cover w-full h-full"
-              src="@/assets/images/LoginERP.png"
-              alt="Office"
-            />
-          </div>
-          <div class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
-            <slot />
-          </div>
-        </div>
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <slot />
       </div>
     </div>
   </div>
