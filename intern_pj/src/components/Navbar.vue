@@ -4,7 +4,7 @@
   >
     <!-- ปุ่มเปิด/ปิด Sidebar -->
     <button @click="toggleRail" class="p-2 hover:bg-purple-600 transition-colors">
-      <i :class="railState.value ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
+      <i :class="railOpen ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
     </button>
 
     <!-- Title -->
@@ -82,12 +82,20 @@
 
 <script setup lang="ts">
 import { inject, ref, computed } from 'vue'
+import type { Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 // รับค่า railState & toggleRail จาก Parent
-const railState = inject('railState')
-const toggleRail = inject('toggleRail')
+const railState = inject<boolean | Ref<boolean>>('railState')!
+const toggleRail = inject<() => void>('toggleRail')!
+
+// Normalize rail state so template can use a boolean safely.
+// If parent provided a ref, use its .value; if provided a raw boolean, use it directly.
+const railOpen = computed(() => {
+  const maybeRef: any = railState
+  return typeof maybeRef?.value === 'boolean' ? (maybeRef.value as boolean) : (railState as boolean)
+})
 
 const router = useRouter()
 const authStore = useAuthStore()
