@@ -2,9 +2,10 @@
   <div>
     <AuthLayout>
       <form class="space-y-5" @submit.prevent>
-        <header class="space-y-1 text-left">
-          <h1 class="mb-4 text-xl font-semibold tracking-tight text-neutral-900">เข้าสู่ระบบ</h1>
+        <header class="space-y-1 text-center">
+          <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>
         </header>
+
         <BaseInput
           v-model="form.email"
           label="อีเมล"
@@ -22,21 +23,21 @@
         />
 
         <div class="flex items-center justify-between text-xs">
-          <label class="inline-flex items-center gap-2 select-none">
+            <label class="inline-flex items-center gap-2 select-none">
             <input
               v-model="form.remember"
               type="checkbox"
               class="h-3.5 w-3.5 rounded border-primary-300 text-primary-600 focus:ring-primary-500 accent-violet-500"
             />
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
-          </label>
+            </label>
 
           <button
             type="button"
             class="font-medium text-primary-600 text-primary-400 hover:underline"
           >
             ลืมรหัสผ่าน?
-          </button>
+          </a>
         </div>
 
         <BaseButton type="submit" variant="Submit" class="w-full"> เข้าสู่ระบบ </BaseButton>
@@ -44,9 +45,7 @@
         <div class="register text-center">
           <p class="text-xs text-slate-500">
             ยังไม่มีบัญชีใช่ไหม?
-            <a
-              href="/registerPage"
-              class="font-medium text-purple-600 text-purple-400 hover:underline"
+            <a href="/registerPage" class="font-medium text-purple-600 text-purple-400 hover:underline"
               >ลงทะเบียน</a
             >
           </p>
