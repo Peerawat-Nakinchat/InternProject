@@ -1,118 +1,51 @@
 <template>
-  <div class="flex h-screen bg-gray-100">
-    <!-- Side Bar -->
-    <aside :class="`bg-[#682DB5] text-white ${rail ? 'w-16' : 'w-64'} transition-all duration-300 rounded-l-lg`">
-      <div class="flex flex-col items-center py-4" :class="rail ? 'px-1' : 'px-4'">
-        <template v-if="rail">
-          <img src="/img/logoMango.png"
-               alt="MANGOISO Logo"
-               class="w-12 h-12 mx-auto"/>
-        </template>
-        <template v-else>
-          <div class="text-center font-bold text-lg">MANGO ISO</div>
-        </template>
-      </div>
-      <hr class="border-gray-500" />
-      <nav class="mt-2 flex flex-col space-y-1">
-        <template v-for="(item, index) in menuItems" :key="index">
-          <!-- Tooltip สำหรับ rail -->
-          <div v-if="rail" class="relative group">
-            <button class="flex items-center justify-center w-full p-2 hover:bg-gray-700 rounded">
-              <i :class="`${item.icon} text-xl`"></i>
-            </button>
-            <div
-              class="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap px-3 py-1 bg-[#682DB5] text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
-            >
-              {{ item.title }}
-            </div>
-          </div>
-
-          <!-- ปุ่มปกติเมื่อไม่ใช่ rail -->
-          <button v-else
-                  class="flex items-center w-full p-2 hover:bg-gray-700 rounded">
-            <i :class="`${item.icon} text-xl mr-2`"></i>
-            <span>{{ item.title }}</span>
-          </button>
-        </template>
-      </nav>
-    </aside>
-
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col">
-      <!-- App Bar -->
-      <header class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg shadow">
-        <button @click="rail = !rail" class="p-2 hover:bg-gray-700 rounded transition-colors">
-          <i :class="rail ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
-        </button>
-        <span class="font-bold text-sm uppercase">ISO: International Organization for Standardization</span>
-        <div class="flex items-center space-x-2">
-          <button class="flex items-center px-2 py-1 bg-green-600 rounded text-white text-sm hover:bg-green-700">
-            <i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Approve Document
-          </button>
-          <div class="relative group">
-            <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
-              <span class="relative">
-                <i class="mdi mdi-wrench text-orange-600 text-lg"></i>
-                <span class="absolute -top-1 -right-2 bg-red-600 text-white rounded-full text-xs px-1">128</span>
-              </span>
-              <span class="ml-1">Setup Master</span>
-            </button>
-            <!-- Dropdown -->
+<header class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg shadow">
+        <button @click="toggleRail" class="p-2 hover:bg-gray-700 rounded transition-colors">
+          <i :class="railState.value ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
+    </button>
+    <span class="font-bold text-sm uppercase">ISO: International Organization for Standardization</span>
+    <div class="flex items-center space-x-2">
+     <button class="flex items-center px-2 py-1 bg-green-600 rounded text-white text-sm hover:bg-green-700">
+      <i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Approve Document
+     </button>
+     <div class="relative group">
+      <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
+       <span class="relative">
+        <i class="mdi mdi-wrench text-orange-600 text-lg"></i>
+        <span class="absolute -top-1 -right-2 bg-red-600 text-white rounded-full text-xs px-1">128</span>
+       </span>
+       <span class="ml-1">Setup Master</span>
+      </button>
             <ul class="absolute mt-1 bg-white text-black rounded shadow hidden group-hover:block right-0 min-w-[150px]">
-              <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 1</li>
-              <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 2</li>
-            </ul>
-          </div>
-          <button class="relative p-1 hover:bg-gray-700 rounded">
-            <i class="mdi mdi-bell-outline text-yellow-400 text-lg"></i>
-            <span class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full text-xs px-1">0</span>
-          </button>
-          <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
-            <i class="mdi mdi-account-circle-outline text-blue-400 mr-1 text-lg"></i>
-            MAN01CS
-          </button>
-        </div>
-      </header>
+       <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 1</li>
+       <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 2</li>
+      </ul>
+     </div>
+     <button class="relative p-1 hover:bg-gray-700 rounded">
+      <i class="mdi mdi-bell-outline text-yellow-400 text-lg"></i>
+      <span class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full text-xs px-1">0</span>
+     </button>
+     <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
+      <i class="mdi mdi-account-circle-outline text-blue-400 mr-1 text-lg"></i>
+      MAN01CS
+     </button>
     </div>
-  </div>
+   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { inject } from 'vue';
 
-const rail = ref(true);
+// รับค่า railState และ toggleRail จาก Component แม่
+const railState = inject('railState');
+const toggleRail = inject('toggleRail');
 
-const menuItems = ref([
-  { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/home' },
-  { title: 'Custom Report', icon: 'mdi mdi-file-chart-outline', value: 'custom-report', to: '/custom_report' },
-  { title: 'E-Tax Invoice', icon: 'mdi mdi-receipt-text-outline', value: 'e-tax-invoice', to: '/e_tax_invoice' },
-  { title: 'Send Email', icon: 'mdi mdi-send', value: 'send-email', to: '/send_email' },
-  { title: 'User Management', icon: 'mdi mdi-account-multiple-outline', value: 'user-management', to: '/user_management' },
-  { title: 'Form Dictionary', icon: 'mdi mdi-form-select', value: 'form-dictionary', to: '/form_dictionary' },
-  { title: 'System Config', icon: 'mdi mdi-cog-outline', value: 'system-config', to: '/system_config' },
-  { title: 'Setup API Token', icon: 'mdi mdi-key-chain-variant', value: 'setup-api-token', to: '/setup_api_token' },
-]);
-
-const isConditionFormVisible = ref(false);
-
-const handleToolbarAction = (action) => {
-  if (action === 'report') {
-    isConditionFormVisible.value = true;
-    console.log("Condition Report Popup opened from Layout Component.");
-  } else {
-    console.log(`Toolbar Action: ${action}`);
-  }
-};
+// isConditionFormVisible และ handleToolbarAction ถูกลบออกเนื่องจากไม่ใช่หน้าที่ของ Navbar
 </script>
 
 <style scoped>
 /* ปรับขนาดไอคอน MDI */
 .mdi {
-  font-size: 20px;
-}
-
-/* เพิ่ม transition ให้ smooth */
-aside {
-  transition: width 0.3s ease-in-out;
+ font-size: 20px;
 }
 </style>
