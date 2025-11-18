@@ -1,9 +1,9 @@
 <template>
   <header
-    class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg shadow"
+    class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg "
   >
     <!-- ปุ่มเปิด/ปิด Sidebar -->
-    <button @click="toggleRail" class="p-2 hover:bg-gray-700 rounded transition-colors">
+    <button @click="toggleRail" class="p-2 hover:bg-purple-600  transition-colors">
       <i :class="railState.value ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
     </button>
 
@@ -18,10 +18,10 @@
       <button
       @click="toggleUserMenu"
       :class="[
-      'flex items-center px-3  py-1.5 text-sm font-medium rounded-lg transition-all gap-2 w-44 justify-between',
+      'flex items-center px-3  py-1.5 text-sm font-medium rounded-sm transition-all gap-2 w-44 justify-between',
       userMenuVisible
             ? 'bg-white text-[#682DB5] shadow-md border border-purple-200'
-            : 'text-white shadow-sm hover:bg-[#8a4ae0]'
+            : 'text-white  hover:bg-[#8a4ae0]'
       ]"
       >
       <!-- ไอคอนซ้าย -->

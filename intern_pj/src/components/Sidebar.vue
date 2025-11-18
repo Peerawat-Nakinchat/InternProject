@@ -17,7 +17,7 @@
 
         <!-- ใช้งาน Tooltip ตอน rail mode -->
         <Tooltip v-if="rail" :text="item.title">
-          <button class="flex items-center justify-center w-full p-2 hover:bg-gray-700 rounded">
+          <button class="flex items-center justify-center w-full p-2 hover:bg-purple-600 ">
             <i :class="`${item.icon} text-xl`"></i>
           </button>
         </Tooltip>
@@ -25,7 +25,7 @@
         <!-- normal menu -->
         <button
           v-else
-          class="flex items-center w-full p-2 hover:bg-gray-700 rounded"
+          class="flex items-center w-full p-2 hover:bg-purple-600 rounded"
         >
           <i :class="`${item.icon} text-xl mr-2`"></i>
           <span>{{ item.title }}</span>
