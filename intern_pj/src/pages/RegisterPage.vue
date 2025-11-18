@@ -1,175 +1,135 @@
 <template>
-  <div
-    class="min-h-screen bg-linear-to-br from-gray-100 to-blue-50 flex items-center justify-center p-6"
-  >
-    <div
-      class="bg-white/90 backdrop-blur shadow-2xl rounded-2xl p-10 w-full max-w-4xl border border-gray-200"
-    >
-      <h2 class="text-3xl font-semibold mb-8 text-center text-gray-700 tracking-wide">
-        Registration
-      </h2>
+  <div class="min-h-screen flex items-center justify-center p-4 bg-[#f5f2fa]">
+    <div class="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
-      <div
-        class="w-200 h-1 bg-linear-to-r from-blue-300 to-blue-500 mx-auto mt-2 mb-8 rounded-full"
-      ></div>
+      <!-- Image -->
+      <img 
+        src="@/assets/images/LoginERP.png"
+        class="w-full md:w-1/2 h-48 md:h-auto object-cover"
+      />
 
-      <form @submit.prevent="submitForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Name -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">Name</label>
-          <input
-            v-model="form.name"
-            type="text"
-            placeholder="First Name"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+      <!-- Form -->
+      <div class="w-full md:w-1/2 p-6 md:p-10 flex justify-center">
+        <form class="w-full max-w-md space-y-5" @submit.prevent="submitForm">
 
-        <!-- Surname -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">Surname</label>
-          <input
-            v-model="form.surname"
-            type="text"
-            placeholder="Surname"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+          <h2 class="text-3xl font-semibold text-center text-slate-900">ลงทะเบียน</h2>
 
-        <!-- Gender -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">Gender</label>
-          <select
-            v-model="form.sex"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          >
-            <option disabled value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
-        </div>
+          <!-- Name -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <BaseInput v-model="form.name" label="ชื่อ" placeholder="ใส่ชื่อจริง" required />
+            <BaseInput v-model="form.surname" label="นามสกุล" placeholder="ใส่นามสกุล" required />
+          </div>
 
-        <div></div>
+          <!-- Email -->
+          <BaseInput v-model="form.email" label="อีเมล" type="email" placeholder="your@example.com" required />
 
-        <!-- Address -->
-        <div class="md:col-span-2">
-          <label class="block mb-1 font-medium text-gray-600">Address</label>
+          <!-- Password -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <BaseInput v-model="form.password" label="รหัสผ่าน" type="password" placeholder="*********" required />
+            <BaseInput v-model="form.confirm_password" label="ยืนยันรหัสผ่าน" type="password" placeholder="*********" required />
+          </div>
 
-          <input
-            v-model="form.address1"
-            type="text"
-            placeholder="Address line 1"
-            class="w-full mb-3 border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
+          <!-- Gender -->
+          <div>
+            <label class="text-sm font-medium">เพศ *</label>
+            <select
+              v-model="form.sex"
+              required
+              class="w-full mt-1 border border-gray-300 rounded-xl px-4 py-3 bg-white focus:border-purple-600"
+            >
+              <option disabled value="">เลือกเพศ</option>
+              <option value="M">ชาย</option>
+              <option value="F">หญิง</option>
+              <option value="O">อื่น ๆ</option>
+            </select>
+          </div>
 
-          <input
-            v-model="form.address2"
-            type="text"
-            placeholder="Address line 2"
-            class="w-full mb-3 border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
+          <!-- Address -->
+          <div class="space-y-2">
+            <BaseInput v-model="form.address1" placeholder="บ้านเลขที่ / อาคาร / หมู่บ้าน" />
+            <BaseInput v-model="form.address2" placeholder="ตำบล / อำเภอ" @input="fetchDistricts" list="d-list" />
+            <datalist id="d-list">
+              <option v-for="d in districtOptions" :key="d" :value="d" />
+            </datalist>
 
-          <input
-            v-model="form.address3"
-            type="text"
-            placeholder="Address line 3"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+            <BaseInput v-model="form.address3" placeholder="จังหวัด / รหัสไปรษณีย์" @input="fetchProvinces" list="p-list" />
+            <datalist id="p-list">
+              <option v-for="p in provinceOptions" :key="p" :value="p" />
+            </datalist>
+          </div>
 
-        <!-- Email -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">E-mail</label>
-          <input
-            v-model="form.email"
-            type="email"
-            placeholder="email@example.com"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+          <!-- Profile Image -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">รูปโปรไฟล์</label>
 
-        <!-- Role Level -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">Role Level</label>
-          <select
-            v-model="form.role_id"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          >
-            <option disabled value="">Select role</option>
-            <option value="owner">Owner</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-            <option value="view">View</option>
-          </select>
-        </div>
+            <div
+              class="flex items-center gap-3 border border-gray-300 rounded-lg px-3 py-2 cursor-pointer hover:border-purple-500 transition w-full max-w-xs"
+              @click="$refs.fileInput.click()"
+            >
+              <template v-if="previewImage">
+                <img
+                  :src="previewImage"
+                  alt="Preview"
+                  class="w-10 h-10 rounded-full object-cover shrink-0"
+                />
+                <span class="text-xs text-gray-500 truncate">เปลี่ยนรูป</span>
+              </template>
 
-        <!-- Password -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">Password</label>
-          <input
-            v-model="form.password"
-            type="password"
-            placeholder="********"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+              <template v-else>
+                <svg class="w-6 h-6 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" />
+                </svg>
+                <span class="text-xs text-gray-500 truncate">เลือกไฟล์</span>
+              </template>
 
-        <!-- User Active -->
-        <div>
-          <label class="block mb-1 font-medium text-gray-600">User Active</label>
-          <select
-            v-model="form.is_active"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          >
-            <option value="1">Active</option>
-            <option value="0">Inactive</option>
-          </select>
-        </div>
+              <input type="file" ref="fileInput" accept="image/*" @change="uploadImage" class="hidden" />
+            </div>
+          </div>
 
-        <!-- Confirm Password -->
-        <div class="md:col-span-2">
-          <label class="block mb-1 font-medium text-gray-600">Confirm Password</label>
-          <input
-            v-model="form.confirm_password"
-            type="password"
-            placeholder="********"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200"
-          />
-        </div>
+          <BaseButton type="submit" class="w-full">สร้างบัญชี</BaseButton>
 
-        <!-- Submit button -->
-        <div class="md:col-span-2 flex justify-center mt-4">
-          <button
-            type="submit"
-            class="px-10 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-lg shadow-md transition transform hover:-translate-y-0.5 active:scale-95"
-          >
-            Create
-          </button>
-        </div>
-      </form>
+          <p class="text-center text-sm text-slate-600">
+            มีบัญชีแล้ว?
+            <a href="/login" class="text-purple-600 underline">เข้าสู่ระบบ</a>
+          </p>
+
+        </form>
+      </div>
+
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { reactive } from 'vue'
+<script setup>
+import { ref, watch } from "vue"
+import BaseInput from "@/components/base/BaseInput.vue"
+import BaseButton from "@/components/base/BaseButton.vue"
 
-const form = reactive({
-  name: '',
-  surname: '',
-  sex: '',
-  address1: '',
-  address2: '',
-  address3: '',
-  email: '',
-  role_id: '',
-  password: '',
-  confirm_password: '',
-  is_active: '1',
+const form = ref({
+  name: "", surname: "", full_name: "",
+  email: "", password: "", confirm_password: "",
+  sex: "", address1: "", address2: "", address3: "",
+  profile_image: null, agree: false,
 })
 
-const submitForm = () => {
-  console.log('Form data:', form)
-  alert('Created!')
+watch([() => form.value.name, () => form.value.surname],
+  () => form.value.full_name = `${form.value.name} ${form.value.surname}`.trim()
+)
+
+const previewImage = ref(null)
+
+const uploadImage = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    form.value.profile_image = file
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      previewImage.value = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
 }
 </script>
+
