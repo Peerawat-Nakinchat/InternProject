@@ -1,53 +1,72 @@
-import { verifyAccessToken } from '../utils/token.js'; // <--- เปลี่ยนจาก verifyToken เป็น verifyAccessToken
-import { UserModel } from '../models/UserModel.js'; // <--- เปลี่ยนจาก * as UserModel
-import AUTH_CONFIG from '../config/auth.js';
-
-const ACCESS_TOKEN_SECRET = AUTH_CONFIG.ACCESS_TOKEN_SECRET;
+import { verifyAccessToken } from '../utils/token.js';
+import { pool } from '../config/db.js';
 
 /**
- * Middleware to protect routes by verifying Access Token from the Authorization header.
- * Expected format: "Bearer <token>"
+ * Middleware ป้องกัน route ด้วย Access Token
  */
 const protect = async (req, res, next) => {
-    let token;
+    const authHeader = req.headers.authorization;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ success: false, message: 'ไม่พบ Token, กรุณาเข้าสู่ระบบ' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const decoded = verifyAccessToken(token); // payload จะมี { id: userId }
+
+        if (!decoded || !decoded.id) {
+            return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้องหรือหมดอายุ' });
+        }
+
+        const client = await pool.connect();
         try {
-            token = req.headers.authorization.split(' ')[1];
+            const result = await client.query(
+                'SELECT id, email, name, role_id, created_at, last_login FROM users WHERE id = $1',
+                [decoded.id]
+            );
 
-            // 1. Verify token using the Access Token Secret
-            const decoded = verifyAccessToken(token); // <--- เปลี่ยนจาก verifyToken เป็น verifyAccessToken (และไม่ต้องส่ง SECRET เพราะฟังก์ชันใช้ภายใน)
-
-            if (!decoded || !decoded.user_id) {
-                return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้องหรือหมดอายุ' });
-            }
-
-            // 2. Find user by ID and attach to request object
-            const user = await UserModel.findById(decoded.user_id); // <--- เปลี่ยนจาก findUserById เป็น findById
-
-            if (!user) {
+            if (result.rows.length === 0) {
                 return res.status(401).json({ success: false, message: 'ไม่พบผู้ใช้งานในระบบ' });
             }
 
-            // Remove sensitive data
-            delete user.password_hash;
-            
-            req.user = user;
-            req.user.role_id = decoded.role_id;
-            req.user.user_id = decoded.user_id; 
-
+            const user = result.rows[0];
+            req.user = user; // attach user object
             next();
-        } catch (error) {
-            console.error('Auth check error:', error);
-            return res.status(401).json({ success: false, message: 'ไม่ได้รับอนุญาตให้เข้าถึง' });
+        } finally {
+            client.release();
         }
+    } catch (error) {
+        console.error('Auth check error:', error);
+        return res.status(401).json({ success: false, message: 'ไม่ได้รับอนุญาตให้เข้าถึง' });
+    }
+};
+
+/**
+ * Middleware RBAC
+ * @param {Array} roles - array ของ role_id ที่อนุญาต
+ */
+const authorize = (roles = []) => {
+    // roles สามารถส่งเป็น string หรือ array ของ role_id
+    if (typeof roles === 'string') {
+        roles = [roles];
     }
 
-    if (!token) {
-        return res.status(401).json({ success: false, message: 'ไม่พบ Token, กรุณาเข้าสู่ระบบ' });
-    }
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: 'ไม่พบผู้ใช้งาน' });
+        }
+
+        if (!roles.includes(req.user.role_id)) {
+            return res.status(403).json({ success: false, message: 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้' });
+        }
+
+        next();
+    };
 };
 
 export {
     protect,
+    authorize
 };
