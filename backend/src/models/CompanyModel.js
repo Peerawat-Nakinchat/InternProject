@@ -1,21 +1,52 @@
+// src/models/CompanyModel.js
 import { pool } from '../config/db.js';
 
+const dbQuery = pool.query.bind(pool);
+
+/**
+ * Creates a new organization/company.
+ */
+const createOrganization = async (client, orgName, orgCode, ownerUserId) => {
+    // Accept either a client (transaction) or fallback to pool
+    const executor = client || pool;
+    const sql = `
+        INSERT INTO sys_organizations (org_name, org_code, owner_user_id)
+        VALUES ($1, $2, $3)
+        RETURNING org_id, org_name, org_code, created_date
+    `;
+    const res = await executor.query(sql, [orgName, orgCode, ownerUserId]);
+    return res.rows[0];
+};
+
+/**
+ * Finds all organizations owned by or member of a specific user.
+ */
+const findOrganizationsByUser = async (userId) => {
+    const sql = `
+        SELECT DISTINCT o.org_id, o.org_name, o.org_code, o.created_date
+        FROM sys_organizations o
+        LEFT JOIN sys_organization_members m ON o.org_id = m.org_id
+        WHERE o.owner_user_id = $1 OR m.user_id = $1
+        ORDER BY o.created_date DESC
+    `;
+    const res = await dbQuery(sql, [userId]);
+    return res.rows;
+};
+
+const deleteOrganization = async (client, orgId) => {
+    const executor = client || pool;
+
+    const sql = `
+        DELETE FROM sys_organizations
+        WHERE org_id = $1
+        RETURNING org_id
+    `;
+    const res = await executor.query(sql, [orgId]);
+    return res.rows[0]; // return null if not found
+};
+
 export const CompanyModel = {
-  async create(name, owner_id) {
-    const q = 'INSERT INTO companies (name, owner_id) VALUES ($1,$2) RETURNING id,name,owner_id,created_at';
-    const { rows } = await pool.query(q, [name, owner_id]);
-    return rows[0];
-  },
-
-  async findById(id) {
-    const q = 'SELECT id,name,owner_id,created_at FROM companies WHERE id=$1';
-    const { rows } = await pool.query(q, [id]);
-    return rows[0] || null;
-  },
-
-  async updateOwner(company_id, new_owner_id) {
-    const q = 'UPDATE companies SET owner_id=$1 WHERE id=$2 RETURNING id,name,owner_id';
-    const { rows } = await pool.query(q, [new_owner_id, company_id]);
-    return rows[0];
-  }
+    createOrganization,
+    findOrganizationsByUser,
+    deleteOrganization,
 };

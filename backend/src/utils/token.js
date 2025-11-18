@@ -1,17 +1,63 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-dotenv.config();
+import AUTH_CONFIG from '../config/auth.js';
 
-const ACCESS_SECRET = process.env.ACCESS_SECRET;
-const REFRESH_SECRET = process.env.REFRESH_SECRET;
+const {
+  ACCESS_TOKEN_SECRET,
+  ACCESS_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_SECRET,
+  REFRESH_TOKEN_EXPIRES_IN
+} = AUTH_CONFIG;
 
-export const generateAccessToken = (payload) => {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: process.env.JWT_EXPIRES || '15m' });
+/**
+ * Generates an Access Token.
+ */
+const generateAccessToken = (payload) => {
+  return jwt.sign(payload, ACCESS_TOKEN_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN
+  });
 };
 
-export const generateRefreshToken = (payload) => {
-  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: process.env.REFRESH_EXPIRES || '7d' });
+/**
+ * Generates a Refresh Token.
+ */
+const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, REFRESH_TOKEN_SECRET, {
+    expiresIn: REFRESH_TOKEN_EXPIRES_IN
+  });
 };
 
-export const verifyAccessToken = (token) => jwt.verify(token, ACCESS_SECRET);
-export const verifyRefreshToken = (token) => jwt.verify(token, REFRESH_SECRET);
+/**
+ * Verifies Access Token specifically.
+ */
+const verifyAccessToken = (token) => {
+  try {
+    return jwt.verify(token, ACCESS_TOKEN_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Verifies Refresh Token specifically.
+ */
+const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, REFRESH_TOKEN_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+export {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken
+};
+
+export default {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken
+};

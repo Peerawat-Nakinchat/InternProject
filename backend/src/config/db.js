@@ -1,30 +1,99 @@
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
-import pkg from 'pg';
-
-const { Pool } = pkg;
 
 dotenv.config();
 
+// Configuration for PostgreSQL connection
 const pool = new Pool({
-  host: process.env.DB_HOST,      // ดึงค่าจาก .env
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT,
 });
 
-// ฟังก์ชันทดสอบการเชื่อมต่อ (เรียกครั้งเดียวตอน start server)
-async function testConnection() {
-  try {
-    const client = await pool.connect();
-    console.log('✅ Database connected');
-    client.release();
-  } catch (err) {
-    console.error('❌ Database connection error:', err.message);
-  }
+/**
+ * Initializes the database by creating all tables and default roles
+ * based on the provided document schema.
+ */
+async function initializeDatabase() {
+    console.log('--- Initializing Database Schema ---');
+    try {
+        await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+        
+        // 1. Create sys_role table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sys_role (
+                role_id INT PRIMARY KEY,
+                role_name VARCHAR(50) UNIQUE NOT NULL,
+                create_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        // Insert roles
+        await pool.query(`
+            INSERT INTO sys_role (role_id, role_name)
+            VALUES (1, 'OWNER'), (2, 'ADMIN'), (3, 'USER'), (4, 'VIEWER'), (5, 'AUDITOR')
+            ON CONFLICT (role_id) DO NOTHING;
+        `);
+
+        // 2. Create sys_users table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sys_users (
+                user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NULL,
+                name VARCHAR(200) NOT NULL,
+                surname VARCHAR(200) NOT NULL,
+                full_name VARCHAR(500) NULL,
+                sex VARCHAR(10) NULL,
+                profile_image_url TEXT,
+                auth_provider VARCHAR(50) DEFAULT 'local',
+                provider_id VARCHAR(255) NULL,
+                role_id INT DEFAULT 3 NOT NULL REFERENCES sys_role(role_id),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        
+        // 3. Create sys_organizations table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sys_organizations (
+                org_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                org_name VARCHAR(1000) NOT NULL,
+                org_code VARCHAR(50) UNIQUE NOT NULL,
+                owner_user_id UUID NOT NULL REFERENCES sys_users(user_id),
+                org_integrate VARCHAR(1) DEFAULT 'N',
+                created_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 4. Create sys_organization_members table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sys_organization_members (
+                membership_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                org_id UUID NOT NULL REFERENCES sys_organizations(org_id) ON DELETE CASCADE,
+                user_id UUID NOT NULL REFERENCES sys_users(user_id) ON DELETE CASCADE,
+                role_id INT NOT NULL REFERENCES sys_role(role_id),
+                joined_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(org_id, user_id)
+            );
+        `);
+
+        console.log('PostgreSQL: All tables (roles, users, orgs, members) checked/created successfully.');
+
+    } catch (error) {
+        console.error('PostgreSQL: Error during database initialization:', error.message);
+        process.exit(1);
+    }
 }
 
-testConnection();
+// Export the query helper and initialization function
+const query = (text, params) => pool.query(text, params);
 
-// export pool ไปให้ไฟล์อื่นใช้งาน
-export default pool;
+export {
+  query,
+  pool,
+  initializeDatabase,
+};

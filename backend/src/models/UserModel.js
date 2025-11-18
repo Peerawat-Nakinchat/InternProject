@@ -1,27 +1,42 @@
-import pool from '../config/db.js';
+import { pool } from "../config/db.js";
 
-// ดึงผู้ใช้ทั้งหมด
-export async function getAllUsers() {
-  const result = await pool.query('SELECT id, name, email FROM users');
-  return result.rows;
-}
+const dbQuery = pool.query.bind(pool);
 
-// ดึงผู้ใช้ตาม id
-export async function getUserById(id) {
-  const result = await pool.query(
-    'SELECT id, name, email FROM users WHERE id = $1',
-    [id]
-  );
-  return result.rows[0] || null;
-}
+const findById = async (userId) => {
+    const res = await dbQuery(
+        `SELECT user_id, email, full_name, role_id 
+         FROM sys_users
+         WHERE user_id = $1`,
+        [userId]
+    );
+    return res.rows[0] || null;
+};
 
-// เพิ่มผู้ใช้ใหม่
-export async function createUser({ name, email, password }) {
-  const result = await pool.query(
-    `INSERT INTO users (name, email, password)
-     VALUES ($1, $2, $3)
-     RETURNING id, name, email`,
-    [name, email, password]
-  );
-  return result.rows[0];
-}
+const findByEmail = async (email) => {
+    const res = await dbQuery(
+        `SELECT user_id, email, password_hash, full_name, role_id 
+         FROM sys_users
+         WHERE email = $1`,
+        [email]
+    );
+    return res.rows[0] || null;
+};
+
+const createUser = async ({ email, passwordHash, name, surname }) => {
+    const fullName = `${name} ${surname}`;
+
+    const res = await dbQuery(
+        `INSERT INTO sys_users 
+        (email, password_hash, name, surname, full_name)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING user_id, email, full_name, role_id`,
+        [email, passwordHash, name, surname, fullName]
+    );
+    return res.rows[0];
+};
+
+export const UserModel = {
+    findByEmail,
+    findById,
+    createUser,
+};
