@@ -1,6 +1,6 @@
 <template>
   <div>
-    <AuthLayout>
+    <AuthLayout variant="Login">
       <form class="space-y-5" @submit.prevent>
         <header class="space-y-1 text-left">
           <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>

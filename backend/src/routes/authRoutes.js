@@ -3,7 +3,9 @@ import {
     registerUser, 
     loginUser, 
     getProfile, 
-    refreshAccessToken 
+    refreshAccessToken,
+    logoutUser,
+    logoutAllUser
 } from '../controllers/AuthController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { refreshAccessToken as refreshMiddleware } from '../middleware/refreshTokenMiddleware.js';
@@ -13,14 +15,12 @@ const router = express.Router();
 // Public Routes
 router.post('/register', registerUser); 
 router.post('/login', loginUser);     
-router.post('/logout', AuthController.logoutUser);
-router.post('/logout-all', authenticate, AuthController.logoutAllUser);
+router.post('/logout', logoutUser);
 
 router.post('/token', refreshMiddleware, refreshAccessToken); 
 
-// Protected Route
+// Protected Routes
+router.post('/logout-all', protect, logoutAllUser);
 router.get('/profile', protect, getProfile); 
-
-// router.post('/logout', protect, logoutUser); 
 
 export default router;
