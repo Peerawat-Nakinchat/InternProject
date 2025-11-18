@@ -12,7 +12,7 @@
 
       <!-- Main Content -->
       <main class="flex-1 p-6 overflow-auto">
-        <H1 class="text-white">minn</H1>
+        <H1 class="text-white">minnminnnnnnnnnnnn</H1>
       </main>
 
     </div>

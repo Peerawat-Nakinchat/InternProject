@@ -11,7 +11,7 @@
       <Sidebar />
 
       <!-- Main Content (ไม่ต่อจาก Navbar) -->
-      <main class="flex-1 bg-gray-100 p-6 overflow-auto">
+      <main class="flex-1 bg-gray-200 p-6 overflow-auto">
         <router-view />
       </main>
 
