@@ -32,14 +32,10 @@
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
           </label>
 
-<<<<<<< Updated upstream
-          <a type="button" class="font-medium text-primary-600 text-primary-400 hover:underline">
-=======
           <a
             type="button"
             class="font-medium text-primary-600 text-primary-400 hover:underline"
           >
->>>>>>> Stashed changes
             ลืมรหัสผ่าน?
           </a>
         </div>
