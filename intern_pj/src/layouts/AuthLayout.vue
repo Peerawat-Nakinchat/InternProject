@@ -11,7 +11,7 @@
           />
         </div>
         <div class="hidden md:block w-px bg-neutral-300"></div>
-        <div class="flex items-center justify-center p-ๅ6 sm:p-12 md:w-1/2">
+        <div class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
           <slot />
         </div>
       </div>
