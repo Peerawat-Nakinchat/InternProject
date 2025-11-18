@@ -1,41 +1,42 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import {pool} from '../config/db.js';
+import { pool } from '../config/db.js';
 
 // ฟังก์ชันสร้าง Access Token
-const generateAccessToken = (userId) => {
+export const generateAccessToken = (userId) => {
     return jwt.sign(
-        { id: userId },
-        process.env.JWT_SECRET,
-        { expiresIn: '15m' }
+        { user_id: userId },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: process.env.ACCESS_EXPIRES }
     );
 };
 
 // ฟังก์ชันสร้าง Refresh Token
-const generateRefreshToken = (userId) => {
+export const generateRefreshToken = (userId) => {
     return jwt.sign(
-        { id: userId },
-        process.env.JWT_REFRESH_SECRET,
-        { expiresIn: '7d' }
+        { user_id: userId },
+        process.env.REFRESH_TOKEN_SECRET,
+        { expiresIn: process.env.REFRESH_EXPIRES }
     );
 };
 
 // ลงทะเบียนผู้ใช้ใหม่
 export const registerUser = async (req, res) => {
     const client = await pool.connect();
-    
-    try {
-        const { email, password, name } = req.body;
 
-        if (!email || !password || !name) {
+    try {
+        const { email, password, name, surname } = req.body;
+
+        if (!email || !password || !name || !surname) {
             return res.status(400).json({
                 success: false,
                 error: 'กรุณากรอกข้อมูลให้ครบถ้วน'
             });
         }
 
+        // ตรวจสอบอีเมลซ้ำ
         const checkEmail = await client.query(
-            'SELECT id FROM sys_users WHERE email = $1',
+            'SELECT user_id FROM sys_users WHERE email = $1',
             [email]
         );
 
@@ -49,21 +50,26 @@ export const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // เพิ่มข้อมูลผู้ใช้
         const result = await client.query(
-            `INSERT INTO sys_users (email, password, name, created_at, updated_at) 
-             VALUES ($1, $2, $3, NOW(), NOW()) 
-             RETURNING id, email, name, created_at`,
-            [email, hashedPassword, name]
+            `INSERT INTO sys_users (
+                email, password_hash, name, surname, full_name, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            RETURNING user_id, email, name, surname`,
+            [email, hashedPassword, name, surname, `${name} ${surname}`]
         );
 
         const user = result.rows[0];
-        const accessToken = generateAccessToken(user.id);
-        const refreshToken = generateRefreshToken(user.id);
 
+        // สร้าง token
+        const accessToken = generateAccessToken(user.user_id);
+        const refreshToken = generateRefreshToken(user.user_id);
+
+        // บันทึก refresh token
         await client.query(
-            `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at) 
-             VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())`,
-            [user.id, refreshToken]
+            `INSERT INTO sys_refresh_tokens (user_id, refresh_token, created_at)
+             VALUES ($1, $2, NOW())`,
+            [user.user_id, refreshToken]
         );
 
         res.status(201).json({
@@ -71,11 +77,7 @@ export const registerUser = async (req, res) => {
             message: 'ลงทะเบียนสำเร็จ',
             accessToken,
             refreshToken,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name
-            }
+            user
         });
 
     } catch (error) {
@@ -92,9 +94,9 @@ export const registerUser = async (req, res) => {
 // เข้าสู่ระบบ
 export const loginUser = async (req, res) => {
     const client = await pool.connect();
-    
+
     try {
-        const { email, password, remember } = req.body;
+        const { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
@@ -103,8 +105,10 @@ export const loginUser = async (req, res) => {
             });
         }
 
+        // ดึงข้อมูลผู้ใช้
         const result = await client.query(
-            'SELECT id, email, password, name FROM sys_users WHERE email = $1',
+            `SELECT user_id, email, password_hash, name, surname
+             FROM sys_users WHERE email = $1`,
             [email]
         );
 
@@ -116,7 +120,8 @@ export const loginUser = async (req, res) => {
         }
 
         const user = result.rows[0];
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
         if (!isPasswordValid) {
             return res.status(401).json({
@@ -125,24 +130,14 @@ export const loginUser = async (req, res) => {
             });
         }
 
-        const accessToken = generateAccessToken(user.id);
-        const refreshToken = generateRefreshToken(user.id);
-        const expiresIn = remember ? '30 days' : '7 days';
+        const accessToken = generateAccessToken(user.user_id);
+        const refreshToken = generateRefreshToken(user.user_id);
 
+        // บันทึก refresh token ใหม่
         await client.query(
-            'DELETE FROM refresh_tokens WHERE user_id = $1 AND expires_at < NOW()',
-            [user.id]
-        );
-
-        await client.query(
-            `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at) 
-             VALUES ($1, $2, NOW() + INTERVAL '${expiresIn}', NOW())`,
-            [user.id, refreshToken]
-        );
-
-        await client.query(
-            'UPDATE sys_users SET last_login = NOW() WHERE id = $1',
-            [user.id]
+            `INSERT INTO sys_refresh_tokens (user_id, refresh_token, created_at)
+             VALUES ($1, $2, NOW())`,
+            [user.user_id, refreshToken]
         );
 
         res.json({
@@ -151,9 +146,10 @@ export const loginUser = async (req, res) => {
             accessToken,
             refreshToken,
             user: {
-                id: user.id,
+                user_id: user.user_id,
                 email: user.email,
-                name: user.name
+                name: user.name,
+                surname: user.surname
             }
         });
 
@@ -168,15 +164,16 @@ export const loginUser = async (req, res) => {
     }
 };
 
-// ดึงข้อมูล Profile
+// ดึง Profile
 export const getProfile = async (req, res) => {
     const client = await pool.connect();
-    
+
     try {
-        const userId = req.user.id;
+        const userId = req.user.user_id;
 
         const result = await client.query(
-            'SELECT id, email, name, created_at, last_login FROM sys_users WHERE id = $1',
+            `SELECT user_id, email, name, surname, full_name, created_at
+             FROM sys_users WHERE user_id = $1`,
             [userId]
         );
 
@@ -203,30 +200,10 @@ export const getProfile = async (req, res) => {
     }
 };
 
-// Refresh Access Token
-export const refreshAccessToken = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const newAccessToken = generateAccessToken(userId);
-
-        res.json({
-            success: true,
-            accessToken: newAccessToken
-        });
-
-    } catch (error) {
-        console.error('Refresh token error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'เกิดข้อผิดพลาดในการ refresh token'
-        });
-    }
-};
-
-// ออกจากระบบ
+// Logout
 export const logoutUser = async (req, res) => {
     const client = await pool.connect();
-    
+
     try {
         const { refreshToken } = req.body;
 
@@ -238,7 +215,7 @@ export const logoutUser = async (req, res) => {
         }
 
         await client.query(
-            'DELETE FROM refresh_tokens WHERE token = $1',
+            'DELETE FROM sys_refresh_tokens WHERE refresh_token = $1',
             [refreshToken]
         );
 
@@ -258,15 +235,15 @@ export const logoutUser = async (req, res) => {
     }
 };
 
-// ออกจากระบบทุกอุปกรณ์
+// Logout ทุกอุปกรณ์
 export const logoutAllUser = async (req, res) => {
     const client = await pool.connect();
-    
+
     try {
-        const userId = req.user.id;
+        const userId = req.user.user_id;
 
         await client.query(
-            'DELETE FROM refresh_tokens WHERE user_id = $1',
+            'DELETE FROM sys_refresh_tokens WHERE user_id = $1',
             [userId]
         );
 
