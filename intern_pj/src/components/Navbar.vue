@@ -2,61 +2,104 @@
   <header
     class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg shadow"
   >
+    <!-- ปุ่มเปิด/ปิด Sidebar -->
     <button @click="toggleRail" class="p-2 hover:bg-gray-700 rounded transition-colors">
       <i :class="railState.value ? 'mdi mdi-menu text-xl' : 'mdi mdi-chevron-left text-xl'"></i>
     </button>
-    <span class="font-bold text-sm uppercase"
-      >ISO: International Organization for Standardization</span
-    >
-    <div class="flex items-center space-x-2">
+
+    <!-- Title -->
+    <span class="font-bold text-sm uppercase">
+      ISO: International Organization for Standardization
+    </span>
+
+    <!-- --- User Menu เท่านั้น --- -->
+    <div class="relative">
+      <!-- USER BUTTON -->
       <button
-        class="flex items-center px-2 py-1 bg-green-600 rounded text-white text-sm hover:bg-green-700"
+      @click="toggleUserMenu"
+      :class="[
+      'flex items-center px-3  py-1.5 text-sm font-medium rounded-lg transition-all gap-2 w-44 justify-between',
+      userMenuVisible
+            ? 'bg-white text-[#682DB5] shadow-md border border-purple-200'
+            : 'text-white shadow-sm hover:bg-[#8a4ae0]'
+      ]"
       >
-        <i class="mdi mdi-checkbox-marked-circle-outline mr-1"></i> Approve Document
+      <!-- ไอคอนซ้าย -->
+      <i
+      :class="[
+            'mdi mdi-account-circle text-xl transition-colors',
+            userMenuVisible ? 'text-[#682DB5]' : 'text-white'
+      ]"
+      ></i>
+
+      <!-- ชื่อผู้ใช้ (จัดตรงกลาง) -->
+      <span class="flex-1 text-center">
+      {{ username }}
+      </span>
+
+      <!-- ไอคอนลูกศร -->
+      <i
+      :class="[
+            'mdi mdi-chevron-down text-sm transform transition-transform duration-200',
+            userMenuVisible ? 'rotate-180 text-[#682DB5]' : 'rotate-0 text-white'
+      ]"
+      ></i>
       </button>
-      <div class="relative group">
-        <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
-          <span class="relative">
-            <i class="mdi mdi-wrench text-orange-600 text-lg"></i>
-            <span class="absolute -top-1 -right-2 bg-red-600 text-white rounded-full text-xs px-1"
-              >128</span
-            >
-          </span>
-          <span class="ml-1">Setup Master</span>
-        </button>
-        <ul
-          class="absolute mt-1 bg-white text-black rounded shadow hidden group-hover:block right-0 min-w-[150px]"
-        >
-          <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 1</li>
-          <li class="px-4 py-2 hover:bg-gray-200 cursor-pointer">Master 2</li>
-        </ul>
-      </div>
-      <button class="relative p-1 hover:bg-gray-700 rounded">
-        <i class="mdi mdi-bell-outline text-yellow-400 text-lg"></i>
-        <span class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full text-xs px-1"
-          >0</span
-        >
-      </button>
-      <button class="flex items-center px-2 py-1 text-sm hover:bg-gray-700 rounded">
-        <i class="mdi mdi-account-circle-outline text-blue-400 mr-1 text-lg"></i>
-        MAN01CS
-      </button>
+
+      <!-- DROPDOWN -->
+      <ul
+      v-if="userMenuVisible"
+      class="absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg overflow-hidden border border-purple-200 z-50
+            origin-top animate-dropdown"
+      >
+      <li
+      class="px-4 py-3 hover:bg-[#f3e8ff] hover:text-[#682DB5] cursor-pointer flex items-center gap-2 transition-colors"
+      @click="editProfile"
+      >
+      <i class="mdi mdi-account-edit text-[#682DB5] text-lg"></i>
+      แก้ไขโปรไฟล์
+      </li>
+
+      <li
+      class="px-4 py-3 hover:bg-[#f3e8ff] hover:text-[#682DB5] cursor-pointer flex items-center gap-2 transition-colors"
+      @click="logout"
+      >
+      <i class="mdi mdi-logout text-red-500 text-lg"></i>
+      ออกจากระบบ
+      </li>
+      </ul>
+
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, ref } from 'vue'
 
-// รับค่า railState และ toggleRail จาก Component แม่
+// รับค่า railState & toggleRail จาก Parent
 const railState = inject('railState')
 const toggleRail = inject('toggleRail')
 
-// isConditionFormVisible และ handleToolbarAction ถูกลบออกเนื่องจากไม่ใช่หน้าที่ของ Navbar
+// ข้อมูล User
+const username = "MAN01CS"
+
+// Dropdown state
+const userMenuVisible = ref(false)
+const toggleUserMenu = () => {
+  userMenuVisible.value = !userMenuVisible.value
+}
+
+// ฟังก์ชันก์ใน dropdown
+const editProfile = () => {
+  alert("ไปหน้าแก้ไขโปรไฟล์")
+}
+
+const logout = () => {
+  alert("ออกจากระบบแล้ว")
+}
 </script>
 
 <style scoped>
-/* ปรับขนาดไอคอน MDI */
 .mdi {
   font-size: 20px;
 }
