@@ -11,20 +11,22 @@
       </template>
     </div>
     <hr class="border-gray-500" />
+
     <nav class="mt-2 flex flex-col space-y-1">
       <template v-for="(item, index) in menuItems" :key="index">
-        <div v-if="rail" class="relative group">
+
+        <!-- ใช้งาน Tooltip ตอน rail mode -->
+        <Tooltip v-if="rail" :text="item.title">
           <button class="flex items-center justify-center w-full p-2 hover:bg-gray-700 rounded">
             <i :class="`${item.icon} text-xl`"></i>
           </button>
-          <div
-            class="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap px-3 py-1 bg-[#682DB5] text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none"
-          >
-            {{ item.title }}
-          </div>
-        </div>
+        </Tooltip>
 
-        <button v-else class="flex items-center w-full p-2 hover:bg-gray-700 rounded">
+        <!-- normal menu -->
+        <button
+          v-else
+          class="flex items-center w-full p-2 hover:bg-gray-700 rounded"
+        >
           <i :class="`${item.icon} text-xl mr-2`"></i>
           <span>{{ item.title }}</span>
         </button>
@@ -35,8 +37,9 @@
 
 <script setup lang="ts">
 import { ref, defineProps } from 'vue'
+import Tooltip from '@/components/Tooltip.vue'
 
-// รับค่า rail ผ่าน props จาก Component แม่ (HomePage.vue)
+// รับค่า rail ผ่าน props
 const props = defineProps({
   rail: {
     type: Boolean,
@@ -44,7 +47,7 @@ const props = defineProps({
   },
 })
 
-// menuItems เก็บไว้ใน Sidebar Component เพราะเป็นข้อมูลที่ใช้เฉพาะใน Sidebar
+// รายการเมนู
 const menuItems = ref([
   { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/home' },
   {
@@ -88,12 +91,10 @@ const menuItems = ref([
 </script>
 
 <style scoped>
-/* เพิ่ม transition ให้ smooth */
 aside {
   transition: width 0.3s ease-in-out;
 }
 
-/* ปรับขนาดไอคอน MDI (ถ้าไม่ได้กำหนดใน Global Style) */
 .mdi {
   font-size: 20px;
 }
