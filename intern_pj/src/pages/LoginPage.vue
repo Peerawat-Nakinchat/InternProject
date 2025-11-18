@@ -32,7 +32,10 @@
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
           </label>
 
-          <a type="button" class="font-medium text-primary-600 text-primary-400 hover:underline">
+          <a
+            type="button"
+            class="font-medium text-primary-600 text-primary-400 hover:underline"
+          >
             ลืมรหัสผ่าน?
           </a>
         </div>
