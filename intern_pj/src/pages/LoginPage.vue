@@ -186,7 +186,7 @@ const handleLogin = async () => {
     } else {
       errorMessage.value = result?.error || 'เข้าสู่ระบบไม่สำเร็จ'
     }
-  } catch (error) {
+  } catch {
     errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
   } finally {
     isLoading.value = false
