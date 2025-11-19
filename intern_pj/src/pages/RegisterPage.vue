@@ -76,12 +76,6 @@
       </div>
 
       <!-- Email -->
-
-      <div>
-        <BaseInput v-model="form.email" label="อีเมล" type="email" placeholder="your@example.com" :disabled="isLoading"
-          required class="w-full" />
-        <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
-
        <div>
         <BaseInput
         v-model="form.email"
@@ -91,50 +85,9 @@
         :disabled="isLoading"
         required
         class="w-full"
-      />
-      <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
+        />
+        <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
        </div>
-
-
-      <!-- Password -->
-      <div class="space-y-2">
-        <div class="w-full relative">
-          <label class="text-xs font-medium text-neutral-700">รหัสผ่าน</label>
-          <input
-            :type="showPassword ? 'text' : 'password'"
-            v-model="form.password"
-            placeholder="*********"
-            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
-          />
-
-          <!-- Icon -->
-          <i
-            :class="showPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
-            @click="showPassword = !showPassword"
-          />
-          <p class="text-red-500 text-sm mt-1">{{ formErrors.password }}</p>
-        </div>
-
-        <div class="w-full relative">
-          <label class="text-xs font-medium text-neutral-700">ยืนยันรหัสผ่าน</label>
-          <input
-            :type="showConfirm ? 'text' : 'password'"
-            v-model="form.confirm_password"
-            placeholder="*********"
-            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
-          />
-
-          <!-- Icon -->
-          <i
-            :class="showConfirm ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
-            @click="showConfirm = !showConfirm"
-          />
-          <p class="text-red-500 text-sm mt-1">{{ formErrors.confirm_password }}</p>
-        </div>
-
-      </div>
         <!-- Passwords -->
         <div class="space-y-2">
           <!-- Password -->
@@ -215,6 +168,19 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const form = ref({
+  name: '',
+  surname: '',
+  full_name: '',
+  email: '',
+  password: '',
+  confirm_password: '',
+  sex: '',
+  address1: '',
+  address2: '',
+  address3: '',
+})
+
+const formErrors = ref({
   name: '',
   surname: '',
   full_name: '',
@@ -358,7 +324,7 @@ const submitForm = async () => {
         authStore.user = data.user
       }
 
-      setTimeout(() => router.push("/"), 1500)
+      setTimeout(() => router.push("/login"), 1500)
     } else {
       errorMessage.value = data.error || "การลงทะเบียนไม่สำเร็จ"
     }
