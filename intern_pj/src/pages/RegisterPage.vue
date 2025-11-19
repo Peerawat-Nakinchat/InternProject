@@ -19,26 +19,33 @@
         {{ successMessage }}
       </div>
 
-      <!-- Name -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Name -->
+      <div class="flex flex-col w-full">
         <BaseInput
           v-model="form.name"
           label="ชื่อ"
           placeholder="ใส่ชื่อจริง"
           :disabled="isLoading"
           required
-          class="w-full"
         />
+        <p class="text-red-500 text-sm mt-1">{{ formErrors.name }}</p>
+      </div>
 
+      <!-- Surname -->
+      <div class="flex flex-col w-full">
         <BaseInput
           v-model="form.surname"
           label="นามสกุล"
           placeholder="ใส่นามสกุล"
           :disabled="isLoading"
           required
-          class="w-full"
         />
+        <p class="text-red-500 text-sm mt-1">{{ formErrors.surname }}</p>
       </div>
+
+    </div>
 
       <!-- Gender -->
       <div class="space-y-1 relative">
@@ -107,7 +114,8 @@
       </div>
 
       <!-- Email -->
-      <BaseInput
+       <div>
+        <BaseInput
         v-model="form.email"
         label="อีเมล"
         type="email"
@@ -116,6 +124,9 @@
         required
         class="w-full"
       />
+      <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
+       </div>
+
 
       <!-- Password -->
       <div class="space-y-2">
@@ -134,6 +145,7 @@
             class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
             @click="showPassword = !showPassword"
           />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.password }}</p>
         </div>
 
         <div class="w-full relative">
@@ -151,6 +163,7 @@
             class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
             @click="showConfirm = !showConfirm"
           />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.confirm_password }}</p>
         </div>
       </div>
 
@@ -167,31 +180,20 @@
   </AuthLayout>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, watch, computed} from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+// Components
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
-
 const router = useRouter()
 const authStore = useAuthStore()
 
-const form = ref<{
-  name: string
-  surname: string
-  full_name: string
-  email: string
-  password: string
-  confirm_password: string
-  sex: string
-  address1: string
-  address2: string
-  address3: string
-  profile_image: string | null
-}>({
+const form = ref({
   name: '',
   surname: '',
   full_name: '',
@@ -202,10 +204,10 @@ const form = ref<{
   address1: '',
   address2: '',
   address3: '',
-  profile_image: null,
 })
 
 const open = ref(false);
+const dropdownRef = ref(null);
 
 const selectedSexLabel = computed(() => {
   if (form.value.sex === "M") return "ชาย";
@@ -214,7 +216,7 @@ const selectedSexLabel = computed(() => {
   return "";
 });
 
-const selectSex = (value: string) => {
+const selectSex = (value) => {
   form.value.sex = value;
   open.value = false;
 };
@@ -224,90 +226,126 @@ const showConfirm = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const previewImage = ref(null)
 
 // อัพเดท full_name อัตโนมัติ
 watch(
   [() => form.value.name, () => form.value.surname],
-  () => (form.value.full_name = `${form.value.name} ${form.value.surname}`.trim()),
+  () => {
+    form.value.full_name = `${form.value.name} ${form.value.surname}`.trim()
+  }
 )
 
+// ---------------------------
+// FIELD VALIDATION
+// ---------------------------
+const validateField = (field) => {
+  const value = form.value[field]
 
-// ส่งฟอร์ม
+  switch (field) {
+    case "email":
+      if (!value) formErrors.value.email = "กรุณากรอกอีเมล"
+      else if (!/^\S+@\S+\.\S+$/.test(value)) formErrors.value.email = "รูปแบบอีเมลไม่ถูกต้อง"
+      else if (/[\u0E00-\u0E7F]/.test(value)) {formErrors.value.email = "ห้ามใช้ภาษาไทยในอีเมล"}
+      else formErrors.value.email = ""
+      break
+
+    case "password":
+      if (!value) formErrors.value.password = "กรุณากรอกรหัสผ่าน"
+      else if (value.length < 6) formErrors.value.password = "ต้องมีอย่างน้อย 6 ตัวอักษร"
+      else if (/[\u0E00-\u0E7F]/.test(value)) {formErrors.value.password = "ห้ามใช้ภาษาไทยในรหัสผ่าน"}
+      else if (!/[A-Z]/.test(value)) formErrors.value.password = "ต้องมีตัวพิมพ์ใหญ่ 1 ตัว"
+      else if (!/[a-z]/.test(value)) formErrors.value.password = "ต้องมีตัวพิมพ์เล็ก 1 ตัว"
+      else if (!/[0-9]/.test(value)) formErrors.value.password = "ต้องมีตัวเลข 1 ตัว"
+      else if (!/[!@#$%^&*(),.?\":{}|<>]/.test(value)) formErrors.value.password = "ต้องมีอักขระพิเศษ 1 ตัว"
+      else formErrors.value.password = ""
+      break
+
+    case "confirm_password":
+      if (value !== form.value.password) formErrors.value.confirm_password = "รหัสผ่านไม่ตรงกัน"
+      else formErrors.value.confirm_password = ""
+      break
+
+    case "name":
+      formErrors.value.name = value ? "" : "กรุณากรอกชื่อ"
+      break
+
+    case "surname":
+      formErrors.value.surname = value ? "" : "กรุณากรอกนามสกุล"
+      break
+
+    case "sex":
+      if (!value) formErrors.value.sex = "กรุณาเลือกเพศ"
+      else if (!["M", "F", "O"].includes(value)) formErrors.value.sex = "เพศไม่ถูกต้อง"
+      else formErrors.value.sex = ""
+      break
+
+    case "user_address_1":
+    case "user_address_2":
+    case "user_address_3":
+      formErrors.value[field] = ""
+      break
+  }
+}
+
+// ---------------------------
+// REAL-TIME AUTO VALIDATION
+// ---------------------------
+watch(
+  form,
+  (newVal) => {
+    Object.keys(newVal).forEach((field) => validateField(field))
+  },
+  { deep: true }
+)
+
+// ---------------------------
+// SUBMIT FORM
+// ---------------------------
 const submitForm = async () => {
-  // Reset messages
-  errorMessage.value = ''
-  successMessage.value = ''
+  errorMessage.value = ""
+  successMessage.value = ""
 
-  // Validation
-  if (!form.value.email || !form.value.password || !form.value.name || !form.value.surname) {
-    errorMessage.value = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน'
-    return
-  }
+  // Validate all fields before submit
+  Object.keys(formErrors.value).forEach((field) => validateField(field))
 
-  if (form.value.password !== form.value.confirm_password) {
-    errorMessage.value = 'รหัสผ่านไม่ตรงกัน'
-    return
-  }
-
-  if (form.value.password.length < 6) {
-    errorMessage.value = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'
-    return
-  }
-
-  if (!form.value.sex) {
-    errorMessage.value = 'กรุณาเลือกเพศ'
+  if (Object.values(formErrors.value).some(err => err !== "")) {
+    errorMessage.value = "กรุณากรอกข้อมูลให้ถูกต้อง"
     return
   }
 
   isLoading.value = true
 
   try {
-    const response = await fetch('http://localhost:3000/api/auth/register', {
-      method: 'POST',
+    const response = await fetch("http://localhost:3000/api/auth/register", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        email: form.value.email,
-        password: form.value.password,
-        confirm_password: form.value.confirm_password,
-        name: form.value.name,
-        surname: form.value.surname,
-        sex: form.value.sex,
-        address1: form.value.address1,
-        address2: form.value.address2,
-        address3: form.value.address3,
-        profile_image: form.value.profile_image,
-      }),
+      body: JSON.stringify(form.value)
     })
 
     const data = await response.json()
 
     if (data.success) {
-      successMessage.value = 'ลงทะเบียนสำเร็จ! กำลังเปลี่ยนหน้า...'
+      successMessage.value = "ลงทะเบียนสำเร็จ! กำลังเปลี่ยนหน้า..."
 
-      // บันทึก tokens และข้อมูล user
-      if (data.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken)
-      }
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken)
-      }
+      if (data.accessToken) localStorage.setItem("accessToken", data.accessToken)
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken)
       if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user))
+        localStorage.setItem("user", JSON.stringify(data.user))
         authStore.user = data.user
       }
 
-      // Redirect to home page
-      setTimeout(() => {
-        router.push('/')
-      }, 1500)
+      setTimeout(() => router.push("/"), 1500)
     } else {
-      errorMessage.value = data.error || 'การลงทะเบียนไม่สำเร็จ'
+      errorMessage.value = data.error || "การลงทะเบียนไม่สำเร็จ"
     }
-  } catch (error) {
-    console.error('Register error:', error)
-    errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
+
+  } catch (err) {
+    console.error("Register error:", err)
+    errorMessage.value = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์"
+
   } finally {
     isLoading.value = false
   }
