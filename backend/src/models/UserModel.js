@@ -36,7 +36,7 @@ const createUser = async ({ email, passwordHash, name, surname, sex, user_addres
         `INSERT INTO sys_users 
         (email, password_hash, name, surname, full_name, sex , user_address_1, user_address_2, user_address_3)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING user_id, email, full_name, sex, role_id, is_active`,
+        RETURNING user_id, email, full_name, sex, user_address_1, user_address_2, user_address_3, role_id, is_active`,
         [email, passwordHash, name, surname, fullName, sex, user_address_1, user_address_2, user_address_3]
     );
     return res.rows[0];
