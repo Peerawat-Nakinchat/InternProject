@@ -6,20 +6,38 @@ import { generateAccessToken, generateRefreshToken } from '../utils/token.js';
 /**
  * Registers a new user.
  */
-const register = async ({ email, password, name, surname }) => {
+const register = async ({ 
+  email, 
+  password, 
+  name, 
+  surname,
+  sex,
+  user_address_1,
+  user_address_2,
+  user_address_3
+}) => {
+  // ตรวจสอบอีเมลซ้ำ
   const existingUser = await UserModel.findByEmail(email);
   if (existingUser) {
     const err = new Error('User with this email already exists.');
     err.code = 'USER_EXISTS';
     throw err;
   }
+  // Hash password
   const passwordHash = await hashPassword(password);
+
+  // สร้างผู้ใช้ใหม่
   const newUser = await UserModel.createUser({
     email,
     passwordHash,
     name,
-    surname
+    surname,
+    sex,
+    user_address_1,
+    user_address_2,
+    user_address_3
   });
+
   return newUser;
 };
 
