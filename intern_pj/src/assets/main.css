@@ -1,1 +1,13 @@
 @import 'tailwindcss';
+
+
+/* ปิด default eye icon ของ Chrome/Edge */
+input::-webkit-textfield-decoration-container {
+  display: none !important;
+}
+input::-ms-reveal {
+  display: none !important;
+}
+input::-ms-clear {
+  display: none !important;
+}
