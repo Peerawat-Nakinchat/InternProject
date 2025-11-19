@@ -49,7 +49,14 @@
           </div>
 
           <!-- Full Name -->
-          <div>
+           <base-input
+            v-model="form.full_name"
+            label="ชื่อ-นามสกุล"
+            placeholder="ชื่อ นามสกุล"
+            :disabled="isLoading"
+          />
+
+          <!--<div>
             <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-นามสกุล</label>
             <input
               v-model="form.full_name"
@@ -58,7 +65,7 @@
               placeholder="ชื่อ นามสกุล"
               :disabled="isLoading"
             />
-          </div>
+          </div>-->
 
           <!-- Role (Read-only) -->
           <div>
@@ -89,15 +96,35 @@
           </div>
 
           <!-- Action Buttons -->
+
+
+
           <div class="flex gap-4 pt-4">
-            <button
+            <base-button
+            type="submit"
+            :disabled="isLoading"
+            class="w-full"
+          >
+            <span v-if="isLoading">กำลังบันทึก...</span>
+            <span v-else>บันทึกการเปลี่ยนแปลง</span>
+          </base-button>
+            <!--<button
               type="submit"
               :disabled="isLoading"
               class="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <span v-if="isLoading">กำลังบันทึก...</span>
               <span v-else>บันทึกการเปลี่ยนแปลง</span>
-            </button>
+            </button>-->
+            <base-button
+              type="button"
+              @click="resetForm"
+              class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500 transition"
+              :disabled="isLoading"
+            >
+              รีเซ็ต
+            </base-button>
+            <!--
             <button
               type="button"
               @click="resetForm"
@@ -105,7 +132,7 @@
               :disabled="isLoading"
             >
               รีเซ็ต
-            </button>
+            </button>-->
           </div>
         </form>
       </div>
@@ -151,6 +178,9 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import BaseInput from '@/components/base/BaseInput.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
+
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -204,7 +234,7 @@ const updateProfile = async () => {
   try {
     // TODO: เรียก API อัพเดตโปรไฟล์
     // await axios.patch('/api/user/profile', { full_name: form.full_name })
-    
+
     // Mock update
     if (authStore.user) {
       authStore.user.full_name = form.full_name
@@ -212,11 +242,11 @@ const updateProfile = async () => {
     }
 
     successMessage.value = 'บันทึกข้อมูลสำเร็จ'
-    
+
     setTimeout(() => {
       successMessage.value = ''
     }, 3000)
-  } catch (error) {
+  } catch {
     errorMessage.value = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
   } finally {
     isLoading.value = false
@@ -235,10 +265,10 @@ const logoutAllDevices = async () => {
   try {
     // TODO: เรียก API logout all devices
     // await axios.post('/api/auth/logout-all')
-    
+
     await authStore.logout()
     router.push('/login')
-  } catch (error) {
+  } catch {
     alert('เกิดข้อผิดพลาด')
   }
 }
