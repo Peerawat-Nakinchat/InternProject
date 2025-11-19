@@ -25,7 +25,7 @@ export const registerUser = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { email, password, name, surname } = req.body;
+        const { email, password, name, surname, sex, user_address_1, user_address_2, user_address_3 } = req.body;
 
         if (!email || !password || !name || !surname) {
             return res.status(400).json({
@@ -53,10 +53,21 @@ export const registerUser = async (req, res) => {
         // เพิ่มข้อมูลผู้ใช้
         const result = await client.query(
             `INSERT INTO sys_users (
-                email, password_hash, name, surname, full_name, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-            RETURNING user_id, email, name, surname`,
-            [email, hashedPassword, name, surname, `${name} ${surname}`]
+                email, password_hash, name, surname, full_name, sex,
+                user_address_1, user_address_2, user_address_3, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING user_id, email, name, surname, sex`,
+            [
+                email,
+                hashedPassword,
+                name,
+                surname,
+                `${name} ${surname}`,
+                sex,
+                user_address_1,
+                user_address_2,
+                user_address_3
+            ]
         );
 
         const user = result.rows[0];
@@ -90,6 +101,7 @@ export const registerUser = async (req, res) => {
         client.release();
     }
 };
+
 
 // เข้าสู่ระบบ
 export const loginUser = async (req, res) => {

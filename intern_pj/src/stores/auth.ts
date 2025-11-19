@@ -27,6 +27,10 @@ export interface RegisterData {
   password: string
   name: string
   surname: string
+  sex: "M" | "F" | "O"
+  user_address_1?: string
+  user_address_2?: string
+  user_address_3?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
