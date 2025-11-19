@@ -17,19 +17,20 @@
 
         <!-- ใช้งาน Tooltip ตอน rail mode -->
         <Tooltip v-if="rail" :text="item.title">
-          <button class="flex items-center justify-center w-full p-2 hover:bg-purple-600 ">
+          <router-link :to="item.to" class="flex items-center justify-center w-full p-2 hover:bg-purple-600 ">
             <i :class="`${item.icon} text-xl`"></i>
-          </button>
+          </router-link>
         </Tooltip>
 
         <!-- normal menu -->
-        <button
+        <router-link
           v-else
+          :to="item.to"
           class="flex items-center w-full p-2 hover:bg-purple-600 rounded"
         >
           <i :class="`${item.icon} text-xl mr-2`"></i>
           <span>{{ item.title }}</span>
-        </button>
+        </router-link>
       </template>
     </nav>
   </aside>
@@ -51,10 +52,10 @@ const props = defineProps({
 const menuItems = ref([
   { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/home' },
   {
-    title: 'Custom Report',
+    title: 'Company',
     icon: 'mdi mdi-file-chart-outline',
-    value: 'custom-report',
-    to: '/custom_report',
+    value: 'company',
+    to: '/company',
   },
   {
     title: 'E-Tax Invoice',
