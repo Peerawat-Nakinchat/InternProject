@@ -4,48 +4,30 @@
       <h2 class="text-3xl font-semibold text-center text-slate-900">ลงทะเบียน</h2>
 
       <!-- แสดง Error Message -->
-      <div
-        v-if="errorMessage"
-        class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
-      >
+      <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
         {{ errorMessage }}
       </div>
 
       <!-- แสดง Success Message -->
-      <div
-        v-if="successMessage"
-        class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
-      >
+      <div v-if="successMessage" class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
         {{ successMessage }}
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-      <!-- Name -->
-      <div class="flex flex-col w-full">
-        <BaseInput
-          v-model="form.name"
-          label="ชื่อ"
-          placeholder="ใส่ชื่อจริง"
-          :disabled="isLoading"
-          required
-        />
-        <p class="text-red-500 text-sm mt-1">{{ formErrors.name }}</p>
-      </div>
+        <!-- Name -->
+        <div class="flex flex-col w-full">
+          <BaseInput v-model="form.name" label="ชื่อ" placeholder="ใส่ชื่อจริง" :disabled="isLoading" required />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.name }}</p>
+        </div>
 
-      <!-- Surname -->
-      <div class="flex flex-col w-full">
-        <BaseInput
-          v-model="form.surname"
-          label="นามสกุล"
-          placeholder="ใส่นามสกุล"
-          :disabled="isLoading"
-          required
-        />
-        <p class="text-red-500 text-sm mt-1">{{ formErrors.surname }}</p>
-      </div>
+        <!-- Surname -->
+        <div class="flex flex-col w-full">
+          <BaseInput v-model="form.surname" label="นามสกุล" placeholder="ใส่นามสกุล" :disabled="isLoading" required />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.surname }}</p>
+        </div>
 
-    </div>
+      </div>
 
       <!-- Gender -->
       <div class="space-y-1 relative">
@@ -54,44 +36,32 @@
         <!-- Selected box -->
         <div
           class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
-          @click="open = !open"
-        >
+          @click="open = !open">
           <span>
             {{ selectedSexLabel || 'เลือกเพศ' }}
           </span>
 
-          <svg
-            class="w-4 h-4 text-slate-500 transition-transform"
-            :class="open ? 'rotate-180' : ''"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
+          <svg class="w-4 h-4 text-slate-500 transition-transform" :class="open ? 'rotate-180' : ''" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
 
         <!-- Dropdown -->
-        <div
-          v-if="open"
-          class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
-        >
-          <div
-            class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-            @click="selectSex('M')"
-          >
+        <div v-if="open"
+          class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden">
+          <div class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+            @click="selectSex('M')">
             ชาย
           </div>
 
-          <div
-            class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-            @click="selectSex('F')"
-          >
+          <div class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+            @click="selectSex('F')">
             หญิง
           </div>
 
-          <div
-            class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-            @click="selectSex('O')"
-          >
+          <div class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+            @click="selectSex('O')">
             อื่น ๆ
           </div>
         </div>
@@ -100,17 +70,9 @@
       <!-- Address -->
       <div class="space-y-2">
         <label class="text-xs font-medium text-neutral-700">ที่อยู่</label>
-        <BaseInput
-          v-model="form.address1"
-          placeholder="บ้านเลขที่ / อาคาร / หมู่บ้าน"
-          :disabled="isLoading"
-        />
+        <BaseInput v-model="form.address1" placeholder="บ้านเลขที่ / อาคาร / หมู่บ้าน" :disabled="isLoading" />
         <BaseInput v-model="form.address2" placeholder="ตำบล / อำเภอ" :disabled="isLoading" />
-        <BaseInput
-          v-model="form.address3"
-          placeholder="จังหวัด / รหัสไปรษณีย์"
-          :disabled="isLoading"
-        />
+        <BaseInput v-model="form.address3" placeholder="จังหวัด / รหัสไปรษณีย์" :disabled="isLoading" />
       </div>
 
       <!-- Email -->
@@ -123,49 +85,61 @@
         :disabled="isLoading"
         required
         class="w-full"
-      />
-      <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
+        />
+        <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
        </div>
+        <!-- Passwords -->
+        <div class="space-y-2">
+          <!-- Password -->
+          <div class="w-full">
+            <label class="text-xs font-medium text-neutral-700">รหัสผ่าน</label>
 
+            <div class="relative">
+              <input 
+                :type="showPassword ? 'text' : 'password'" 
+                v-model="form.password" 
+                placeholder="*********"
+                class="w-full rounded-md border px-3 pr-12 h-10 text-md border-neutral-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500
+                      placeholder:text-slate-400"
+              />
 
-      <!-- Password -->
-      <div class="space-y-2">
-        <div class="w-full relative">
-          <label class="text-xs font-medium text-neutral-700">รหัสผ่าน</label>
-          <input
-            :type="showPassword ? 'text' : 'password'"
-            v-model="form.password"
-            placeholder="*********"
-            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
-          />
+              <i 
+                :class="showPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary"
+                @click="showPassword = !showPassword"
+              ></i>
+            </div>
 
-          <!-- Icon -->
-          <i
-            :class="showPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
-            @click="showPassword = !showPassword"
-          />
-          <p class="text-red-500 text-sm mt-1">{{ formErrors.password }}</p>
+            <p class="text-red-500 text-sm mt-1">{{ formErrors.password }}</p>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="w-full">
+            <label class="text-xs font-medium text-neutral-700">ยืนยันรหัสผ่าน</label>
+
+            <div class="relative">
+              <input 
+                :type="showConfirm ? 'text' : 'password'"
+                v-model="form.confirm_password"
+                placeholder="*********"
+                class="w-full rounded-md border px-3 pr-12 h-10 text-md border-neutral-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500
+                      placeholder:text-slate-400"
+              />
+
+              <i 
+                :class="showConfirm ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary"
+                @click="showConfirm = !showConfirm"
+              ></i>
+            </div>
+
+            <p class="text-red-500 text-sm mt-1">{{ formErrors.confirm_password }}</p>
+          </div>
         </div>
 
-        <div class="w-full relative">
-          <label class="text-xs font-medium text-neutral-700">ยืนยันรหัสผ่าน</label>
-          <input
-            :type="showConfirm ? 'text' : 'password'"
-            v-model="form.confirm_password"
-            placeholder="*********"
-            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
-          />
 
-          <!-- Icon -->
-          <i
-            :class="showConfirm ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
-            @click="showConfirm = !showConfirm"
-          />
-          <p class="text-red-500 text-sm mt-1">{{ formErrors.confirm_password }}</p>
-        </div>
-      </div>
 
       <BaseButton type="submit" class="w-full" :disabled="isLoading">
         <span v-if="isLoading">กำลังสร้างบัญชี...</span>
@@ -194,6 +168,19 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const form = ref({
+  name: '',
+  surname: '',
+  full_name: '',
+  email: '',
+  password: '',
+  confirm_password: '',
+  sex: '',
+  address1: '',
+  address2: '',
+  address3: '',
+})
+
+const formErrors = ref({
   name: '',
   surname: '',
   full_name: '',
@@ -246,14 +233,14 @@ const validateField = (field) => {
     case "email":
       if (!value) formErrors.value.email = "กรุณากรอกอีเมล"
       else if (!/^\S+@\S+\.\S+$/.test(value)) formErrors.value.email = "รูปแบบอีเมลไม่ถูกต้อง"
-      else if (/[\u0E00-\u0E7F]/.test(value)) {formErrors.value.email = "ห้ามใช้ภาษาไทยในอีเมล"}
+      else if (/[\u0E00-\u0E7F]/.test(value)) { formErrors.value.email = "ห้ามใช้ภาษาไทยในอีเมล" }
       else formErrors.value.email = ""
       break
 
     case "password":
       if (!value) formErrors.value.password = "กรุณากรอกรหัสผ่าน"
       else if (value.length < 6) formErrors.value.password = "ต้องมีอย่างน้อย 6 ตัวอักษร"
-      else if (/[\u0E00-\u0E7F]/.test(value)) {formErrors.value.password = "ห้ามใช้ภาษาไทยในรหัสผ่าน"}
+      else if (/[\u0E00-\u0E7F]/.test(value)) { formErrors.value.password = "ห้ามใช้ภาษาไทยในรหัสผ่าน" }
       else if (!/[A-Z]/.test(value)) formErrors.value.password = "ต้องมีตัวพิมพ์ใหญ่ 1 ตัว"
       else if (!/[a-z]/.test(value)) formErrors.value.password = "ต้องมีตัวพิมพ์เล็ก 1 ตัว"
       else if (!/[0-9]/.test(value)) formErrors.value.password = "ต้องมีตัวเลข 1 ตัว"
@@ -337,7 +324,7 @@ const submitForm = async () => {
         authStore.user = data.user
       }
 
-      setTimeout(() => router.push("/"), 1500)
+      setTimeout(() => router.push("/login"), 1500)
     } else {
       errorMessage.value = data.error || "การลงทะเบียนไม่สำเร็จ"
     }
