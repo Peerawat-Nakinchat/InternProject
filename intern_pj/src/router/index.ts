@@ -35,6 +35,12 @@ const routes = [
     component: () => import('@/pages/CompanyPage.vue'),
     //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
+  {
+    path : '/invite',
+    name : 'invite',
+    component : () => import('@/pages/InvitePage.vue'),
+    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
+  },
 ]
 
 const router = createRouter({
