@@ -13,7 +13,7 @@
     </span>
 
     <!-- User Menu -->
-    <div class="relative">
+    <div class="relative" ref="userMenuRef">
       <!-- USER BUTTON -->
       <button
         @click="toggleUserMenu"
@@ -24,7 +24,6 @@
             : 'text-white hover:bg-[#8a4ae0]',
         ]"
       >
-        <!-- ไอคอนซ้าย -->
         <i
           :class="[
             'mdi mdi-account-circle text-xl transition-colors',
@@ -32,12 +31,10 @@
           ]"
         ></i>
 
-        <!-- ชื่อผู้ใช้ (จัดตรงกลาง) -->
         <span class="flex-1 text-center truncate">
           {{ displayName }}
         </span>
 
-        <!-- ไอคอนลูกศร -->
         <i
           :class="[
             'mdi mdi-chevron-down text-sm transform transition-transform duration-200',
@@ -51,7 +48,7 @@
         v-if="userMenuVisible"
         class="absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg overflow-hidden border border-purple-200 z-50 origin-top animate-dropdown"
       >
-        <!-- User Info Section -->
+        <!-- User Info -->
         <li class="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <p class="text-xs text-gray-500">ล็อกอินด้วย</p>
           <p class="text-sm font-medium text-gray-800 truncate">{{ userEmail }}</p>
@@ -68,8 +65,8 @@
 
         <!-- Logout -->
         <li
-          class="px-4 py-3 hover:bg-[#f3e8ff] hover:text-[#682DB5] cursor-pointer flex items-center gap-2 transition-colors border-t border-gray-200"
-          @click="handleLogout"
+          class="px-4 py-3 hover:bg-red-200 hover:text-red-800 cursor-pointer flex items-center gap-2 transition-colors"
+          @click="openLogoutDialog"
         >
           <i class="mdi mdi-logout text-red-500 text-lg"></i>
           <span v-if="isLoggingOut">กำลังออกจากระบบ...</span>
@@ -78,80 +75,85 @@
       </ul>
     </div>
   </header>
+
+  <ConfirmDialog
+    v-model="showLogoutConfirm"
+    title="ยืนยันการออกจากระบบ"
+    message="คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?"
+    confirmText="ออกจากระบบ"
+    cancelText="ยกเลิก"
+    @confirm="handleLogout"
+  />
+
+
 </template>
 
 <script setup lang="ts">
-import { inject, ref, computed } from 'vue'
-import type { Ref } from 'vue'
+import { inject, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
-// รับค่า railState & toggleRail จาก Parent
-const railState = inject<boolean | Ref<boolean>>('railState')!
+// Inject
+const railState = inject('railState')!
 const toggleRail = inject<() => void>('toggleRail')!
 
-// Normalize rail state so template can use a boolean safely.
-// If parent provided a ref, use its .value; if provided a raw boolean, use it directly.
-const railOpen = computed(() => {
-  const maybeRef: any = railState
-  return typeof maybeRef?.value === 'boolean' ? (maybeRef.value as boolean) : (railState as boolean)
-})
+// States
+const showLogoutConfirm = ref(false)
+const userMenuVisible = ref(false)
+const isLoggingOut = ref(false)
+
+const userMenuRef = ref<HTMLElement | null>(null)
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Dropdown state
-const userMenuVisible = ref(false)
-const isLoggingOut = ref(false)
+// Rail
+const railOpen = computed(() => {
+  const maybeRef: any = railState
+  return typeof maybeRef?.value === 'boolean'
+    ? maybeRef.value
+    : railState
+})
 
-// Computed properties
+// Display info
 const displayName = computed(() => {
-  if (!authStore.user) return 'Guest'
-  
-  // ใช้ full_name ถ้ามี ไม่งั้นใช้ name + surname
-  if (authStore.user.full_name) {
-    return authStore.user.full_name
-  }
-  
-  if (authStore.user.name && authStore.user.surname) {
-    return `${authStore.user.name} ${authStore.user.surname}`
-  }
-  
-  // ถ้าไม่มีข้อมูลชื่อเลย ใช้ email
-  return authStore.user.email?.split('@')[0] || 'User'
+  const user = authStore.user
+  if (!user) return 'Guest'
+
+  return (
+    user.full_name ||
+    `${user.name ?? ''} ${user.surname ?? ''}`.trim() ||
+    user.email?.split('@')[0] ||
+    'User'
+  )
 })
 
-const userEmail = computed(() => {
-  return authStore.user?.email || 'guest@example.com'
-})
+const userEmail = computed(() => authStore.user?.email || 'guest@example.com')
 
-// Toggle user menu
+// Menu actions
 const toggleUserMenu = () => {
   userMenuVisible.value = !userMenuVisible.value
 }
 
-// Close menu when clicking outside
-const closeMenu = () => {
+const editProfile = () => {
   userMenuVisible.value = false
+  router.push('/profile')
 }
 
-// Edit profile
-const editProfile = () => {
-  closeMenu()
-  router.push('/profile')
+// 👇 FIX: หยุด dropdown re-render มาชน confirmdialog
+const openLogoutDialog = () => {
+  userMenuVisible.value = false
+  setTimeout(() => {
+    showLogoutConfirm.value = true
+  }, 20)
 }
 
 // Logout
 const handleLogout = async () => {
   if (isLoggingOut.value) return
 
-  closeMenu()
-  
-  const confirmed = confirm('คุณต้องการออกจากระบบใช่หรือไม่?')
-  if (!confirmed) return
-
   isLoggingOut.value = true
-
   try {
     await authStore.logout()
     router.push('/login')
@@ -160,37 +162,24 @@ const handleLogout = async () => {
     alert('เกิดข้อผิดพลาดในการออกจากระบบ')
   } finally {
     isLoggingOut.value = false
+    showLogoutConfirm.value = false
   }
 }
 
-// Close dropdown when clicking outside
-if (typeof document !== 'undefined') {
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement
-    if (!target.closest('.relative')) {
-      userMenuVisible.value = false
-    }
-  })
+// Click outside
+const handleClickOutside = (e: MouseEvent) => {
+  if (!userMenuRef.value) return
+
+  if (!userMenuRef.value.contains(e.target as Node)) {
+    userMenuVisible.value = false
+  }
 }
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
-
-<style scoped>
-.mdi {
-  font-size: 20px;
-}
-
-@keyframes dropdown {
-  from {
-    opacity: 0;
-    transform: scaleY(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scaleY(1);
-  }
-}
-
-.animate-dropdown {
-  animation: dropdown 0.15s ease-out;
-}
-</style>
