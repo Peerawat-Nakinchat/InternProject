@@ -167,7 +167,7 @@
   </AuthLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed} from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -179,7 +179,19 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const form = ref({
+const form = ref<{
+  name: string
+  surname: string
+  full_name: string
+  email: string
+  password: string
+  confirm_password: string
+  sex: string
+  address1: string
+  address2: string
+  address3: string
+  profile_image: string | null
+}>({
   name: '',
   surname: '',
   full_name: '',
@@ -190,10 +202,10 @@ const form = ref({
   address1: '',
   address2: '',
   address3: '',
+  profile_image: null,
 })
 
 const open = ref(false);
-const dropdownRef = ref(null);
 
 const selectedSexLabel = computed(() => {
   if (form.value.sex === "M") return "ชาย";
@@ -202,7 +214,7 @@ const selectedSexLabel = computed(() => {
   return "";
 });
 
-const selectSex = (value) => {
+const selectSex = (value: string) => {
   form.value.sex = value;
   open.value = false;
 };
@@ -212,7 +224,6 @@ const showConfirm = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
-const previewImage = ref(null)
 
 // อัพเดท full_name อัตโนมัติ
 watch(
