@@ -5,11 +5,11 @@ dotenv.config();
 
 // Configuration for PostgreSQL connection
 const pool = new Pool({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_DATABASE,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
 });
 
 /**
@@ -46,6 +46,9 @@ async function initializeDatabase() {
                 surname VARCHAR(200) NOT NULL,
                 full_name VARCHAR(500) NULL,
                 sex VARCHAR(10) NULL,
+                user_address_1 VARCHAR(1000) NULL,
+                user_address_2 VARCHAR(1000) NULL,
+                user_address_3 VARCHAR(1000) NULL,
                 profile_image_url TEXT,
                 auth_provider VARCHAR(50) DEFAULT 'local',
                 provider_id VARCHAR(255) NULL,
@@ -63,7 +66,13 @@ async function initializeDatabase() {
                 org_name VARCHAR(1000) NOT NULL,
                 org_code VARCHAR(50) UNIQUE NOT NULL,
                 owner_user_id UUID NOT NULL REFERENCES sys_users(user_id),
+                org_address_1 VARCHAR(1000) NULL,
+                org_address_2 VARCHAR(1000) NULL,
+                org_address_3 VARCHAR(1000) NULL,
                 org_integrate VARCHAR(1) DEFAULT 'N',
+                org_lnterate_url VARCHAR(1500),
+                org_lnterate_provider_id VARCHAR(100),
+                org_lnterate_passcode VARCHAR(50),
                 created_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                 updated_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             );
@@ -76,6 +85,14 @@ async function initializeDatabase() {
                 org_id UUID NOT NULL REFERENCES sys_organizations(org_id) ON DELETE CASCADE,
                 user_id UUID NOT NULL REFERENCES sys_users(user_id) ON DELETE CASCADE,
                 role_id INT NOT NULL REFERENCES sys_role(role_id),
+                email VARCHAR(255),
+                password_hash VARCHAR(255),
+                name VARCHAR(200),
+                surname VARCHAR(200),
+                full_name VARCHAR(500),
+                user_address_1 VARCHAR(1000),
+                user_address_2 VARCHAR(1000),
+                user_address_3 VARCHAR(1000),
                 joined_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(org_id, user_id)
             );
