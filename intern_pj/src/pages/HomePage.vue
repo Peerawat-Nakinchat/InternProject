@@ -33,9 +33,7 @@ const toggleRail = () => {
 provide('railState', railState)
 provide('toggleRail', toggleRail)
 
-// menuItems และ handleToolbarAction ถูกย้ายไปที่ Sidebar และ Navbar ตามความเหมาะสม
 </script>
 
 <style scoped>
-/* สไตล์ที่เกี่ยวข้องกับ Sidebar ถูกย้ายไปที่ Sidebar.vue */
 </style>

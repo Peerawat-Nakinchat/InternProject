@@ -246,7 +246,7 @@ const updateProfile = async () => {
     setTimeout(() => {
       successMessage.value = ''
     }, 3000)
-  } catch (error) {
+  } catch {
     errorMessage.value = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
   } finally {
     isLoading.value = false
@@ -268,7 +268,7 @@ const logoutAllDevices = async () => {
 
     await authStore.logout()
     router.push('/login')
-  } catch (error) {
+  } catch {
     alert('เกิดข้อผิดพลาด')
   }
 }
