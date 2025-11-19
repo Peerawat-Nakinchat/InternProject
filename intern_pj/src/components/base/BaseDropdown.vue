@@ -23,7 +23,8 @@
         >
           ตัวเลือก
           <svg
-            class="h-4 w-4 text-neutral-500"
+            class="h-4 w-4 text-neutral-500 transition-transform duration-200"
+            :class="{ 'rotate-180': isOpen }"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
             fill="currentColor"
@@ -57,6 +58,7 @@
       >
         <!-- ใส่รายการ dropdown ผ่าน slot -->
         <slot />
+
       </div>
     </Transition>
   </div>

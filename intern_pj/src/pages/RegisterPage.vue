@@ -76,10 +76,64 @@
       </div>
 
       <!-- Email -->
+
       <div>
         <BaseInput v-model="form.email" label="อีเมล" type="email" placeholder="your@example.com" :disabled="isLoading"
           required class="w-full" />
         <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
+
+       <div>
+        <BaseInput
+        v-model="form.email"
+        label="อีเมล"
+        type="email"
+        placeholder="your@example.com"
+        :disabled="isLoading"
+        required
+        class="w-full"
+      />
+      <p class="text-red-500 text-sm mt-1">{{ formErrors.email }}</p>
+       </div>
+
+
+      <!-- Password -->
+      <div class="space-y-2">
+        <div class="w-full relative">
+          <label class="text-xs font-medium text-neutral-700">รหัสผ่าน</label>
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            v-model="form.password"
+            placeholder="*********"
+            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
+          />
+
+          <!-- Icon -->
+          <i
+            :class="showPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
+            @click="showPassword = !showPassword"
+          />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.password }}</p>
+        </div>
+
+        <div class="w-full relative">
+          <label class="text-xs font-medium text-neutral-700">ยืนยันรหัสผ่าน</label>
+          <input
+            :type="showConfirm ? 'text' : 'password'"
+            v-model="form.confirm_password"
+            placeholder="*********"
+            class="w-full rounded-md border px-3 py-2 text-sm border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500 placeholder:text-slate-400"
+          />
+
+          <!-- Icon -->
+          <i
+            :class="showConfirm ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+            class="absolute top-1/2 right-3 -translate-y-1/2 text-xl text-gray-500 cursor-pointer hover:text-primary mt-3.5"
+            @click="showConfirm = !showConfirm"
+          />
+          <p class="text-red-500 text-sm mt-1">{{ formErrors.confirm_password }}</p>
+        </div>
+
       </div>
         <!-- Passwords -->
         <div class="space-y-2">
@@ -148,7 +202,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed} from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -160,9 +214,6 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// ---------------------------
-// FORM DATA
-// ---------------------------
 const form = ref({
   name: '',
   surname: '',
@@ -171,54 +222,34 @@ const form = ref({
   password: '',
   confirm_password: '',
   sex: '',
-  user_address_1: '',
-  user_address_2: '',
-  user_address_3: '',
+  address1: '',
+  address2: '',
+  address3: '',
 })
 
-// ---------------------------
-// FORM ERRORS (real-time)
-// ---------------------------
-const formErrors = ref({
-  email: '',
-  password: '',
-  confirm_password: '',
-  name: '',
-  surname: '',
-  sex: '',
-  user_address_1: '',
-  user_address_2: '',
-  user_address_3: '',
-})
+const open = ref(false);
+const dropdownRef = ref(null);
 
-const errorMessage = ref('')
-const successMessage = ref('')
-const isLoading = ref(false)
+const selectedSexLabel = computed(() => {
+  if (form.value.sex === "M") return "ชาย";
+  if (form.value.sex === "F") return "หญิง";
+  if (form.value.sex === "O") return "อื่น ๆ";
+  return "";
+});
+
+const selectSex = (value) => {
+  form.value.sex = value;
+  open.value = false;
+};
 
 const showPassword = ref(false)
 const showConfirm = ref(false)
-const open = ref(false)
+const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+const previewImage = ref(null)
 
-// ---------------------------
-// SEX SELECT (label)
-// ---------------------------
-const selectedSexLabel = computed(() => {
-  return {
-    M: "ชาย",
-    F: "หญิง",
-    O: "อื่น ๆ"
-  }[form.value.sex] || ""
-})
-
-const selectSex = (value) => {
-  form.value.sex = value
-  validateField("sex")
-  open.value = false
-}
-
-// ---------------------------
-// AUTO FULL NAME
-// ---------------------------
+// อัพเดท full_name อัตโนมัติ
 watch(
   [() => form.value.name, () => form.value.surname],
   () => {
