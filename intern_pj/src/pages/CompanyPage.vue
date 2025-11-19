@@ -33,42 +33,42 @@
         <div class="w-full space-y-1">
           <label class="block text-xs font-medium text-neutral-700"> Integrate System</label>
 
-          <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
+            <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
             <template #trigger>
               <button
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
+              type="button"
+              class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
               >
-                <span>
-                  {{ selectedIntegration ? selectedIntegration.label : 'เลือกการเชื่อมต่อระบบ' }}
-                </span>
-                <svg
-                  class="h-4 w-4 text-primary-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 011.133.976l-.073.084-4.25 4.25a.75.75 0 01-.976.073l-.084-.073-4.25-4.25a.75.75 0 01.02-1.06z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
+              <span>
+                {{ selectedIntegration ? selectedIntegration.label : 'เลือกการเชื่อมต่อระบบ' }}
+              </span>
+              <svg
+                :class="['h-4 w-4 text-primary-500 transform transition-transform duration-200', { 'rotate-180': isIntegrationOpen }]"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 011.133.976l-.073.084-4.25 4.25a.75.75 0 01-.976.073l-.084-.073-4.25-4.25a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+                />
+              </svg>
               </button>
             </template>
 
             <div class="py-1">
               <button
-                v-for="option in integrationOptions"
-                :key="option.value"
-                type="button"
-                class="flex w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
-                @click="onSelectIntegration(option)"
+              v-for="option in integrationOptions"
+              :key="option.value"
+              type="button"
+              class="flex w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
+              @click="onSelectIntegration(option)"
               >
-                {{ option.label }}
+              {{ option.label }}
               </button>
             </div>
-          </BaseDropdown>
+            </BaseDropdown>
         </div>
 
         <div class="flex w-full justify-between gap-4">
