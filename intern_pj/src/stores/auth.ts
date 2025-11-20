@@ -69,6 +69,15 @@ export const useAuthStore = defineStore('auth', () => {
         password: credentials.password,
       })
 
+          // ✅ Debug: ตรวจสอบ Response
+        console.group('🔐 Login Response Debug')
+        console.log('Success:', response.data.success)
+        console.log('Has Access Token?', !!response.data.accessToken)
+        console.log('Has Refresh Token?', !!response.data.refreshToken)
+        console.log('Has User?', !!response.data.user)
+        console.log('User ID:', response.data.user?.user_id)
+        console.groupEnd()
+
       if (response.data.success) {
         accessToken.value = response.data.accessToken
         refreshToken.value = response.data.refreshToken
@@ -78,6 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('accessToken', response.data.accessToken)
         localStorage.setItem('refreshToken', response.data.refreshToken)
         localStorage.setItem('user', JSON.stringify(response.data.user))
+        console.log('✅ Login สำเร็จ - Token saved')
 
         // Save remember preference
         if (credentials.remember) {
@@ -180,20 +190,29 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+
   // Refresh Access Token
-  const refreshAccessToken = async () => {
+  const refreshAccessToken = async (): Promise<boolean> => {
     if (!refreshToken.value) return false
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/token`, {
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
         refreshToken: refreshToken.value,
       })
 
-      if (response.data.success) {
+      if (response.data.success && response.data.accessToken) {
         accessToken.value = response.data.accessToken
         localStorage.setItem('accessToken', response.data.accessToken)
+        
+        // อัปเดต refresh token ใหม่ถ้ามี
+        if (response.data.refreshToken) {
+          refreshToken.value = response.data.refreshToken
+          localStorage.setItem('refreshToken', response.data.refreshToken)
+        }
+        
         return true
       }
+      return false
     } catch (err) {
       console.error('Refresh token error:', err)
       await logout()

@@ -9,19 +9,20 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
-// List members (OWNER/ADMIN/MANAGER)
+// list members
 router.get('/:orgId', requireOrganization, MemberController.listMembers);
 
-// Invite member (OWNER/ADMIN)
+// invite member
 router.post('/:orgId/invite', requireOrganization, MemberController.inviteMemberToCompany);
 
-// Change role (OWNER/ADMIN)
+// change role
+// ต้องเป็น :memberId ให้ตรงกับ controller
 router.patch('/:orgId/:memberId/role', requireOrganization, MemberController.changeMemberRole);
 
-// Remove member (OWNER/ADMIN) - cannot remove OWNER
+// delete member
 router.delete('/:orgId/:memberId', requireOrganization, MemberController.removeMember);
 
-// Transfer owner (OWNER only)
+// transfer owner
 router.post('/:orgId/transfer-owner', requireOrganization, MemberController.transferOwner);
 
 export default router;

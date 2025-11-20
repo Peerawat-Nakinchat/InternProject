@@ -1,98 +1,188 @@
 // src/controllers/CompanyController.js
 import { CompanyService } from '../services/CompanyService.js';
 
-/**
- * POST /api/companies
- */
+// POST /api/company/create
 const createCompany = async (req, res) => {
     const ownerUserId = req.user?.user_id;
-    let { orgName, orgCode } = req.body;
 
     if (!ownerUserId) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    if (!orgName || !orgCode) {
-        return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อและรหัสบริษัท' });
+    const {
+        org_name,
+        org_code,
+        org_address_1,
+        org_address_2,
+        org_address_3,
+        org_integrate,
+        org_integrate_url,
+        org_integrate_provider_id,
+        org_integrate_passcode
+    } = req.body;
+
+    if (!org_name || !org_code) {
+        return res.status(400).json({
+            success: false,
+            message: 'กรุณากรอกชื่อบริษัทและรหัสบริษัท'
+        });
     }
 
     try {
-        const company = await CompanyService.createCompanyAndAssignOwner(orgName, orgCode, ownerUserId);
+        const company = await CompanyService.createCompanyAndAssignOwner({
+            org_name,
+            org_code,
+            owner_user_id: ownerUserId,
+            org_address_1,
+            org_address_2,
+            org_address_3,
+            org_integrate,
+            org_integrate_url,
+            org_integrate_provider_id,
+            org_integrate_passcode
+        });
+
         return res.status(201).json({
             success: true,
-            message: 'สร้างบริษัทและกำหนดสิทธิ์เจ้าของสำเร็จ',
-            company
+            message: 'สร้างบริษัทสำเร็จ',
+            data: company
         });
+
     } catch (error) {
         console.error('Create company error:', error);
 
-        // Handle unique constraint violation (Postgres 23505)
         if (error?.code === '23505') {
-            return res.status(409).json({ success: false, message: 'รหัสบริษัท (Org Code) นี้ถูกใช้แล้ว' });
+            return res.status(409).json({ success: false, message: 'รหัสบริษัทซ้ำ' });
         }
 
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสร้างบริษัท' });
     }
 };
 
-/**
- * GET /api/companies
- */
+/* ==========================================================
+   GET: ดึงข้อมูลบริษัทแบบเจาะจง /api/company/:orgId
+========================================================== */
+const getCompanyById = async (req, res) => {
+    const { orgId } = req.params;
+
+    try {
+        const company = await CompanyService.getCompanyById(orgId);
+
+        if (!company) {
+            return res.status(404).json({ success: false, message: "ไม่พบบริษัทนี้" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: company
+        });
+
+    } catch (error) {
+        console.error("Get company error:", error);
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูล" });
+    }
+};
+
+/* ==========================================================
+   GET: ดึงข้อมูลบริษัททั้งหมดของ user /api/company/list
+========================================================== */
 const getUserCompanies = async (req, res) => {
     const userId = req.user?.user_id;
+
     if (!userId) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
     try {
         const companies = await CompanyService.getCompaniesForUser(userId);
+
         return res.status(200).json({
             success: true,
             data: companies
         });
+
     } catch (error) {
-        console.error('Get companies error:', error);
-        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลบริษัท' });
+        console.error("List companies error:", error);
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลบริษัท" });
     }
 };
 
-const deleteCompany = async (req, res) => {
-    const orgId = req.params.orgId;
-    const role = req.user.org_role_id; // from requireOrganization
-
-    if (!orgId) {
-        return res.status(400).json({ success: false, message: 'Organization ID required' });
-    }
+/* ==========================================================
+   PUT: อัปเดตข้อมูลบริษัท /api/company/:orgId
+========================================================== */
+const updateCompany = async (req, res) => {
+    const { orgId } = req.params;
+    const role = req.user?.org_role_id; // requireOrganization ต้องใส่ role เข้า req.user
 
     if (role !== 1) {
-        return res.status(403).json({ success: false, message: 'Allowed only for organization OWNER' });
+        return res.status(403).json({
+            success: false,
+            message: "เฉพาะ OWNER เท่านั้นที่แก้ไขข้อมูลได้"
+        });
+    }
+
+    const updates = req.body;
+
+    try {
+        const updated = await CompanyService.updateCompany(orgId, updates);
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "ไม่พบบริษัทนี้" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "อัปเดตข้อมูลสำเร็จ",
+            data: updated
+        });
+
+    } catch (error) {
+        console.error("Update company error:", error);
+
+        if (error?.code === '23505') {
+            return res.status(409).json({ success: false, message: "Org Code ซ้ำ" });
+        }
+
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดตข้อมูล" });
+    }
+};
+
+/* ==========================================================
+   DELETE: ลบบริษัท /api/company/:orgId
+========================================================== */
+const deleteCompany = async (req, res) => {
+    const { orgId } = req.params;
+    const role = req.user?.org_role_id;
+
+    if (role !== 1) {
+        return res.status(403).json({
+            success: false,
+            message: "อนุญาตเฉพาะ OWNER เท่านั้น"
+        });
     }
 
     try {
         const deleted = await CompanyService.deleteCompany(orgId);
 
         if (!deleted) {
-            return res.status(404).json({
-                success: false,
-                message: 'Organization not found',
-            });
+            return res.status(404).json({ success: false, message: "ไม่พบบริษัทนี้" });
         }
 
         return res.status(200).json({
             success: true,
-            message: 'Organization deleted successfully',
+            message: "ลบบริษัทสำเร็จ"
         });
-    } catch (err) {
-        console.error('Delete company error:', err);
-        return res.status(500).json({
-            success: false,
-            message: 'Internal server error while deleting organization',
-        });
+
+    } catch (error) {
+        console.error("Delete company error:", error);
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการลบบริษัท" });
     }
 };
 
 export {
     createCompany,
+    getCompanyById,
     getUserCompanies,
-    deleteCompany,
+    updateCompany,
+    deleteCompany
 };

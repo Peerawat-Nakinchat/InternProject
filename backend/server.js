@@ -13,9 +13,11 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 import userRoutes from './src/routes/memberRoutes.js';
 import authRoutes from './src/routes/authRoutes.js';
+import companyRoutes from './src/routes/companyRoutes.js';
 
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/company', companyRoutes);
 
 app.get('/', (req, res) => {
     res.send('API server is running');

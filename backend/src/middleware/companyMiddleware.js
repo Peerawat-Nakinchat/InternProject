@@ -2,50 +2,59 @@
 
 import { MemberModel } from '../models/MemberModel.js';
 
+// Simple UUID validator
+const isUUID = (v) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v);
+
 export const requireOrganization = async (req, res, next) => {
     try {
-        // Prefer header x-org-id to avoid spoof via body
-        const headerOrgId = req.headers['x-org-id'];
-        const queryOrgId = req.query.org_id;
-        const orgId = headerOrgId ? String(headerOrgId).trim() : (queryOrgId ? String(queryOrgId).trim() : null);
+        // ใช้ x-org-id หรือ ?org_id
+        const orgId = req.headers['x-org-id']?.trim() 
+                    || req.query.org_id?.trim();
 
         if (!orgId) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Organization ID (org_id) required (set x-org-id header or org_id query param)' 
+            return res.status(400).json({
+                success: false,
+                message: 'Organization ID (org_id) required (set x-org-id header or org_id query param)'
             });
         }
 
-        const userId = req.user?.user_id; 
+        // Validate UUID format
+        if (!isUUID(orgId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid org_id format (must be UUID)'
+            });
+        }
+
+        // ensure user exists (from protect)
+        const userId = req.user?.user_id;
         if (!userId) {
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Unauthorized (User ID missing after authentication)' 
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized (User ID missing after authentication)'
             });
         }
 
-        // ✅ FIX 2: เปลี่ยนชื่อตัวแปรเป็น roleId และใช้ org_role_id
+        // Check user role in this org
         const roleId = await MemberModel.findMemberRole(orgId, userId);
 
         if (!roleId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Forbidden: Not a member of this organization or role not found' 
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: You are not a member of this organization'
             });
         }
 
-        // Attach organization context to request
-        req.user.current_org_id = orgId;
-        
-        // ✅ FIX 2: ใช้ org_role_id แทน role เพื่อให้สอดคล้องกับ Controller
-        req.user.org_role_id = roleId; 
+        // Attach organization context
+        req.user.current_org_id = orgId; // UUID as string
+        req.user.org_role_id = roleId;
 
-        return next();
+        next();
     } catch (err) {
         console.error('Organization Context Middleware Error:', err);
-        return res.status(500).json({ 
-            success: false, 
-            message: 'Internal server error while checking organization context' 
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while checking organization context'
         });
     }
 };

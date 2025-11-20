@@ -4,30 +4,54 @@ import { CompanyModel } from '../models/CompanyModel.js';
 import { MemberModel } from '../models/MemberModel.js';
 
 /**
- * Creates an organization and assigns the owner as a member with OWNER role (role_id = 1).
- * Uses a DB transaction to ensure atomicity.
+ * Create company + Assign owner as role=1
  */
-const createCompanyAndAssignOwner = async (orgNameRaw, orgCodeRaw, ownerUserId) => {
-    const orgName = String(orgNameRaw).trim();
-    const orgCode = String(orgCodeRaw).trim();
+const createCompanyAndAssignOwner = async (data) => {
+    const {
+        org_name,
+        org_code,
+        owner_user_id,
+        org_address_1,
+        org_address_2,
+        org_address_3,
+        org_integrate,
+        org_integrate_url,
+        org_integrate_provider_id,
+        org_integrate_passcode
+    } = data;
 
     const client = await pool.connect();
+
     try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
-        // 1. create organization
-        const organization = await CompanyModel.createOrganization(client, orgName, orgCode, ownerUserId);
+        // Create organization
+        const organization = await CompanyModel.createOrganization(client, {
+            org_name,
+            org_code,
+            owner_user_id,
+            org_address_1,
+            org_address_2,
+            org_address_3,
+            org_integrate,
+            org_integrate_url,
+            org_integrate_provider_id,
+            org_integrate_passcode
+        });
 
-        // 2. add owner as member with role_id = 1 (OWNER)
-        // If addMemberToOrganization uses ON CONFLICT it will upsert the role
-        await MemberModel.addMemberToOrganization(client, organization.org_id, ownerUserId, 1);
+        // Assign owner as role_id=1
+        await MemberModel.addMemberToOrganization(
+            client,
+            organization.org_id,
+            owner_user_id,
+            1 // owner role
+        );
 
-        await client.query('COMMIT');
-
+        await client.query("COMMIT");
         return organization;
+
     } catch (err) {
-        await client.query('ROLLBACK');
-        // rethrow so controller can decide HTTP code
+        await client.query("ROLLBACK");
         throw err;
     } finally {
         client.release();
@@ -35,22 +59,41 @@ const createCompanyAndAssignOwner = async (orgNameRaw, orgCodeRaw, ownerUserId) 
 };
 
 /**
- * Returns organizations associated with a user (owner or member).
+ * Get all companies of a user
  */
 const getCompaniesForUser = async (userId) => {
     return CompanyModel.findOrganizationsByUser(userId);
 };
 
+/**
+ * Get single company by ID
+ */
+const getCompanyById = async (orgId) => {
+    return CompanyModel.findOrganizationById(orgId);
+};
+
+/**
+ * Update company
+ */
+const updateCompany = async (orgId, updates) => {
+    return CompanyModel.updateOrganization(orgId, updates);
+};
+
+/**
+ * Delete company
+ */
 const deleteCompany = async (orgId) => {
     const client = await pool.connect();
+
     try {
         await client.query("BEGIN");
 
-        // Attempt delete
+        // อาจต้องลบ member ด้วย (ถ้าไม่มี cascade)
         const deleted = await CompanyModel.deleteOrganization(client, orgId);
 
         await client.query("COMMIT");
         return deleted;
+
     } catch (err) {
         await client.query("ROLLBACK");
         throw err;
@@ -62,5 +105,7 @@ const deleteCompany = async (orgId) => {
 export const CompanyService = {
     createCompanyAndAssignOwner,
     getCompaniesForUser,
+    getCompanyById,
+    updateCompany,
     deleteCompany,
 };
