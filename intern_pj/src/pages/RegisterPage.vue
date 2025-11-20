@@ -108,13 +108,13 @@
       <div class="space-y-2">
         <label class="text-xs font-medium text-neutral-700">ที่อยู่</label>
         <BaseInput
-          v-model="form.address1"
+          v-model="form.user_address_1"
           placeholder="บ้านเลขที่ / อาคาร / หมู่บ้าน"
           :disabled="isLoading"
         />
-        <BaseInput v-model="form.address2" placeholder="ตำบล / อำเภอ" :disabled="isLoading" />
+        <BaseInput v-model="form.user_address_2" placeholder="ตำบล / อำเภอ" :disabled="isLoading" />
         <BaseInput
-          v-model="form.address3"
+          v-model="form.user_address_3"
           placeholder="จังหวัด / รหัสไปรษณีย์"
           :disabled="isLoading"
         />
@@ -225,9 +225,9 @@ const form = ref({
   password: '',
   confirm_password: '',
   sex: '',
-  address1: '',
-  address2: '',
-  address3: '',
+  user_address_1: '',
+  user_address_2: '',
+  user_address_3: '',
 })
 
 const formErrors = ref({
