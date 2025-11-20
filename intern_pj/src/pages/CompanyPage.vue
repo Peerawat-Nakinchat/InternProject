@@ -243,7 +243,7 @@ const onSubmit = async () => {
     // Reset form และ redirect หลัง 2 วินาที
     setTimeout(() => {
       resetForm()
-      router.push('/company') // หรือหน้าที่ต้องการ
+      router.push('/') // หรือหน้าที่ต้องการ
     }, 2000)
 
   } catch (err: any) {
