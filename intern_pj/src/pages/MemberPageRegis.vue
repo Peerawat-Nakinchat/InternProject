@@ -7,6 +7,7 @@
         </header>
 
         <BaseInput
+          v-model="form.org_id"
           label="รหัสบริษัท"
           type="text"
           autocomplete="company_id"
@@ -16,6 +17,7 @@
         />
 
         <BaseInput
+          v-model="form.membership_id"
           label="รหัสรายการสมาชิก"
           type="text"
           autocomplete="member_id"
@@ -25,14 +27,16 @@
         />
 
         <BaseInput
+          v-model="form.user_id"
           label="รหัสผู้ใช้ (user id)"
           type="text"
-          autocomplete="member_id"
+          autocomplete="user_id"
           placeholder=""
           required
           disabled
         />
-        <div class="space-y-4">
+
+        <div class="space-y-5">
           <div class="flex flex-row gap-4">
             <BaseInput
               v-model="form.name"
@@ -104,28 +108,29 @@
 
           <div class="space-y-1">
             <BaseInput
+              v-model="form.user_address_1"
               label="ที่อยู่ 1"
               type="text"
               autocomplete="address1"
               placeholder="ที่อยู่ 1"
-              required
             />
             <BaseInput
+              v-model="form.user_address_2"
               label="ที่อยู่ 2"
               type="text"
               autocomplete="address2"
               placeholder="ที่อยู่ 2"
-              required
             />
             <BaseInput
+              v-model="form.user_address_3"
               label="ที่อยู่ 3"
               type="text"
               autocomplete="address3"
               placeholder="ที่อยู่ 3"
-              required
             />
           </div>
         </div>
+
         <BaseInput
           v-model="form.email"
           label="อีเมล"
@@ -137,7 +142,7 @@
           @blur="validateField('email')"
         />
 
-        <div class="space-y-6 ">
+        <div class="space-y-6">
           <BaseInput
             v-model="form.password_hash"
             label="รหัสผ่าน"
@@ -179,29 +184,30 @@
 
         <div class="flex flex-row gap-4">
           <BaseInput
+            v-model="form.role_id"
             label="ตำแหน่ง"
             type="text"
             autocomplete="position"
             placeholder=""
-            required
             disabled
           />
 
           <BaseInput
+            v-model="form.join_date"
             label="เข้าร่วมเมื่อวันที่"
-            type="date"
+            type="text"
             autocomplete="join_date"
             placeholder=""
-            required
             disabled
           />
         </div>
+
         <p v-if="generalError" class="text-sm text-red-500">
           {{ generalError }}
         </p>
 
         <BaseButton type="submit" class="w-full" :disabled="isSubmitting">
-          {{ isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สร้างบัญชีผู้ใช้' }}
+          {{ isSubmitting ? 'กำลังลงทะเบียนสมาชิก...' : 'ลงทะเบียน สมาชิก' }}
         </BaseButton>
       </form>
     </AuthLayout>
@@ -214,58 +220,30 @@ import BaseDropdown from '@/components/base/BaseDropdown.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import { reactive, ref, computed, watch } from 'vue'
+import { useMemberRegister } from '@/services/useMemberRegister'
 
 type SexValue = 'M' | 'F' | 'O' | ''
-
-interface MemberRegisterForm {
-  membership_id: string
-  org_id: string
-  user_id: string
-  role_id: string
-  email: string
-  password_hash: string
-  password_confirm: string
-  name: string
-  surname: string
-  fullname: string
-  sex: SexValue
-  user_address_1: string
-  user_address_2: string
-  user_address_3: string
-  join_date: string
-}
-
-type MemberRegisterErrors = Partial<Record<keyof MemberRegisterForm, string>>
-
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
-
-const form = reactive<MemberRegisterForm>({
-  membership_id: '',
-  org_id: '',
-  user_id: '',
-  role_id: '',
-  email: '',
-  password_hash: '',
-  password_confirm: '',
-  name: '',
-  surname: '',
-  fullname: '',
-  sex: '',
-  user_address_1: '',
-  user_address_2: '',
-  user_address_3: '',
-  join_date: '',
-})
-
-const formErrors = reactive<MemberRegisterErrors>({})
-const generalError = ref<string | null>(null)
-const isSubmitting = ref(false)
 
 interface SexOption {
   label: string
   value: SexValue
 }
+
+type MemberRegisterErrors = {
+  email?: string
+  password_hash?: string
+  password_confirm?: string
+  name?: string
+  surname?: string
+  sex?: string
+}
+
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+const { form, isSubmitting, generalError, submitRegistration } = useMemberRegister()
+
+const formErrors = reactive<MemberRegisterErrors>({})
 
 const sexOptions: SexOption[] = [
   { label: 'ชาย', value: 'M' },
@@ -290,16 +268,16 @@ const lowerRegex = /[a-z]/
 const digitRegex = /[0-9]/
 const specialRegex = /[!@#$%^&*(),.?":{}|<>]/
 
-const validators: Partial<Record<keyof MemberRegisterForm, (f: MemberRegisterForm) => string>> = {
-  email(f) {
-    const value = f.email.trim()
+const validators: Record<keyof MemberRegisterErrors, () => string> = {
+  email() {
+    const value = form.email.trim()
     if (!value) return 'กรุณากรอกอีเมล'
     if (!emailRegex.test(value)) return 'รูปแบบอีเมลไม่ถูกต้อง'
     if (thaiRegex.test(value)) return 'ห้ามใช้ภาษาไทยในอีเมล'
     return ''
   },
-  password_hash(f) {
-    const value = f.password_hash
+  password_hash() {
+    const value = form.password_hash
     if (!value) return 'กรุณากรอกรหัสผ่าน'
     if (value.length < 6) return 'ต้องมีอย่างน้อย 6 ตัวอักษร'
     if (thaiRegex.test(value)) return 'ห้ามใช้ภาษาไทยในรหัสผ่าน'
@@ -309,28 +287,28 @@ const validators: Partial<Record<keyof MemberRegisterForm, (f: MemberRegisterFor
     if (!specialRegex.test(value)) return 'ต้องมีอักขระพิเศษ 1 ตัว'
     return ''
   },
-  password_confirm(f) {
-    if (!f.password_confirm) return 'กรุณากรอกยืนยันรหัสผ่าน'
-    if (f.password_confirm !== f.password_hash) return 'รหัสผ่านไม่ตรงกัน'
+  password_confirm() {
+    if (!form.password_confirm) return 'กรุณากรอกยืนยันรหัสผ่าน'
+    if (form.password_confirm !== form.password_hash) return 'รหัสผ่านไม่ตรงกัน'
     return ''
   },
-  name(f) {
-    return f.name.trim() ? '' : 'กรุณากรอกชื่อ'
+  name() {
+    return form.name.trim() ? '' : 'กรุณากรอกชื่อ'
   },
-  surname(f) {
-    return f.surname.trim() ? '' : 'กรุณากรอกนามสกุล'
+  surname() {
+    return form.surname.trim() ? '' : 'กรุณากรอกนามสกุล'
   },
-  sex(f) {
-    if (!f.sex) return 'กรุณาเลือกเพศ'
-    if (!['M', 'F', 'O'].includes(f.sex)) return 'เพศไม่ถูกต้อง'
+  sex() {
+    if (!form.sex) return 'กรุณาเลือกเพศ'
+    if (!['M', 'F', 'O'].includes(form.sex)) return 'เพศไม่ถูกต้อง'
     return ''
   },
 }
 
-const validateField = (field: keyof MemberRegisterForm) => {
+const validateField = (field: keyof MemberRegisterErrors) => {
   const validator = validators[field]
   if (!validator) return true
-  const message = validator(form)
+  const message = validator()
   formErrors[field] = message
   return !message
 }
@@ -338,7 +316,7 @@ const validateField = (field: keyof MemberRegisterForm) => {
 const validateAll = () => {
   let ok = true
   Object.keys(validators).forEach((field) => {
-    if (!validateField(field as keyof MemberRegisterForm)) ok = false
+    if (!validateField(field as keyof MemberRegisterErrors)) ok = false
   })
   return ok
 }
@@ -367,20 +345,11 @@ watch(
 
 const onSubmit = async (e: Event) => {
   e.preventDefault()
-  generalError.value = null
 
   if (!validateAll()) {
     return
   }
 
-  try {
-    isSubmitting.value = true
-    form.fullname = `${form.name} ${form.surname}`
-    console.log('submit member register form', { ...form })
-  } catch  {
-    generalError.value = 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
-  } finally {
-    isSubmitting.value = false
-  }
+  await submitRegistration()
 }
 </script>
