@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, provide } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyStore } from "@/stores/company";
 
@@ -72,11 +72,10 @@ const authStore = useAuthStore();
 const companyStore = useCompanyStore();
 
 // Sidebar rail state
-const railState = ref(true);
+const railState = ref(true)
 const toggleRail = () => {
-  railState.value = !railState.value;
-};
-
+  railState.value = !railState.value
+}
 // ฟังก์ชัน generate skeleton card
 const generateCompanySkeletonCards = (count: number) => {
   const cardRows = [
@@ -104,4 +103,8 @@ onMounted(async () => {
     );
   });
 });
+
+provide("railState", railState)
+provide("toggleRail", toggleRail)
+
 </script>
