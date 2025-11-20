@@ -50,7 +50,7 @@ const props = defineProps({
 
 // รายการเมนู
 const menuItems = ref([
-  { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/home' },
+  { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/' },
   {
     title: 'Company',
     icon: 'mdi mdi-file-chart-outline',
