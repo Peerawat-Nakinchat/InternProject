@@ -4,6 +4,7 @@ import {
     loginUser, 
     getProfile,
     logoutUser,
+    refreshToken, 
     logoutAllUser
 } from '../controllers/AuthController.js';
 
@@ -18,6 +19,7 @@ router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 
 // Refresh Token Route
+router.post('/refresh', refreshToken);
 router.post('/token', refreshAccessToken, (req, res) => {
     return res.json({
         success: true,

@@ -1,24 +1,7 @@
+// src/controllers/AuthController.js
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { pool } from '../config/db.js';
-
-// ฟังก์ชันสร้าง Access Token
-export const generateAccessToken = (userId) => {
-    return jwt.sign(
-        { user_id: userId },
-        process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: process.env.ACCESS_EXPIRES }
-    );
-};
-
-// ฟังก์ชันสร้าง Refresh Token
-export const generateRefreshToken = (userId) => {
-    return jwt.sign(
-        { user_id: userId },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: process.env.REFRESH_EXPIRES }
-    );
-};
+import { generateAccessToken, generateRefreshToken } from '../utils/token.js';
 
 // ลงทะเบียนผู้ใช้ใหม่
 export const registerUser = async (req, res) => {
@@ -27,10 +10,12 @@ export const registerUser = async (req, res) => {
     try {
         const { email, password, name, surname, sex, user_address_1, user_address_2, user_address_3 } = req.body;
 
-        if (!email || !password || !name || !surname || !sex || !user_address_1 || !user_address_2 || !user_address_3) {
+        console.log('📝 Register attempt:', { email, name, surname });
+
+        if (!email || !password || !name || !surname) {
             return res.status(400).json({
                 success: false,
-                error: 'กรุณากรอกข้อมูลให้ครบถ้วน'
+                error: 'กรุณากรอกข้อมูลที่จำเป็น (email, password, name, surname)'
             });
         }
 
@@ -41,14 +26,18 @@ export const registerUser = async (req, res) => {
         );
 
         if (checkEmail.rows.length > 0) {
+            console.log('⚠️ Email already exists:', email);
             return res.status(400).json({
                 success: false,
                 error: 'อีเมลนี้ถูกใช้งานแล้ว'
             });
         }
 
-        const salt = await bcrypt.genSalt(10);
+        // Hash password
+        const salt = await bcrypt.genSalt(parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10);
         const hashedPassword = await bcrypt.hash(password, salt);
+
+        console.log('🔐 Password hashed successfully');
 
         // เพิ่มข้อมูลผู้ใช้
         const result = await client.query(
@@ -56,25 +45,28 @@ export const registerUser = async (req, res) => {
                 email, password_hash, name, surname, full_name, sex,
                 user_address_1, user_address_2, user_address_3, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-            RETURNING user_id, email, name, surname, sex , user_address_1, user_address_2, user_address_3`,
+            RETURNING user_id, email, name, surname, full_name, sex`,
             [
                 email,
                 hashedPassword,
                 name,
                 surname,
                 `${name} ${surname}`,
-                sex,
-                user_address_1,
-                user_address_2,
-                user_address_3
+                sex || 'O',
+                user_address_1 || '',
+                user_address_2 || '',
+                user_address_3 || ''
             ]
         );
 
         const user = result.rows[0];
+        console.log('✅ User created:', user.user_id);
 
-        // สร้าง token
+        // สร้าง tokens
         const accessToken = generateAccessToken(user.user_id);
         const refreshToken = generateRefreshToken(user.user_id);
+
+        console.log('🎫 Tokens generated');
 
         // บันทึก refresh token
         await client.query(
@@ -83,25 +75,32 @@ export const registerUser = async (req, res) => {
             [user.user_id, refreshToken]
         );
 
+        console.log('✅ Register successful:', user.email);
+
         res.status(201).json({
             success: true,
             message: 'ลงทะเบียนสำเร็จ',
             accessToken,
             refreshToken,
-            user
+            user: {
+                user_id: user.user_id,
+                email: user.email,
+                name: user.name,
+                surname: user.surname,
+                full_name: user.full_name
+            }
         });
 
     } catch (error) {
-        console.error('Register error:', error);
+        console.error('💥 Register error:', error);
         res.status(500).json({
             success: false,
-            error: 'เกิดข้อผิดพลาดในการลงทะเบียน'
+            error: 'เกิดข้อผิดพลาดในการลงทะเบียน: ' + error.message
         });
     } finally {
         client.release();
     }
 };
-
 
 // เข้าสู่ระบบ
 export const loginUser = async (req, res) => {
@@ -109,6 +108,8 @@ export const loginUser = async (req, res) => {
 
     try {
         const { email, password } = req.body;
+
+        console.log('🔐 Login attempt:', { email });
 
         if (!email || !password) {
             return res.status(400).json({
@@ -119,12 +120,13 @@ export const loginUser = async (req, res) => {
 
         // ดึงข้อมูลผู้ใช้
         const result = await client.query(
-            `SELECT user_id, email, password_hash, name, surname
+            `SELECT user_id, email, password_hash, name, surname, full_name, is_active
              FROM sys_users WHERE email = $1`,
             [email]
         );
 
         if (result.rows.length === 0) {
+            console.log('⚠️ User not found:', email);
             return res.status(401).json({
                 success: false,
                 error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
@@ -133,7 +135,28 @@ export const loginUser = async (req, res) => {
 
         const user = result.rows[0];
 
+        // ตรวจสอบว่า account active หรือไม่
+        if (user.is_active === false) {
+            console.log('⚠️ Account inactive:', email);
+            return res.status(401).json({
+                success: false,
+                error: 'บัญชีนี้ถูกระงับการใช้งาน'
+            });
+        }
+
+        // ตรวจสอบว่ามี password_hash หรือไม่
+        if (!user.password_hash) {
+            console.error('❌ User has no password_hash:', email);
+            return res.status(401).json({
+                success: false,
+                error: 'บัญชีนี้ไม่สามารถเข้าสู่ระบบได้'
+            });
+        }
+
+        // เปรียบเทียบ password
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+        console.log('🔑 Password check:', isPasswordValid ? 'Valid' : 'Invalid');
 
         if (!isPasswordValid) {
             return res.status(401).json({
@@ -142,15 +165,20 @@ export const loginUser = async (req, res) => {
             });
         }
 
+        // สร้าง tokens
         const accessToken = generateAccessToken(user.user_id);
         const refreshToken = generateRefreshToken(user.user_id);
 
-        // บันทึก refresh token ใหม่
+        console.log('🎫 Tokens generated');
+
+        // บันทึก refresh token
         await client.query(
             `INSERT INTO sys_refresh_tokens (user_id, refresh_token, created_at)
              VALUES ($1, $2, NOW())`,
             [user.user_id, refreshToken]
         );
+
+        console.log('✅ Login successful:', user.email);
 
         res.json({
             success: true,
@@ -161,15 +189,73 @@ export const loginUser = async (req, res) => {
                 user_id: user.user_id,
                 email: user.email,
                 name: user.name,
-                surname: user.surname
+                surname: user.surname,
+                full_name: user.full_name
             }
         });
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('💥 Login error:', error);
         res.status(500).json({
             success: false,
-            error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+            error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + error.message
+        });
+    } finally {
+        client.release();
+    }
+};
+
+// Refresh Token
+export const refreshToken = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(401).json({
+                success: false,
+                message: 'ไม่พบ Refresh Token'
+            });
+        }
+
+        // Verify refresh token
+        const { verifyRefreshToken } = await import('../utils/token.js');
+        const decoded = verifyRefreshToken(refreshToken);
+
+        if (!decoded) {
+            return res.status(401).json({
+                success: false,
+                message: 'Refresh Token ไม่ถูกต้อง'
+            });
+        }
+
+        // Check if token exists in database
+        const result = await client.query(
+            'SELECT * FROM sys_refresh_tokens WHERE refresh_token = $1 AND user_id = $2',
+            [refreshToken, decoded.user_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: 'Refresh Token ไม่ถูกต้อง'
+            });
+        }
+
+        // Generate new access token
+        const newAccessToken = generateAccessToken(decoded.user_id);
+
+        res.json({
+            success: true,
+            accessToken: newAccessToken
+        });
+
+    } catch (error) {
+        console.error('Refresh token error:', error);
+        res.status(401).json({
+            success: false,
+            message: 'เกิดข้อผิดพลาดในการ refresh token'
         });
     } finally {
         client.release();

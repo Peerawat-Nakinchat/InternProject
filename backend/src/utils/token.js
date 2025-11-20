@@ -1,63 +1,48 @@
+// src/utils/token.js
 import jwt from 'jsonwebtoken';
-import AUTH_CONFIG from '../config/auth.js';
 
-const {
-  ACCESS_TOKEN_SECRET,
-  ACCESS_TOKEN_EXPIRES_IN,
-  REFRESH_TOKEN_SECRET,
-  REFRESH_TOKEN_EXPIRES_IN
-} = AUTH_CONFIG;
-
-/**
- * Generates an Access Token.
- */
-const generateAccessToken = (payload) => {
-  return jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN
-  });
+export const verifyAccessToken = (token) => {
+    try {
+        if (!process.env.ACCESS_TOKEN_SECRET) {
+            throw new Error('ACCESS_TOKEN_SECRET not configured');
+        }
+        return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (error) {
+        console.error('❌ Token verification failed:', error.message);
+        return null;
+    }
 };
 
-/**
- * Generates a Refresh Token.
- */
-const generateRefreshToken = (payload) => {
-  return jwt.sign(payload, REFRESH_TOKEN_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRES_IN
-  });
+export const generateAccessToken = (userId) => {
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+        throw new Error('ACCESS_TOKEN_SECRET not configured');
+    }
+    return jwt.sign(
+        { user_id: userId },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: process.env.ACCESS_EXPIRES || '15m' }
+    );
 };
 
-/**
- * Verifies Access Token specifically.
- */
-const verifyAccessToken = (token) => {
-  try {
-    return jwt.verify(token, ACCESS_TOKEN_SECRET);
-  } catch (error) {
-    return null;
-  }
+export const generateRefreshToken = (userId) => {
+    if (!process.env.REFRESH_TOKEN_SECRET) {
+        throw new Error('REFRESH_TOKEN_SECRET not configured');
+    }
+    return jwt.sign(
+        { user_id: userId },
+        process.env.REFRESH_TOKEN_SECRET,
+        { expiresIn: process.env.REFRESH_EXPIRES || '7d' }
+    );
 };
 
-/**
- * Verifies Refresh Token specifically.
- */
-const verifyRefreshToken = (token) => {
-  try {
-    return jwt.verify(token, REFRESH_TOKEN_SECRET);
-  } catch (error) {
-    return null;
-  }
-};
-
-export {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken
-};
-
-export default {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken
+export const verifyRefreshToken = (token) => {
+    try {
+        if (!process.env.REFRESH_TOKEN_SECRET) {
+            throw new Error('REFRESH_TOKEN_SECRET not configured');
+        }
+        return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    } catch (error) {
+        console.error('❌ Refresh token verification failed:', error.message);
+        return null;
+    }
 };

@@ -24,10 +24,10 @@
         />
         <div class="w-full space-y-1">
           <label class="block text-xs font-medium text-neutral-700"> ที่อยู่บริษัท</label>
-          <BaseInput v-model="form.org_address1" type="text" placeholder="ที่อยู่ 1" />
-          <BaseInput v-model="form.org_address2" type="text" placeholder="ที่อยู่ 2" />
+          <BaseInput v-model="form.org_address_1" type="text" placeholder="ที่อยู่ 1" />
+          <BaseInput v-model="form.org_address_2" type="text" placeholder="ที่อยู่ 2" />
 
-          <BaseInput v-model="form.org_address3" type="text" placeholder="ที่อยู่ 3" />
+          <BaseInput v-model="form.org_address_3" type="text" placeholder="ที่อยู่ 3" />
         </div>
 
         <div class="w-full space-y-1">
@@ -108,8 +108,11 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -118,53 +121,154 @@ import BaseDropdown from '@/components/base/BaseDropdown.vue'
 import type { CreateCompanyForm, IntegrationOption } from '@/types/company'
 import { createCompany } from '@/services/useCompany'
 
+const auth = useAuthStore()
+const router = useRouter()
+
+// ฟอร์มข้อมูลบริษัท
 const form = reactive<CreateCompanyForm>({
   org_id: '',
   org_name: '',
   org_code: '',
   owner_user_id: '',
-  org_address1: '',
-  org_address2: '',
-  org_address3: '',
-  org_intergrate: '',
+  org_address_1: '',
+  org_address_2: '',
+  org_address_3: '',
+  org_integrate: '',
   org_integrate_url: '',
   org_integrate_provider_id: '',
-  org_integrate_passcode: '',
+  org_integrate_passcode: ''
 })
 
+// ตั้งค่า owner_user_id
+onMounted(() => {
+  // ✅ ตรวจสอบว่า user login แล้วหรือยัง
+  if (!auth.isAuthenticated || !auth.user) {
+    router.push('/login')
+    return
+  }
+  
+  form.owner_user_id = auth.user.user_id
+  console.log('✅ User authenticated:', auth.user.email)
+  console.log('✅ User ID:', auth.user.user_id)
+})
+
+// Integration Dropdown
 const integrationOptions: IntegrationOption[] = [
   { label: 'เชื่อมต่อข้อมูลบริษัท', value: 'Y' },
-  { label: 'ไม่เชื่อมต่อข้อมูลบริษัท', value: 'N' },
+  { label: 'ไม่เชื่อมต่อข้อมูลบริษัท', value: 'N' }
 ]
 
 const isIntegrationOpen = ref(false)
 const selectedIntegrationValue = ref<string | null>(null)
 
-const selectedIntegration = computed<IntegrationOption | null>(() => {
-  return integrationOptions.find((opt) => opt.value === selectedIntegrationValue.value) ?? null
+const selectedIntegration = computed(() => {
+  return integrationOptions.find(o => o.value === selectedIntegrationValue.value) || null
 })
 
 const onSelectIntegration = (option: IntegrationOption) => {
   selectedIntegrationValue.value = option.value
-  form.org_intergrate = option.value
+  form.org_integrate = option.value
 }
 
+// Validation
+const validateForm = () => {
+  if (!form.org_name.trim()) return 'กรุณากรอกชื่อบริษัท'
+  if (!form.org_code.trim()) return 'กรุณากรอกรหัสบริษัท'
+  if (!form.org_integrate) return 'กรุณาเลือกการเชื่อมต่อระบบ'
+
+  if (form.org_integrate === 'Y') {
+    if (!form.org_integrate_provider_id.trim()) return 'กรุณากรอก Provider ID'
+    if (!form.org_integrate_passcode.trim()) return 'กรุณากรอก Passcode'
+  }
+
+  return null
+}
+
+// Submit
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
+const successMessage = ref<string | null>(null)
 
 const onSubmit = async () => {
   errorMessage.value = null
+  successMessage.value = null
   loading.value = true
 
+  // ✅ Debug log
+  console.group('🚀 Creating Company')
+  console.log('User:', auth.user)
+  console.log('Access Token:', auth.accessToken ? '✅ มี token' : '❌ ไม่มี token')
+  console.log('Payload:', {
+    org_name: form.org_name,
+    org_code: form.org_code,
+    owner_user_id: form.owner_user_id,
+  })
+  console.groupEnd()
+
+  // Validate
+  const validationError = validateForm()
+  if (validationError) {
+    errorMessage.value = validationError
+    loading.value = false
+    return
+  }
+
+  // ตรวจสอบ authentication
+  if (!auth.isAuthenticated) {
+    errorMessage.value = 'กรุณาเข้าสู่ระบบก่อน'
+    loading.value = false
+    router.push('/login')
+    return
+  }
+
   try {
-    const result = await createCompany({ ...form })
-    console.log('สร้างบริษัทสำเร็จ', result)
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      errorMessage.value = err.message
-    } else {
-      errorMessage.value = 'เกิดข้อผิดพลาดในการสร้างบริษัท'
+    const payload = {
+      org_name: form.org_name,
+      org_code: form.org_code,
+      owner_user_id: form.owner_user_id,
+      org_address_1: form.org_address_1,
+      org_address_2: form.org_address_2,
+      org_address_3: form.org_address_3,
+      org_integrate: form.org_integrate,
+      org_integrate_url: form.org_integrate_url,
+      org_integrate_provider_id: form.org_integrate_provider_id,
+      org_integrate_passcode: form.org_integrate_passcode
     }
+
+    const result = await createCompany(payload)
+
+    console.log('✅ สร้างบริษัทสำเร็จ:', result)
+    successMessage.value = 'สร้างบริษัทสำเร็จ!'
+
+    // Reset form และ redirect หลัง 2 วินาที
+    setTimeout(() => {
+      resetForm()
+      router.push('/company') // หรือหน้าที่ต้องการ
+    }, 2000)
+
+  } catch (err: any) {
+    console.error('❌ Create company error:', err)
+    errorMessage.value = err.message || 'เกิดข้อผิดพลาดในการสร้างบริษัท'
+  } finally {
+    loading.value = false
   }
 }
+
+// Reset form
+const resetForm = () => {
+  Object.assign(form, {
+    org_name: '',
+    org_code: '',
+    owner_user_id: auth.user?.user_id || '',
+    org_address_1: '',
+    org_address_2: '',
+    org_address_3: '',
+    org_integrate: '',
+    org_integrate_url: '',
+    org_integrate_provider_id: '',
+    org_integrate_passcode: ''
+  })
+  selectedIntegrationValue.value = null
+}
 </script>
+

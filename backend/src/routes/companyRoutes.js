@@ -1,21 +1,33 @@
-// src/routes/companyRoutes.js
 import express from 'express';
-import { createCompany, getUserCompanies } from '../controllers/CompanyController.js';
+import { 
+  createCompany, 
+  getUserCompanies,
+  getCompanyById,
+  updateCompany,
+  deleteCompany
+} from '../controllers/CompanyController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { checkRole } from '../middleware/roleMiddleware.js'; // if used
+import { checkRole } from '../middleware/roleMiddleware.js';
+import { requireOrganization } from '../middleware/companyMiddleware.js';
 
 const router = express.Router();
 
-// protect all routes in this router
+// ✅ ใช้ protect กับทุก route
 router.use(protect);
 
-// Create company (any authenticated user can create)
+// ✅ CREATE - ไม่ต้องใช้ requireOrganization (ยังไม่มีบริษัท)
 router.post('/', createCompany);
 
-// Get companies related to user
+// ✅ GET LIST - ไม่ต้องใช้ requireOrganization (ดึงทุกบริษัทของ user)
 router.get('/', getUserCompanies);
 
-// Example: delete company (only OWNER)
- // router.delete('/:orgId', checkRole([1]), deleteCompany);
+// ✅ ใช้ requireOrganization กับ route ที่ต้องการ orgId
+router.get("/:orgId", requireOrganization, getCompanyById);
+
+// ✅ UPDATE (only OWNER)
+router.put('/:orgId', requireOrganization, checkRole([1]), updateCompany);
+
+// ✅ DELETE (only OWNER)
+router.delete('/:orgId', requireOrganization, checkRole([1]), deleteCompany);
 
 export default router;
