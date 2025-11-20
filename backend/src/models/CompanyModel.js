@@ -126,10 +126,22 @@ const deleteOrganization = async (client, orgId) => {
     return res.rows[0]; // null if not found
 };
 
+const isOrgCodeExists = async (org_code) => {
+    const sql = `
+        SELECT 1
+        FROM sys_organizations
+        WHERE org_code = $1
+        LIMIT 1
+    `;
+    const res = await dbQuery(sql, [org_code]);
+    return res.rows.length > 0;
+};
+
 export const CompanyModel = {
     createOrganization,
     findOrganizationById,
     findOrganizationsByUser,
     updateOrganization,
     deleteOrganization,
+    isOrgCodeExists,
 };

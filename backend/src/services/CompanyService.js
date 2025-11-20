@@ -5,57 +5,34 @@ import { MemberModel } from '../models/MemberModel.js';
 
 /**
  * Create company + Assign owner as role=1
- */
-const createCompanyAndAssignOwner = async (data) => {
-    const {
-        org_name,
-        org_code,
-        owner_user_id,
-        org_address_1,
-        org_address_2,
-        org_address_3,
-        org_integrate,
-        org_integrate_url,
-        org_integrate_provider_id,
-        org_integrate_passcode
-    } = data;
+ */const createCompanyAndAssignOwner = async (data) => {
+  const { org_name, org_code, owner_user_id, org_address_1, org_address_2, org_address_3 } = data;
 
-    const client = await pool.connect();
+  // ตรวจสอบ org_code ซ้ำ
+  const exists = await CompanyModel.isOrgCodeExists(org_code);
+  if (exists) {
+    const error = new Error('รหัสบริษัทซ้ำ');
+    error.code = '23505';
+    throw error;
+  }
 
-    try {
-        await client.query("BEGIN");
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        // Create organization
-        const organization = await CompanyModel.createOrganization(client, {
-            org_name,
-            org_code,
-            owner_user_id,
-            org_address_1,
-            org_address_2,
-            org_address_3,
-            org_integrate,
-            org_integrate_url,
-            org_integrate_provider_id,
-            org_integrate_passcode
-        });
+    const organization = await CompanyModel.createOrganization(client, data);
 
-        // Assign owner as role_id=1
-        await MemberModel.addMemberToOrganization(
-            client,
-            organization.org_id,
-            owner_user_id,
-            1 // owner role
-        );
+    // assign owner (role=1)
+    await MemberModel.addMemberToOrganization(client, organization.org_id, owner_user_id, 1);
 
-        await client.query("COMMIT");
-        return organization;
-
-    } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-    } finally {
-        client.release();
-    }
+    await client.query('COMMIT');
+    return organization;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
