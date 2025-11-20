@@ -12,7 +12,7 @@ export const registerUser = async (req, res) => {
 
         console.log('📝 Register attempt:', { email, name, surname });
 
-        if (!email || !password || !name || !surname) {
+        if (!email || !password || !name || !surname || !sex || !user_address_1 || !user_address_2 || !user_address_3) {
             return res.status(400).json({
                 success: false,
                 error: 'กรุณากรอกข้อมูลที่จำเป็น (email, password, name, surname)'
@@ -45,7 +45,7 @@ export const registerUser = async (req, res) => {
                 email, password_hash, name, surname, full_name, sex,
                 user_address_1, user_address_2, user_address_3, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-            RETURNING user_id, email, name, surname, full_name, sex`,
+            RETURNING user_id, email, name, surname, full_name, sex, user_address_1, user_address_2, user_address_3`,
             [
                 email,
                 hashedPassword,
