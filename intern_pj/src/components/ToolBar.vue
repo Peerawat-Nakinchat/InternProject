@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full h-12 bg-linear-to-r from-[#fdc9ff]/80 to-[#fdc9ff]/70 backdrop-blur-md border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-lg"
+    class="w-full h-12 bg-linear-to-r from-[#fdc9ff]/80 to-[#fdc9ff]/70 backdrop-blur-md border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
   >
     <!-- Left side -->
     <div class="flex items-center gap-4">
