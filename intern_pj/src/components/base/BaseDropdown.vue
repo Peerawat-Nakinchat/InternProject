@@ -1,7 +1,7 @@
 <template>
   <div
     ref="root"
-    class="relative w-full text-left"
+    class="relative w-full text-left z-10"
     :class="{
       'opacity-60 pointer-events-none': disabled,
     }"
@@ -50,7 +50,7 @@
       <div
         v-if="isOpen"
         ref="panel"
-        class="absolute mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg focus:outline-none"
+        class="absolute mt-1 w-full z-40 max-h-56 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg focus:outline-none"
         :class="panelPlacementClass"
         role="menu"
         @keydown.stop="onPanelKeydown"
