@@ -7,7 +7,7 @@
         <img src="/img/logoMango.png" alt="MANGOISO Logo" class="w-12 h-12 mx-auto" />
       </template>
       <template v-else>
-        <div class="text-center font-bold text-lg">MANGO ISO</div>
+        <div class="text-center font-bold text-md">ISO MANAGEMENT SYSTEM</div>
       </template>
     </div>
     <hr class="border-gray-500" />
