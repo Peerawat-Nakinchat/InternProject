@@ -8,8 +8,8 @@ const isUUID = (v) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 export const requireOrganization = async (req, res, next) => {
     try {
         // ใช้ x-org-id หรือ ?org_id
-        const orgId = req.headers['x-org-id']?.trim() 
-                    || req.query.org_id?.trim();
+        const orgId = req.body.orgId?.trim() ? req.body.orgId.trim() : req.params.orgId?.trim();
+
 
         if (!orgId) {
             return res.status(400).json({
