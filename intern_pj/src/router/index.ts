@@ -53,6 +53,11 @@ const routes = [
     component: () => import('@/pages/ISO_testPage.vue'),
     //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
+  {
+    path: '/auth/callback',
+    name: 'auth-callback',
+    component: () => import('@/pages/AuthCallback.vue'),
+  },
 ]
 
 const router = createRouter({
