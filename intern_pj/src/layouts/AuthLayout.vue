@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-primary-50 gap-6 p-4">
-    <div class="flex-1 h-full max-w-5xl mx-auto  bg-white rounded-lg shadow-xl">
+  <div class=" flex items-center justify-center bg-primary-50 gap-6 p-4">
+    <div class="flex-1  max-w-5xl mx-auto  bg-white rounded-lg shadow-xl">
       <div class="flex flex-col overflow-y-visible md:flex-row">
         <div class="h-32 md:h-auto md:w-1/2 overflow-hidden rounded-t-lg md:rounded-l-lg md:rounded-tr-none">
           <img

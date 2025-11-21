@@ -1,6 +1,6 @@
 <template>
   <header
-    class="flex items-center justify-between bg-[#682DB5] text-white h-12 px-4 rounded-tr-lg"
+    class="flex items-center justify-between bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white h-15 px-4 rounded-tr-lg"
   >
     <!-- ปุ่มเปิด/ปิด Sidebar -->
     <button @click="toggleRail" class="p-2 hover:bg-purple-600 transition-colors">
@@ -18,9 +18,9 @@
       <button
         @click="toggleUserMenu"
         :class="[
-          'flex items-center px-3 py-1.5 text-sm font-medium rounded-sm transition-all gap-2 w-44 justify-between',
+          'flex items-center  px-3 py-1.5 text-sm font-medium rounded-t-sm transition-all gap-2 w-44 justify-between',
           userMenuVisible
-            ? 'bg-white text-[#682DB5] shadow-md border border-purple-200'
+            ? 'bg-white text-[#682DB5] shadow-md border border-purple-400'
             : 'text-white hover:bg-[#8a4ae0]',
         ]"
       >
@@ -46,7 +46,7 @@
       <!-- DROPDOWN -->
       <ul
         v-if="userMenuVisible"
-        class="absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg overflow-hidden border border-purple-200 z-50 origin-top animate-dropdown"
+        class="absolute right-0 mt-0.5  w-44 bg-white text-gray-800 rounded-b-xl shadow-lg overflow-auto border border-purple-400 z-50 origin-top animate-dropdown"
       >
         <!-- User Info -->
         <li class="px-4 py-3 border-b border-gray-200 bg-gray-50">

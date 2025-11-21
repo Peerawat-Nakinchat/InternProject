@@ -1,17 +1,14 @@
 <template>
   <div
-    class="w-full h-12 bg-linear-to-r from-[#fdc9ff]/80 to-[#fdc9ff]/70 backdrop-blur-md border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
+    class="w-full h-[55px] bg-linear-to-tr from-[#1C244B] to-[#682DB5] backdrop-blur-md border-t-white border-t border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
   >
     <!-- Left side -->
-    <div class="flex items-center gap-4">
-      <h2 class="text-white font-semibold tracking-wide text-lg">Toolbar</h2>
-      <span class="text-purple-200 text-sm">Admin Panel</span>
-    </div>
+    <!-- Company Selector -->
+      <CompanySelector />
 
     <!-- Right side -->
     <div class="flex items-center gap-3">
-      <!-- Company Selector -->
-      <CompanySelector />
+      
 
       <!-- Search Input -->
       <div class="relative">
@@ -35,16 +32,48 @@
         </svg>
       </div>
 
-      <!-- Action Button -->
-      <button
-        class="px-4 py-2 rounded-lg bg-linear-to-r from-[#682DB5] to-[#8F3ED0] hover:from-[#7F39D1] hover:to-[#9B5DE5] text-white font-medium shadow-md transition-all duration-300"
-      >
-        Action
-      </button>
+    <!-- Action Button -->
+    <button
+    @click="$emit('open-invite')"
+    class="px-4 py-2 rounded-lg bg-linear-to-r from-[#682DB5] to-[#8F3ED0]
+            hover:from-[#7F39D1] hover:to-[#9B5DE5]
+            text-white font-medium shadow-md transition-all duration-300
+            flex items-center gap-2"
+    >
+    <i class="mdi mdi-account-plus text-lg"></i>
+    Invite Member
+    </button>
+
+
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import CompanySelector from './CompanySelector.vue'
+import InviteModal from "@/components/modals/InviteModal.vue";
+
+const isInviteModalOpen = ref(false);
+
+
 </script>
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+</style>

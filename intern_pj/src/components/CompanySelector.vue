@@ -3,11 +3,12 @@
     <!-- Dropdown Button -->
     <button
       @click="toggleDropdown"
-      class="w-full h-10 px-4 flex justify-between items-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-md text-gray-800 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-300"
+      class="w-full h-10 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-sm  backdrop-blur-md  shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5]
+                hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
     >
-      <span>{{ selectedCompanyName }}</span>
+      <span>บริษัท : {{ selectedCompanyName }}</span>
       <svg
-        class="w-5 h-5 text-gray-500 transition-transform duration-300"
+        class="w-5 h-5 text-gray-200 active:text-blue-950 transition-transform duration-300"
         :class="{'rotate-180': dropdownOpen}"
         fill="none"
         stroke="currentColor"
@@ -20,13 +21,14 @@
     <!-- Dropdown List -->
     <ul
       v-if="dropdownOpen"
-      class="absolute mt-2 w-full bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
+      class="absolute w-full  rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30  shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
     >
       <li
         v-for="company in companyStore.companies"
         :key="company.org_id"
         @click="selectCompany(company)"
-        class="px-4 py-3 cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-lg"
+        class="px-4 py-3 bg-linear-to-r from-[#682DB5] to-[#8F3ED0]  cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5]
+                hover:text-yellow-400 transition-colors text-white"
       >
         {{ company.org_name }}
       </li>

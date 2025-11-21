@@ -1,6 +1,6 @@
 <template>
   <aside
-    :class="`bg-[#682DB5] text-white ${rail ? 'w-16' : 'w-64'} transition-all duration-300 rounded-l-lg`"
+    :class="`bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white ${rail ? 'w-16' : 'w-64'} transition-all duration-300 rounded-l-lg`"
   >
     <div class="flex flex-col items-center py-4" :class="rail ? 'px-1' : 'px-4'">
       <template v-if="rail">
