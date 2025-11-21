@@ -75,13 +75,12 @@ interface InviteOption {
 }
 
 const InviteOption: InviteOption[] = [
-  { label: 'เจ้าของ', value: 'onwer' },
-  { label: 'ผู้ดูแลระบบ', value: 'admin' },
-  { label: 'สมาชิก', value: 'member' },
-  { label: 'การตลาด', value: 'view' },
-  { label: 'บัญชี', value: 'auditor' },
+  { label: 'เจ้าของ (OWNER)', value: 'onwer' },
+  { label: 'ผู้ดูแลระบบ (ADMIN)', value: 'admin' },
+  { label: 'ผู้ใช้ (USER)', value: 'user' },
+  { label: 'ผู้ดู (VIEWER)', value: 'viewer' },
+  { label: 'ผู้ตรวจสอบ (AUDITOR)', value: 'auditor' },
 ]
-
 
 const isInviteOpen = ref(false)
 const selectedInviteValue = ref<string | null>(null)
