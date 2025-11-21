@@ -3,7 +3,7 @@
     <!-- Dropdown Button -->
     <button
       @click="toggleDropdown"
-      class="w-full h-10 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-sm  backdrop-blur-md  shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5]
+      class="w-full h-10 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-sm font-semibold backdrop-blur-md  shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5]
                 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
     >
       <span>บริษัท : {{ selectedCompanyName }}</span>
@@ -28,7 +28,7 @@
         :key="company.org_id"
         @click="selectCompany(company)"
         class="px-4 py-3 bg-linear-to-r from-[#682DB5] to-[#8F3ED0]  cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5]
-                hover:text-yellow-400 transition-colors text-white"
+                hover:text-yellow-400 transition-colors text-white "
       >
         {{ company.org_name }}
       </li>
