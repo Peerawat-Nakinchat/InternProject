@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+*{
+  font-family: 'Kanit', sans-serif;
+}
 
 /* ปิด default eye icon ของ Chrome/Edge */
 input::-webkit-textfield-decoration-container {

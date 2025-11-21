@@ -9,7 +9,7 @@
       <Navbar class="h-12" />
 
       <!-- Toolbar -->
-      <ToolBar class="h-12">
+      <ToolBar class="h-12" @open-invite="openInviteModal">
         <CompanySelector />
       </ToolBar>
 
@@ -37,6 +37,12 @@
                 <AdvancedSkeleton :rows="skeleton" />
               </div>
             </template>
+            <!-- MODAL -->
+            <InviteModal 
+              v-if="isInviteOpen" 
+              :open="isInviteOpen"
+              @close="isInviteOpen = false"
+            />
 
             <!-- ข้อมูลจริง -->
             <template v-else>
@@ -66,6 +72,19 @@ import Navbar from "@/components/Navbar.vue";
 import ToolBar from "@/components/ToolBar.vue";
 import CompanySelector from "@/components/CompanySelector.vue";
 import AdvancedSkeleton from "@/components/loading/AdvancedSkeleton.vue";
+import InviteModal from '@/components/modals/InviteModal.vue'
+
+
+const isInviteOpen = ref(false)
+
+const openInviteModal = () => {
+  isInviteOpen.value = true
+}
+
+const closeInviteModal = () => {
+  isInviteOpen.value = false
+}
+
 
 // Stores
 const authStore = useAuthStore();
