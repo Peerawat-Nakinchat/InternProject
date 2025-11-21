@@ -32,17 +32,31 @@
         </svg>
       </div>
 
-    <!-- Action Button -->
-    <button
-    @click="$emit('open-invite')"
-    class="px-4 py-2 rounded-lg bg-linear-to-r from-[#682DB5] to-[#8F3ED0]
-            hover:from-[#7F39D1] hover:to-[#9B5DE5]
-            text-white font-medium shadow-md transition-all duration-300
-            flex items-center gap-2"
-    >
-    <i class="mdi mdi-account-plus text-lg"></i>
-    Invite Member
-    </button>
+      <button
+        @click="$emit('open-invite')"
+        class="
+          flex items-center gap-2 justify-center
+          rounded-lg shadow-md font-medium text-white
+          bg-linear-to-r from-[#682DB5] to-[#8F3ED0]
+          hover:from-[#7F39D1] hover:to-[#9B5DE5]
+          transition-all duration-300
+
+          /* Responsive spacing */
+          px-3 py-1.5               /* mobile */
+          sm:px-4 sm:py-2        /* tablet */
+          md:px-5 md:py-2.5        /* desktop */
+
+          /* Responsive font */
+          text-sm                 /* mobile */
+          sm:text-base            /* tablet */
+          md:text-md              /* desktop */
+        "
+      >
+        <i class="mdi mdi-account-plus 
+                  text-base sm:text-lg md:text-xl"></i>
+        <span>Invite Member</span>
+      </button>
+
 
 
     </div>
