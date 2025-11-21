@@ -8,9 +8,7 @@
       <ToolBar
         class="h-14 bg-white border-b border-gray-200 px-6 flex items-center justify-between"
       >
-        <h1 class="text-xl font-bold text-gray-800 tracking-tight">
-          🌿 ระบบจัดการเอกสาร ISO 14000
-        </h1>
+        <h1 class="text-xl font-bold text-gray-800 tracking-tight">🌿 ระบบจัดการเอกสาร ISO</h1>
         <div class="flex gap-3">
           <button
             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
@@ -81,7 +79,6 @@ const toggleRail = () => {
 provide('railState', railState)
 provide('toggleRail', toggleRail)
 
-// ----------------- Grid Types -----------------
 interface DocumentRow {
   docNo: string
   title: string
@@ -93,7 +90,6 @@ interface DocumentRow {
   status: 'Active' | 'Under Review' | 'Obsolete' | 'Draft'
 }
 
-// Grid State
 const gridApi = ref<GridApi | null>(null)
 
 const defaultColDef: ColDef = {
@@ -104,7 +100,6 @@ const defaultColDef: ColDef = {
   minWidth: 100,
 }
 
-// Custom Cell Renderers
 const StatusRenderer = (params: any) => {
   const status = params.value as DocumentRow['status']
   let colorClass = 'bg-gray-100 text-gray-600'
@@ -143,7 +138,6 @@ const ImpactRenderer = (params: any) => {
   return `<span class="${colorClass}">${impact}</span>`
 }
 
-// Column Definitions
 const colDefs = ref<ColDef[]>([
   {
     headerName: 'Document No.',
@@ -172,7 +166,7 @@ const colDefs = ref<ColDef[]>([
   },
 ])
 
-// ----------------- Mock Data (3 ตัวอย่าง) -----------------
+// ----------------- Data (3 ตัวอย่าง) -----------------
 const rowData = ref<DocumentRow[]>([])
 
 const sampleDocuments: DocumentRow[] = [
@@ -208,13 +202,8 @@ const sampleDocuments: DocumentRow[] = [
   },
 ]
 
-// เหมือนเป็นฟังก์ชันดึงข้อมูลจาก API
+// ดึงข้อมูลจาก API ตรงนี้นะจ๊ะ
 const loadDocuments = async () => {
-  // สมมติเรียก API:
-  // const { data } = await api.get<DocumentRow[]>('/iso/documents')
-  // rowData.value = data
-
-  // ตอนนี้ใช้ mock ไปก่อน
   rowData.value = sampleDocuments
 }
 
