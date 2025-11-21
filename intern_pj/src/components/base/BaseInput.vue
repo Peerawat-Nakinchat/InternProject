@@ -20,13 +20,13 @@
 
       <!-- 👁 Password Toggle Icon -->
       <div
-        v-if="isPassword"
+        v-if="isPassword && hasValue"
         class="absolute inset-y-0 right-3 flex items-center cursor-pointer select-none "
         @click="togglePassword"
       >
         <i
           :class="showPassword ? 'mdi mdi-eye-off' : 'mdi mdi-eye'"
-          class="text-slate-500 text-xl"
+          class="text-slate-500 text-md"
         ></i>
       </div>
 
@@ -73,6 +73,8 @@ const innerValue = computed({
   get: () => props.modelValue ?? '',
   set: (val: string) => emit('update:modelValue', val),
 })
+
+const hasValue = computed(() => innerValue.value.length > 0)
 
 // ------------------------------------
 // 👁 Password Toggle
