@@ -65,7 +65,9 @@
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
           </label>
 
-          <a class="font-medium text-primary-600 hover:underline cursor-pointer"> ลืมรหัสผ่าน? </a>
+          <a class="font-medium text-primary-600 hover:underline cursor-pointer" @click="openForgot">
+            ลืมรหัสผ่าน?
+          </a>
         </div>
 
         <BaseButton type="submit" variant="Submit" class="w-full" :disabled="isLoading">
@@ -130,25 +132,43 @@
           </button>
         </div>
       </form>
+      <!-- ❗ ย้าย Modal มาไว้นอก form -->
+        <ForgotPasswordModal
+          :open="showForgot"
+          @close="showForgot = false"
+          @sent="onForgotSent"
+        />
+
+        <ResetPasswordModal
+          :open="showReset"
+          :token="resetToken"
+          @close="showReset = false"
+          @reset-success="onResetSuccess"
+        />
     </AuthLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref ,onMounted,nextTick} from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import LoadingMessage from '@/components/loading/LoadingMessage.vue'
+import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
+import ResetPasswordModal from '@/components/auth/ResetPasswordModal.vue'
 
 interface LoginForm {
   email: string
   password: string
   remember: boolean
 }
-
+const showForgot = ref(false)
+const showReset = ref(false)
+const resetToken = ref('')
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -161,6 +181,41 @@ const form = reactive<LoginForm>({
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const openForgot = () => showForgot.value = true
+const onForgotSent = (email: string) => {
+  // คุณอาจโชว์ toast ว่า “ส่งไปแล้ว”
+  showForgot.value = false
+}
+const onResetSuccess = () => {
+  showReset.value = false
+  // แสดงข้อความสำเร็จ / redirect ให้ login ใหม่
+}
+
+onMounted(() => {
+  const t = route.query.token
+
+  if (t) {
+    // t can be a string or an array — normalize to string before saving
+    const token = Array.isArray(t) ? String(t[0]) : String(t)
+    localStorage.setItem("reset_token", token)
+  }
+
+  const saved = localStorage.getItem("reset_token")
+
+  if (saved) {
+    resetToken.value = saved
+    showReset.value = true
+  }
+
+  // ลบ query หลังจากทุกอย่างเสร็จแล้ว
+  if (t) {
+    setTimeout(() => {
+      router.replace({ path: route.path, query: {} })
+    }, 800)
+  }
+})
+
+
 
 const handleLogin = async () => {
   errorMessage.value = ''
