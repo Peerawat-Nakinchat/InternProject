@@ -7,6 +7,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.17",
     "bcrypt": "^5.1.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
@@ -15,9 +16,12 @@
     "jsonwebtoken": "^9.0.0",
     "nodemailer": "^6.9.4",
     "pg": "^8.10.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@tsconfig/node20": "^20.1.8",
     "nodemon": "^2.0.22"
   }
 }
