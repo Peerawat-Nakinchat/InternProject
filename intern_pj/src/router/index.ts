@@ -47,6 +47,12 @@ const routes = [
     component: () => import('@/pages/MemberPageRegis.vue'),
     //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
+  {
+    path: '/iso_test',
+    name: 'iso_test',
+    component: () => import('@/pages/ISO_testPage.vue'),
+    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
+  },
 ]
 
 const router = createRouter({

@@ -21,6 +21,7 @@
     "@mdi/font": "^7.4.47",
     "@tailwindcss/postcss": "^4.1.17",
     "@vue/compiler-sfc": "^3.5.24",
+    "ag-grid-vue3": "^34.3.1",
     "axios": "^1.13.2",
     "pinia": "^3.0.3",
     "postcss": "^8.5.6",

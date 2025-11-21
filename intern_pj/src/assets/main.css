@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 
+
 *{
   font-family: 'Kanit', sans-serif;
 }
@@ -13,4 +14,27 @@ input::-ms-reveal {
 }
 input::-ms-clear {
   display: none !important;
+}
+
+/* ag grid ISO page*/
+.ag-theme-alpine {
+  --ag-font-family: 'Inter', 'Sarabun', sans-serif;
+  --ag-header-background-color: #f9fafb; /* gray-50 */
+  --ag-header-foreground-color: #374151; /* gray-700 */
+  --ag-border-color: #e5e7eb; /* gray-200 */
+  --ag-row-hover-color: #f3f4f6; /* gray-100 */
+  --ag-selected-row-background-color: #ecfdf5; /* emerald-50 */
+  --ag-row-border-color: #f3f4f6;
+  --ag-header-height: 48px;
+  --ag-row-height: 52px;
+  --ag-font-size: 14px;
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+  font-weight: 600;
+}
+
+.ag-theme-alpine .ag-cell {
+  display: flex;
+  align-items: center;
 }
