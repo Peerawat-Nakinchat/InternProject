@@ -1,26 +1,19 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
-    <!-- Sidebar -->
     <Sidebar :rail="railState" />
 
-    <!-- Right Column -->
     <div class="flex flex-col flex-1">
-      <!-- Navbar -->
       <Navbar class="h-12" />
 
-      <!-- Toolbar -->
       <ToolBar class="h-12">
         <CompanySelector />
       </ToolBar>
 
-      <!-- Main Content -->
       <main class="flex-1 p-6 overflow-auto">
-        <!-- Loading State -->
         <div v-if="loading" class="bg-white shadow rounded-lg p-6">
           <AdvancedSkeleton :rows="skeletonRows" />
         </div>
 
-        <!-- Error State -->
         <div v-else-if="error" class="bg-white shadow rounded-lg p-6">
           <div class="text-center py-12">
             <p class="text-red-500 text-lg mb-4">❌ {{ error }}</p>
@@ -28,9 +21,7 @@
           </div>
         </div>
 
-        <!-- Company Detail -->
         <div v-else-if="company" class="space-y-6">
-          <!-- Header -->
           <div class="bg-white shadow rounded-lg p-6">
             <div class="flex items-start justify-between mb-4">
               <div>
@@ -41,20 +32,19 @@
                   รหัสบริษัท: <span class="font-medium text-gray-700">{{ company.org_code }}</span>
                 </p>
               </div>
-              <div class="flex gap-2">
-                <BaseButton variant="ghost" @click="router.push('/')">← กลับ</BaseButton>
+              <div class="flex gap-4">
+                <BaseButton variant="ghost" @click="router.push('/')"> ← กลับ</BaseButton>
                 <BaseButton @click="handleEdit">✏️ แก้ไข</BaseButton>
               </div>
             </div>
 
-            <!-- สถานะการเชื่อมต่อ -->
             <div class="flex items-center gap-2">
               <span
                 :class="[
                   'px-3 py-1.5 text-sm rounded-full font-medium',
                   company.org_integrate === 'Y'
                     ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-600'
+                    : 'bg-gray-100 text-gray-600',
                 ]"
               >
                 {{ company.org_integrate === 'Y' ? '🔗 เชื่อมต่อระบบภายนอก' : '📴 ไม่เชื่อมต่อ' }}
@@ -62,7 +52,6 @@
             </div>
           </div>
 
-          <!-- ข้อมูลทั่วไป -->
           <div class="bg-white shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">ข้อมูลทั่วไป</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -83,7 +72,6 @@
             </div>
           </div>
 
-          <!-- ที่อยู่บริษัท -->
           <div class="bg-white shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">ที่อยู่บริษัท</h2>
             <div class="space-y-3">
@@ -108,7 +96,6 @@
             </div>
           </div>
 
-          <!-- ข้อมูลการเชื่อมต่อ -->
           <div v-if="company.org_integrate === 'Y'" class="bg-white shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">ข้อมูลการเชื่อมต่อระบบ</h2>
             <div class="space-y-3">
@@ -120,21 +107,26 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">Provider ID</label>
-                <p :class="company.org_integrate_provider_id ? 'text-gray-900' : 'text-gray-400 italic'">
+                <p
+                  :class="
+                    company.org_integrate_provider_id ? 'text-gray-900' : 'text-gray-400 italic'
+                  "
+                >
                   {{ company.org_integrate_provider_id || 'ไม่ระบุ' }}
                 </p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">Passcode</label>
-                <p :class="company.org_integrate_passcode ? 'text-gray-900' : 'text-gray-400 italic'">
+                <p
+                  :class="company.org_integrate_passcode ? 'text-gray-900' : 'text-gray-400 italic'"
+                >
                   {{ company.org_integrate_passcode ? '••••••••' : 'ไม่ระบุ' }}
                 </p>
               </div>
             </div>
           </div>
 
-          <!-- Metadata -->
-          <div class="bg-white shadow rounded-lg p-6">
+          <!-- <div class="bg-white shadow rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">ข้อมูลระบบ</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
@@ -145,8 +137,8 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">ผู้สร้าง</label>
-                <p :class="company.created_by ? 'text-gray-900' : 'text-gray-400 italic'">
-                  {{ company.created_by || 'ไม่ระบุ' }}
+                <p :class="company.owner_user_id ? 'text-gray-900' : 'text-gray-400 italic'">
+                  {{ company.owner_user_id }}
                 </p>
               </div>
               <div>
@@ -162,7 +154,7 @@
                 </p>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </main>
     </div>
@@ -205,22 +197,19 @@ const company = ref<Company | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Sidebar rail state
 const railState = ref(true)
 const toggleRail = () => {
   railState.value = !railState.value
 }
 
-// Skeleton configuration
 const skeletonRows = [
   { width: '60%', height: '2.5rem', class: 'bg-gray-300 rounded mb-4' },
   { width: '40%', height: '1.5rem', class: 'bg-gray-200 rounded mb-6' },
   { width: '100%', height: '1rem', class: 'bg-gray-200 rounded mb-2' },
   { width: '100%', height: '1rem', class: 'bg-gray-200 rounded mb-2' },
-  { width: '80%', height: '1rem', class: 'bg-gray-200 rounded' }
+  { width: '80%', height: '1rem', class: 'bg-gray-200 rounded' },
 ]
 
-// Fetch company data
 const fetchCompany = async () => {
   loading.value = true
   error.value = null
@@ -250,7 +239,6 @@ const fetchCompany = async () => {
   }
 }
 
-// Format date
 const formatDate = (dateString?: string) => {
   if (!dateString) return 'ไม่ระบุ'
 
@@ -261,16 +249,14 @@ const formatDate = (dateString?: string) => {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   } catch {
     return dateString
   }
 }
 
-// Handle edit
 const handleEdit = () => {
-  // TODO: Navigate to edit page or open edit modal
   console.log('Edit company:', company.value?.org_id)
   alert('ฟีเจอร์แก้ไขยังไม่พร้อมใช้งาน')
 }
@@ -279,7 +265,6 @@ onMounted(() => {
   fetchCompany()
 })
 
-// Provide rail state for child components
 provide('railState', railState)
 provide('toggleRail', toggleRail)
 </script>

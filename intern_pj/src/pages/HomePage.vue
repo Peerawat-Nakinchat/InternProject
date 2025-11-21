@@ -21,7 +21,7 @@
           </h1>
 
           <p class="text-gray-600 mb-4">
-            บริษัทที่เลือก: {{ companyStore.selectedCompany?.org_name || "ไม่พบบริษัท" }}
+            บริษัทที่เลือก: {{ companyStore.selectedCompany?.org_name || 'ไม่พบบริษัท' }}
           </p>
 
           <div v-if="companyStore.error" class="text-red-500 mb-4">{{ companyStore.error }}</div>
@@ -40,12 +40,41 @@
 
             <!-- ข้อมูลจริง -->
             <template v-else>
-              <CompanyCard
+              <BaseCard
                 v-for="company in companyStore.companies"
                 :key="company.org_id"
-                :company="company"
-                :show-integration="true"
-              />
+                :clickable="true"
+                @click="handleCardClick(company)"
+              >
+                <!-- Main Content -->
+                <template #default>
+                  <!-- ชื่อบริษัท -->
+                  <h2 class="text-lg font-semibold text-gray-800 mb-2 truncate">
+                    {{ company.org_name }}
+                  </h2>
+
+                  <!-- รหัสบริษัท -->
+                  <p class="text-gray-500 text-sm mb-3">
+                    รหัสบริษัท: <span class="font-medium">{{ company.org_code }}</span>
+                  </p>
+                </template>
+
+                <!-- Badge Section -->
+                <template #badge>
+                  <div class="flex items-center gap-2">
+                    <span
+                      :class="[
+                        'px-2 py-1 text-xs rounded-full font-medium',
+                        company.org_integrate === 'Y'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600',
+                      ]"
+                    >
+                      {{ company.org_integrate === 'Y' ? '🔗 เชื่อมต่อแล้ว' : '📴 ไม่เชื่อมต่อ' }}
+                    </span>
+                  </div>
+                </template>
+              </BaseCard>
             </template>
           </div>
         </div>
@@ -55,20 +84,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, provide } from "vue";
-import { useAuthStore } from "@/stores/auth";
-import { useCompanyStore } from "@/stores/company";
+import { ref, onMounted, provide } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useCompanyStore } from '@/stores/company'
 
-import Sidebar from "@/components/Sidebar.vue";
-import Navbar from "@/components/Navbar.vue";
-import ToolBar from "@/components/ToolBar.vue";
-import CompanySelector from "@/components/CompanySelector.vue";
-import CompanyCard from "@/components/CompanyCard.vue";
-import AdvancedSkeleton from "@/components/loading/AdvancedSkeleton.vue";
+import Sidebar from '@/components/Sidebar.vue'
+import Navbar from '@/components/Navbar.vue'
+import ToolBar from '@/components/ToolBar.vue'
+import CompanySelector from '@/components/CompanySelector.vue'
+import BaseCard from '@/components/base/BaseCard.vue'
+import AdvancedSkeleton from '@/components/loading/AdvancedSkeleton.vue'
 
 // Stores
-const authStore = useAuthStore();
-const companyStore = useCompanyStore();
+const authStore = useAuthStore()
+const companyStore = useCompanyStore()
+const router = useRouter()
 
 // Sidebar rail state
 const railState = ref(true)
@@ -78,32 +109,34 @@ const toggleRail = () => {
 // ฟังก์ชัน generate skeleton card
 const generateCompanySkeletonCards = (count: number) => {
   const cardRows = [
-    { width: "100%", height: "2rem", class: "bg-gray-300 rounded mb-2" }, // ชื่อบริษัท
-    { width: "60%", height: "1rem", class: "bg-gray-300 rounded" },       // รหัสบริษัท
-  ];
-  return Array.from({ length: count }, () => cardRows);
-};
+    { width: '100%', height: '2rem', class: 'bg-gray-300 rounded mb-2' }, // ชื่อบริษัท
+    { width: '60%', height: '1rem', class: 'bg-gray-300 rounded' }, // รหัสบริษัท
+  ]
+  return Array.from({ length: count }, () => cardRows)
+}
 
 // จำนวน skeleton cards ตาม column responsive
 const skeletonCards = ref(
-  generateCompanySkeletonCards(
-    window.innerWidth >= 1024 ? 6 : window.innerWidth >= 768 ? 4 : 3
-  )
-);
+  generateCompanySkeletonCards(window.innerWidth >= 1024 ? 6 : window.innerWidth >= 768 ? 4 : 3),
+)
+
+// Navigation handler
+const handleCardClick = (company: any) => {
+  router.push(`/company/${company.org_id}`)
+}
 
 // Fetch companies on mount
 onMounted(async () => {
-  await companyStore.fetchCompanies();
+  await companyStore.fetchCompanies()
 
   // อัปเดต skeleton เมื่อ resize window
-  window.addEventListener("resize", () => {
+  window.addEventListener('resize', () => {
     skeletonCards.value = generateCompanySkeletonCards(
-      window.innerWidth >= 1024 ? 6 : window.innerWidth >= 768 ? 4 : 3
-    );
-  });
-});
+      window.innerWidth >= 1024 ? 6 : window.innerWidth >= 768 ? 4 : 3,
+    )
+  })
+})
 
-provide("railState", railState)
-provide("toggleRail", toggleRail)
-
+provide('railState', railState)
+provide('toggleRail', toggleRail)
 </script>

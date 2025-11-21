@@ -1,5 +1,5 @@
 // src/models/MemberModel.js
-import { pool } from '../config/db.js';
+import { pool } from "../config/db.js";
 
 const dbQuery = pool.query.bind(pool);
 
@@ -14,7 +14,7 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
     [userId]
   );
 
-  if (userResult.rows.length === 0) throw new Error('User not found');
+  if (userResult.rows.length === 0) throw new Error("User not found");
   const user = userResult.rows[0];
 
   // 🔹 ตรวจสอบ member ซ้ำสำหรับ role != owner
@@ -24,8 +24,8 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
       [userId]
     );
     if (check.rows.length > 0) {
-      const error = new Error('ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น');
-      error.code = '23505'; // ใช้จับ 409 ใน controller
+      const error = new Error("ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น");
+      error.code = "23505"; // ใช้จับ 409 ใน controller
       throw error;
     }
   }
@@ -57,15 +57,65 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
     user.name,
     user.surname,
     user.full_name,
-    user.user_address_1 || '',
-    user.user_address_2 || '',
-    user.user_address_3 || ''
+    user.user_address_1 || "",
+    user.user_address_2 || "",
+    user.user_address_3 || "",
   ]);
 
   return res.rows[0];
 };
 
+const findMemberRole = async (orgId, userId) => {
+  const res = await pool.query(
+    `SELECT role_id FROM sys_organization_members WHERE org_id = $1 AND user_id = $2`,
+    [orgId, userId]
+  );
+  return res.rows.length ? res.rows[0].role_id : null;
+};
+
+const getMembers = async (orgId) => {
+  const res = await pool.query(
+    `SELECT m.*, r.role_name
+     FROM sys_organization_members m
+     JOIN sys_roles r ON m.role_id = r.role_id
+     WHERE m.org_id = $1`,
+    [orgId]
+  );
+  return res.rows;
+};
+
+const updateMemberRole = async (client, orgId, userId, roleId) => {
+  const executor = client || pool;
+  const res = await executor.query(
+    `UPDATE sys_organization_members SET role_id = $1 WHERE org_id = $2 AND user_id = $3 RETURNING *`,
+    [roleId, orgId, userId]
+  );
+  return res.rows[0];
+};
+
+const removeMember = async (client, orgId, userId) => {
+  const executor = client || pool;
+  const res = await executor.query(
+    `DELETE FROM sys_organization_members WHERE org_id = $1 AND user_id = $2 RETURNING *`,
+    [orgId, userId]
+  );
+  return res.rows[0];
+};
+
+const updateOrganizationOwner = async (client, orgId, newOwnerId) => {
+  const executor = client || pool;
+  const res = await executor.query(
+    `UPDATE sys_organizations SET owner_user_id = $1 WHERE org_id = $2 RETURNING *`,
+    [newOwnerId, orgId]
+  );
+  return res.rows[0];
+};
+
 export const MemberModel = {
   addMemberToOrganization,
-  // ... ฟังก์ชันอื่นเหมือนเดิม
+  findMemberRole,
+  getMembers,
+  updateMemberRole,
+  removeMember,
+  updateOrganizationOwner,
 };
