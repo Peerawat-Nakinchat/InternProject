@@ -40,14 +40,12 @@
 
             <!-- ข้อมูลจริง -->
             <template v-else>
-              <div
+              <CompanyCard
                 v-for="company in companyStore.companies"
                 :key="company.org_id"
-                class="border p-4 rounded-lg shadow hover:shadow-lg transition"
-              >
-                <h2 class="text-lg font-semibold">{{ company.org_name }}</h2>
-                <p class="text-gray-500 text-sm">รหัสบริษัท: {{ company.org_code }}</p>
-              </div>
+                :company="company"
+                :show-integration="true"
+              />
             </template>
           </div>
         </div>
@@ -65,6 +63,7 @@ import Sidebar from "@/components/Sidebar.vue";
 import Navbar from "@/components/Navbar.vue";
 import ToolBar from "@/components/ToolBar.vue";
 import CompanySelector from "@/components/CompanySelector.vue";
+import CompanyCard from "@/components/CompanyCard.vue";
 import AdvancedSkeleton from "@/components/loading/AdvancedSkeleton.vue";
 
 // Stores

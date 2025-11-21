@@ -108,7 +108,6 @@
   </div>
 </template>
 
-
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -126,7 +125,6 @@ const router = useRouter()
 
 // ฟอร์มข้อมูลบริษัท
 const form = reactive<CreateCompanyForm>({
-  org_id: '',
   org_name: '',
   org_code: '',
   owner_user_id: '',
@@ -136,7 +134,7 @@ const form = reactive<CreateCompanyForm>({
   org_integrate: '',
   org_integrate_url: '',
   org_integrate_provider_id: '',
-  org_integrate_passcode: ''
+  org_integrate_passcode: '',
 })
 
 // ตั้งค่า owner_user_id
@@ -146,7 +144,7 @@ onMounted(() => {
     router.push('/login')
     return
   }
-  
+
   form.owner_user_id = auth.user.user_id
   console.log('✅ User authenticated:', auth.user.email)
   console.log('✅ User ID:', auth.user.user_id)
@@ -155,14 +153,14 @@ onMounted(() => {
 // Integration Dropdown
 const integrationOptions: IntegrationOption[] = [
   { label: 'เชื่อมต่อข้อมูลบริษัท', value: 'Y' },
-  { label: 'ไม่เชื่อมต่อข้อมูลบริษัท', value: 'N' }
+  { label: 'ไม่เชื่อมต่อข้อมูลบริษัท', value: 'N' },
 ]
 
 const isIntegrationOpen = ref(false)
 const selectedIntegrationValue = ref<string | null>(null)
 
 const selectedIntegration = computed(() => {
-  return integrationOptions.find(o => o.value === selectedIntegrationValue.value) || null
+  return integrationOptions.find((o) => o.value === selectedIntegrationValue.value) || null
 })
 
 const onSelectIntegration = (option: IntegrationOption) => {
@@ -177,8 +175,14 @@ const validateForm = () => {
   if (!form.org_integrate) return 'กรุณาเลือกการเชื่อมต่อระบบ'
 
   if (form.org_integrate === 'Y') {
+    if (!form.org_integrate_url.trim()) return 'กรุณากรอก URL สำหรับการเชื่อมต่อ'
     if (!form.org_integrate_provider_id.trim()) return 'กรุณากรอก Provider ID'
     if (!form.org_integrate_passcode.trim()) return 'กรุณากรอก Passcode'
+  }
+  try {
+    new URL(form.org_integrate_url)
+  } catch {
+    return 'รูปแบบ URL ไม่ถูกต้อง'
   }
 
   return null
@@ -232,7 +236,7 @@ const onSubmit = async () => {
       org_integrate: form.org_integrate,
       org_integrate_url: form.org_integrate_url,
       org_integrate_provider_id: form.org_integrate_provider_id,
-      org_integrate_passcode: form.org_integrate_passcode
+      org_integrate_passcode: form.org_integrate_passcode,
     }
 
     const result = await createCompany(payload)
@@ -245,7 +249,6 @@ const onSubmit = async () => {
       resetForm()
       router.push('/') // หรือหน้าที่ต้องการ
     }, 2000)
-
   } catch (err: any) {
     console.error('❌ Create company error:', err)
     errorMessage.value = err.message || 'เกิดข้อผิดพลาดในการสร้างบริษัท'
@@ -266,9 +269,8 @@ const resetForm = () => {
     org_integrate: '',
     org_integrate_url: '',
     org_integrate_provider_id: '',
-    org_integrate_passcode: ''
+    org_integrate_passcode: '',
   })
   selectedIntegrationValue.value = null
 }
 </script>
-

@@ -36,6 +36,12 @@ const routes = [
     //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
   },
   {
+    path: '/company/:id',
+    name: 'companyDetail',
+    component: () => import('@/pages/CompanyDetailPage.vue'),
+    meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
+  },
+  {
     path : '/invite',
     name : 'invite',
     component : () => import('@/pages/InvitePage.vue'),
