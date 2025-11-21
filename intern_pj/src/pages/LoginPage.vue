@@ -194,8 +194,7 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
-  // TODO: Implement Google OAuth
-  alert('Google OAuth ยังไม่พร้อมใช้งาน')
+  window.location.href = 'http://localhost:3000/api/auth/google'
 }
 
 const handleMicrosoftLogin = () => {
