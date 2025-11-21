@@ -42,8 +42,43 @@ const createUser = async ({ email, passwordHash, name, surname, sex, user_addres
     return res.rows[0];
 };
 
+const setResetToken = async (userId, token, expire) => {
+    await dbQuery(
+        `UPDATE sys_users 
+         SET reset_token = $1, reset_token_expire = $2 
+         WHERE user_id = $3`,
+        [token, expire, userId]
+    );
+};
+
+
+const findByResetToken = async (token) => {
+    const res = await dbQuery(
+        `SELECT user_id, email
+         FROM sys_users
+         WHERE reset_token = $1
+         AND reset_token_expire >= NOW() LIMIT 1`,
+        [token]
+    );
+    return res.rows[0] || null;
+};
+
+
+const updatePassword = async (userId, hash) => {
+    await dbQuery(
+        `UPDATE sys_users
+         SET password_hash = $1, reset_token = NULL, reset_token_expire = NULL
+         WHERE user_id = $2`,
+        [hash, userId]
+    );
+};
+
+
 export const UserModel = {
     findByEmail,
     findById,
     createUser,
+    setResetToken,
+    findByResetToken,
+    updatePassword,
 };

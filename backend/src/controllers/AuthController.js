@@ -1,7 +1,10 @@
 // src/controllers/AuthController.js
 import bcrypt from "bcryptjs";
 import { pool } from "../config/db.js";
+import crypto from 'crypto';
 import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
+import { UserModel } from '../models/UserModel.js';
+import nodemailer from 'nodemailer';
 
 // ลงทะเบียนผู้ใช้ใหม่
 export const registerUser = async (req, res) => {
@@ -313,6 +316,149 @@ export const getProfile = async (req, res) => {
     client.release();
   }
 };
+
+// เปลี่ยนเฉพาะฟังก์ชัน forgotPassword ใน AuthController.js
+
+export const forgotPassword = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { email } = req.body;
+
+        console.log('🔔 Forgot password request for:', email);
+
+        if (!email) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "กรุณากรอกอีเมล" 
+            });
+        }
+
+        const user = await UserModel.findByEmail(email);
+
+        // ป้องกัน brute-force (ตอบแบบเดียวกันไม่ว่าจะมี user หรือไม่)
+        if (!user) {
+            console.log('⚠️ Email not found but returning success:', email);
+            return res.json({
+                success: true,
+                message: "ถ้ามีอีเมลนี้ในระบบ จะส่งลิงก์รีเซ็ตรหัสผ่านให้"
+            });
+        }
+
+        // สร้าง token
+        const token = crypto.randomUUID();
+        const expire = new Date(Date.now() + 1000 * 60 * 15); // 15 นาที
+
+        await UserModel.setResetToken(user.user_id, token, expire);
+
+        console.log('🔑 Reset token created:', { user_id: user.user_id, token });
+
+        // ตั้งค่า transporter
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true, // true for 465
+            auth: {
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASS
+            }
+        });
+
+
+        // ทดสอบการเชื่อมต่อ
+        try {
+            await transporter.verify();
+            console.log('✅ Email server connection verified');
+        } catch (verifyError) {
+            console.error('❌ Email server connection failed:', verifyError);
+            throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์อีเมลได้');
+        }
+
+        // ส่งอีเมล
+        const link = `${process.env.FRONTEND_URL}/login?token=${token}`;
+        
+        const mailOptions = {
+            from: process.env.MAIL_USER,
+            to: email,
+            subject: "รีเซ็ตรหัสผ่าน",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #9333ea;">รีเซ็ตรหัสผ่าน</h2>
+                    <p>คุณได้ร้องขอรีเซ็ตรหัสผ่าน</p>
+                    <p>คลิกที่ลิงก์ด้านล่างเพื่อเปลี่ยนรหัสผ่าน:</p>
+                    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #9333ea; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+                        รีเซ็ตรหัสผ่าน
+                    </a>
+                    <p style="color: #666; font-size: 14px;">ลิงก์นี้จะหมดอายุภายใน 15 นาที</p>
+                    <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #999; font-size: 12px;">หากคุณไม่ได้ร้องขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยอีเมลนี้</p>
+                </div>
+            `
+        };
+
+        console.log('📧 Sending email to:', email);
+        
+        const info = await transporter.sendMail(mailOptions);
+        
+        console.log('✅ Email sent successfully:', info.messageId);
+
+        res.json({ 
+            success: true, 
+            message: "ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว" 
+        });
+
+    } catch (err) {
+        console.error('💥 Forgot password error:', err);
+        res.status(500).json({ 
+            success: false, 
+            error: err.message || 'เกิดข้อผิดพลาดในการส่งอีเมล'
+        });
+    } finally {
+        client.release();
+    }
+};
+
+
+export const verifyResetToken = async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.status(400).json({ success: false, error: "token หาย" });
+    }
+
+    const user = await UserModel.findByResetToken(token);
+
+    if (!user) {
+        return res.status(400).json({ success: false, valid: false });
+    }
+
+    return res.json({ success: true, valid: true });
+};
+
+
+export const resetPassword = async (req, res) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return res.status(400).json({ success: false, error: "ข้อมูลไม่ครบ" });
+    }
+
+    const user = await UserModel.findByResetToken(token);
+
+    if (!user) {
+        return res.status(400).json({ success: false, error: "token ไม่ถูกต้อง หรือหมดอายุ" });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    await UserModel.updatePassword(user.user_id, hash);
+
+    res.json({
+        success: true,
+        message: "เปลี่ยนรหัสผ่านสำเร็จ"
+    });
+};
+
 
 // Logout
 export const logoutUser = async (req, res) => {
