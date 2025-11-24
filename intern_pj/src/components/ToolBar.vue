@@ -35,7 +35,7 @@
       <button
         @click="$emit('open-invite')"
         class="
-          flex items-center gap-2 justify-center
+          flex items-center gap-2 justify-center h-10
           rounded-lg shadow-md font-medium text-white
           bg-linear-to-r from-[#682DB5] to-[#8F3ED0]
           hover:from-[#7F39D1] hover:to-[#9B5DE5]
