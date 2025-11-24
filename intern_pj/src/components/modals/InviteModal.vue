@@ -1,10 +1,9 @@
 <template>
-
   <Teleport to="body">
     <transition name="fade-overlay">
       <div
         v-show="showModal"
-        class="fixed inset-0 w-full h-full bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]"
+        class="fixed inset-0 w-full h-full bg-black/50 backdrop-blur-sm flex items-center justify-center z-9999"
         @click.self="$emit('close')"
       >
         <div class="w-full max-w-lg px-4 sm:px-0">
