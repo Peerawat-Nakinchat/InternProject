@@ -1,0 +1,31 @@
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem('accessToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+export const sendInvitation = async (email: string, org_id: string, role_id: number) => {
+  const response = await axios.post(
+    `${API_URL}/invitations/send`,
+    { email, org_id, role_id },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const getInvitationInfo = async (token: string) => {
+  const response = await axios.get(`${API_URL}/invitations/${token}`);
+  return response.data;
+};
+
+export const acceptInvitation = async (token: string) => {
+  const response = await axios.post(
+    `${API_URL}/invitations/accept`,
+    { token },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};

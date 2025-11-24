@@ -34,7 +34,7 @@ export function useMemberRegister(routerInstance?: Router) {
     return `${day}/${month}/${year}`
   }
 
-  const form = reactive<MemberRegisterForm>({
+  const form = reactive<MemberRegisterForm & { inviteToken?: string }>({
     membership_id: '',
     org_id: '',
     user_id: '',
@@ -50,6 +50,7 @@ export function useMemberRegister(routerInstance?: Router) {
     user_address_2: '',
     user_address_3: '',
     join_date: getCurrentDate(),
+    inviteToken: '',
   })
 
   const resetForm = () => {
@@ -69,6 +70,7 @@ export function useMemberRegister(routerInstance?: Router) {
       user_address_2: '',
       user_address_3: '',
       join_date: getCurrentDate(),
+      inviteToken: '',
     })
     generalError.value = null
   }
@@ -80,7 +82,7 @@ export function useMemberRegister(routerInstance?: Router) {
     try {
       form.full_name = `${form.name} ${form.surname}`
 
-      const payload: MemberRegisterPayload = {
+      const payload: MemberRegisterPayload & { inviteToken?: string } = {
         membership_id: form.membership_id,
         org_id: form.org_id,
         user_id: form.user_id,
@@ -95,8 +97,12 @@ export function useMemberRegister(routerInstance?: Router) {
         user_address_2: form.user_address_2,
         user_address_3: form.user_address_3,
         join_date: form.join_date,
+        inviteToken: form.inviteToken,
       }
 
+      // Note: memberService.register needs to be updated to accept inviteToken too, 
+      // but if it just passes payload to axios, it might be fine.
+      // Let's check memberService.ts next.
       const response = await memberService.register(payload)
 
       if (response.success) {

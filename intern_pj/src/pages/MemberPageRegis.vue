@@ -219,8 +219,9 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import BaseDropdown from '@/components/base/BaseDropdown.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
-import { reactive, ref, computed, watch } from 'vue'
+import { reactive, ref, computed, watch, onMounted } from 'vue'
 import { useMemberRegister } from '@/services/useMemberRegister'
+import { useRoute } from 'vue-router'
 
 type SexValue = 'M' | 'F' | 'O' | ''
 
@@ -240,8 +241,21 @@ type MemberRegisterErrors = {
 
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const route = useRoute()
 
 const { form, isSubmitting, generalError, submitRegistration } = useMemberRegister()
+
+onMounted(() => {
+  const token = route.query.token as string
+  const email = route.query.email as string
+
+  if (token) {
+    form.inviteToken = token
+  }
+  if (email) {
+    form.email = email
+  }
+})
 
 const formErrors = reactive<MemberRegisterErrors>({})
 

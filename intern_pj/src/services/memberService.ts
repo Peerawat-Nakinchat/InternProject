@@ -15,6 +15,7 @@ export interface MemberRegisterPayload {
   user_address_2: string
   user_address_3: string
   join_date: string
+  inviteToken?: string
 }
 
 export interface MemberRegisterResponse {
@@ -30,7 +31,8 @@ export interface MemberRegisterResponse {
 export const memberService = {
   async register(payload: MemberRegisterPayload): Promise<MemberRegisterResponse> {
   try {
-    const response = await api.post<MemberRegisterResponse>('/api/members/register', payload)
+    // Changed from /api/members/register to /api/auth/register
+    const response = await api.post<MemberRegisterResponse>('/api/auth/register', payload)
     return response
   } catch (error: unknown) {
     if (

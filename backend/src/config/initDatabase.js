@@ -1,7 +1,7 @@
-import { pool } from './db.js';
+import { pool } from "./db.js";
 
 async function initializeDatabase() {
-  console.log('Initializing DB...');
+  console.log("Initializing DB...");
   try {
     await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
 
@@ -65,15 +65,18 @@ async function initializeDatabase() {
       );
     `);
 
-    console.log('DB initialized');
+    console.log("DB initialized");
     process.exitCode = 0;
   } catch (err) {
-    console.error('DB init error', err);
+    console.error("DB init error", err);
     process.exit(1);
   }
 }
 
-if (process.argv[1].includes('initDatabase') || process.argv[1].includes('initDatabase.js')) {
+if (
+  process.argv[1].includes("initDatabase") ||
+  process.argv[1].includes("initDatabase.js")
+) {
   initializeDatabase();
 }
 

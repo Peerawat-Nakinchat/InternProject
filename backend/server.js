@@ -1,29 +1,34 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import "dotenv/config"; // Load env vars before other imports
+import express from "express";
+import cors from "cors";
+import passport from "./src/config/passport.js";
 
-dotenv.config();
+import userRoutes from "./src/routes/memberRoutes.js";
+import authRoutes from "./src/routes/authRoutes.js";
+import companyRoutes from "./src/routes/companyRoutes.js";
+import invitationRoutes from "./src/routes/invitationRoutes.js";
+
+// dotenv.config(); // Removed because we use import 'dotenv/config'
 
 const app = express();
 app.use(cors());
 
 // เพิ่มขนาด payload ที่อนุญาต
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-import userRoutes from './src/routes/memberRoutes.js';
-import authRoutes from './src/routes/authRoutes.js';
-import companyRoutes from './src/routes/companyRoutes.js';
+app.use(passport.initialize());
 
-app.use('/api/users', userRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/company', companyRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/company", companyRoutes);
+app.use("/api/invitations", invitationRoutes);
 
-app.get('/', (req, res) => {
-    res.send('API server is running');
+app.get("/", (req, res) => {
+  res.send("API server is running");
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
