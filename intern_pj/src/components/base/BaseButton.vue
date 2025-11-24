@@ -1,4 +1,5 @@
 <template>
+  <!-- button -->
   <button
     v-bind="$attrs"
     :class="[
