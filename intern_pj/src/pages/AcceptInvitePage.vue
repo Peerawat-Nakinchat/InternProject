@@ -10,6 +10,17 @@
         <BaseButton class="mt-4" @click="router.push('/')">กลับสู่หน้าหลัก</BaseButton>
       </div>
 
+      <div v-else-if="invitation?.isAlreadyMember" class="text-center space-y-4">
+        <div class="p-4 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-200">
+          <h3 class="font-bold text-lg">คำเชิญนี้ถูกใช้งานแล้ว</h3>
+          <p class="mt-2">
+            คุณ ({{ invitation.email }}) เป็นสมาชิกของบริษัท
+            <b>{{ invitation.org_name }}</b> อยู่แล้ว
+          </p>
+        </div>
+        <BaseButton class="w-full" @click="router.push('/')">กลับสู่หน้าหลัก</BaseButton>
+      </div>
+
       <div v-else class="text-center space-y-6">
         <h2 class="text-2xl font-bold text-gray-900">คำเชิญเข้าร่วมบริษัท</h2>
         <p class="text-gray-600">
@@ -25,12 +36,52 @@
         <div class="space-y-4">
           <!-- Case 1: Existing User -->
           <template v-if="invitation?.isExistingUser">
-            <p class="text-sm text-blue-600">
+            <!-- Not Logged In -->
+            <p v-if="!auth.isAuthenticated" class="text-sm text-blue-600">
               คุณมีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบเพื่อตอบรับคำเชิญ
             </p>
+
+            <!-- Logged In -->
+            <template v-else>
+              <!-- Email Mismatch -->
+              <div
+                v-if="auth.user?.email !== invitation?.email"
+                class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+              >
+                <p class="font-bold">อีเมลไม่ถูกต้อง</p>
+                <p>
+                  คุณได้รับเชิญที่: <b>{{ invitation?.email }}</b>
+                </p>
+                <p>
+                  แต่คุณเข้าสู่ระบบด้วย: <b>{{ auth.user?.email }}</b>
+                </p>
+                <p class="mt-2">กรุณาออกจากระบบและเข้าสู่ระบบด้วยบัญชีที่ถูกต้อง</p>
+                <BaseButton variant="outline" class="w-full mt-2" @click="onLogout">
+                  ออกจากระบบ
+                </BaseButton>
+              </div>
+
+              <!-- Email Match -->
+              <div v-else>
+                <p class="text-sm text-blue-600">
+                  คุณเข้าสู่ระบบแล้ว กดปุ่มด้านล่างเพื่อเข้าร่วมบริษัท
+                </p>
+                <BaseButton
+                  variant="Submit"
+                  class="w-full mt-2"
+                  :loading="accepting"
+                  @click="onAcceptExisting"
+                >
+                  ตอบรับคำเชิญเข้าร่วมบริษัท
+                </BaseButton>
+              </div>
+            </template>
+
+            <!-- Login Button (only if not logged in) -->
             <BaseButton
+              v-if="!auth.isAuthenticated"
               variant="Submit"
-              class="w-full"
+              class="w-full mt-2"
               :loading="accepting"
               @click="onAcceptExisting"
             >
@@ -45,8 +96,6 @@
               ลงทะเบียนและเข้าร่วม
             </BaseButton>
           </template>
-
-          <BaseButton variant="ghost" class="w-full" @click="router.push('/')"> ปฏิเสธ </BaseButton>
         </div>
       </div>
     </div>
@@ -101,7 +150,18 @@ const onAcceptExisting = async () => {
   try {
     await acceptInvitation(token)
     alert('เข้าร่วมบริษัทสำเร็จ!')
-    router.push('/')
+
+    // Refresh user profile/session to get new org data
+    console.log('Fetching profile...')
+    try {
+      await auth.fetchProfile()
+      console.log('Profile fetched')
+    } catch (e) {
+      console.error('Error fetching profile:', e)
+    }
+
+    console.log('Redirecting to home...')
+    router.push('/').catch((err) => console.error('Router push error:', err))
   } catch (err: any) {
     if (err.response?.status === 409) {
       alert(err.response.data.message)
@@ -113,14 +173,24 @@ const onAcceptExisting = async () => {
   }
 }
 
+const onLogout = () => {
+  auth.logout()
+  router.push('/login')
+}
+
 const onRegister = () => {
+  console.log('Redirecting to register page', { token, email: invitation.value?.email })
   // Redirect to register page with token and email
-  router.push({
-    path: '/registerPage', // Or /memberRegis?
-    query: {
-      token: token,
-      email: invitation.value.email,
-    },
-  })
+  router
+    .push({
+      path: '/registerPage', // Or /memberRegis?
+      query: {
+        token: token,
+        email: invitation.value?.email,
+      },
+    })
+    .catch((err) => {
+      console.error('Router push error:', err)
+    })
 }
 </script>

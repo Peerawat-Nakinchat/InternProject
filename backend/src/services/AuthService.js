@@ -45,21 +45,33 @@ const register = async ({
   });
 
   // Handle Invitation if token is present
+  // Handle Invitation if token is present
   if (inviteToken) {
+    console.log("📩 Processing invite token during registration...");
     try {
       const payload = jwt.verify(inviteToken, INVITE_SECRET);
+      console.log("  - Token verified. Payload:", payload);
+
       // Ensure email matches (optional but recommended security check)
       if (payload.email === email) {
+        console.log("  - Email matches. Adding member to org...");
         await MemberModel.addMemberToOrganization(
           null,
           payload.org_id,
           newUser.user_id,
-          payload.role_id
+          parseInt(payload.role_id, 10) // Ensure integer
         );
+        console.log("  - Member added successfully.");
+      } else {
+        console.warn("  - Email mismatch:", {
+          payloadEmail: payload.email,
+          registerEmail: email,
+        });
       }
     } catch (err) {
-      console.error("Invalid invite token during registration:", err);
+      console.error("❌ Invalid invite token or member addition failed:", err);
       // We don't fail registration if invite fails, just log it.
+      // BUT for debugging, maybe we should know?
     }
   }
 

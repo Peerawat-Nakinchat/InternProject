@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -144,6 +144,7 @@ interface LoginForm {
 }
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const form = reactive<LoginForm>({
@@ -179,9 +180,10 @@ const handleLogin = async () => {
     if (result?.success) {
       successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
 
-      // Redirect to home page
+      // Redirect
       setTimeout(() => {
-        router.push('/')
+        const redirectPath = (route.query.redirect as string) || '/'
+        router.push(redirectPath)
       }, 1000)
     } else {
       errorMessage.value = result?.error || 'เข้าสู่ระบบไม่สำเร็จ'

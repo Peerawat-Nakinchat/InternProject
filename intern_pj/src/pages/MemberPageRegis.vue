@@ -139,6 +139,7 @@
           placeholder="example@email.com"
           required
           :error="formErrors.email"
+          :disabled="!!form.inviteToken"
           @blur="validateField('email')"
         />
 

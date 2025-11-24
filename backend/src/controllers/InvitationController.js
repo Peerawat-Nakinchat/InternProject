@@ -32,7 +32,11 @@ export const sendInvitation = async (req, res) => {
     const company = await CompanyModel.findOrganizationById(org_id);
     const companyName = company ? company.org_name : "บริษัทของเรา";
 
-    const inviteLink = `${process.env.FRONTEND_URL}/accept-invite?token=${token}`;
+    // Ensure no double slashes
+    const frontendUrl = (
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    ).replace(/\/$/, "");
+    const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
 
     const html = `
       <h1>คุณได้รับคำเชิญเข้าร่วมบริษัท ${companyName}</h1>
@@ -76,7 +80,19 @@ export const getInvitationInfo = async (req, res) => {
       org_id: payload.org_id,
       role_id: payload.role_id,
       org_name: org ? org.org_name : "Unknown Company",
+    // Check if already a member
+    const isAlreadyMember = await MemberModel.checkMembership(
+      payload.org_id,
+      payload.email
+    );
+
+    res.json({
+      email: payload.email,
+      org_id: payload.org_id,
+      role_id: payload.role_id,
+      org_name: org ? org.org_name : "Unknown Company",
       isExistingUser: !!existingUser,
+      isAlreadyMember,
     });
   } catch (error) {
     console.error("Get invitation error:", error);
@@ -97,12 +113,18 @@ export const acceptInvitation = async (req, res) => {
     }
 
     // Add member
-    await MemberModel.addMemberToOrganization(
+    console.log("🤝 Accepting invitation for user:", userId);
+    console.log("   - Org:", payload.org_id);
+    console.log("   - Role:", payload.role_id);
+
+    const result = await MemberModel.addMemberToOrganization(
       null, // client
       payload.org_id,
       userId,
-      payload.role_id
+      parseInt(payload.role_id, 10)
     );
+
+    console.log("✅ Member added result:", result);
 
     res.json({
       message: "Invitation accepted successfully",

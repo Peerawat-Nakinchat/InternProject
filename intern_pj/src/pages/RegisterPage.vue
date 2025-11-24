@@ -127,7 +127,7 @@
           label="อีเมล"
           type="email"
           placeholder="your@example.com"
-          :disabled="isLoading"
+          :disabled="isLoading || !!form.inviteToken"
           required
           class="w-full"
           :error="formErrors.email"
@@ -155,10 +155,7 @@
             ></i>
           </div>
 
-          <p
-            v-if="formErrors.password"
-            class="absolute text-xs text-red-500 pointer-events-none"
-          >
+          <p v-if="formErrors.password" class="absolute text-xs text-red-500 pointer-events-none">
             {{ formErrors.password }}
           </p>
         </div>
@@ -182,10 +179,7 @@
             ></i>
           </div>
 
-          <p
-            v-if="formErrors.password"
-            class="absolute text-xs text-red-500 pointer-events-none"
-          >
+          <p v-if="formErrors.password" class="absolute text-xs text-red-500 pointer-events-none">
             {{ formErrors.confirm_password }}
           </p>
         </div>
@@ -204,9 +198,9 @@
   </AuthLayout>
 </template>
 
-<script setup >
-import { ref, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
+<script setup>
+import { ref, watch, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 // Components
@@ -228,6 +222,21 @@ const form = ref({
   user_address_1: '',
   user_address_2: '',
   user_address_3: '',
+  inviteToken: '', // Add inviteToken
+})
+
+const route = useRoute() // Get route
+
+onMounted(() => {
+  const token = route.query.token
+  const email = route.query.email
+
+  if (token) {
+    form.value.inviteToken = token
+  }
+  if (email) {
+    form.value.email = email
+  }
 })
 
 const formErrors = ref({

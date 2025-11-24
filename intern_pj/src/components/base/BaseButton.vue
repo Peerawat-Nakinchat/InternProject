@@ -15,7 +15,7 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  variant?: 'Submit' | 'ghost' | 'link'
+  variant?: 'Submit' | 'ghost' | 'link' | 'outline'
 }>()
 
 const variantClass = computed(() => {
@@ -23,6 +23,7 @@ const variantClass = computed(() => {
     case 'link':
       return 'text-sky-600 hover:text-sky-700 bg-transparent focus:ring-sky-500'
     case 'ghost':
+    case 'outline':
       return 'border border-neutral-300 text-neutral-700 bg-white hover:bg-slate-50 focus:ring-slate-400'
     case 'Submit':
     default:
