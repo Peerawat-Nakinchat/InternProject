@@ -74,16 +74,30 @@ const findOrganizationById = async (orgId) => {
  */
 const findOrganizationsByUser = async (userId) => {
     const sql = `
+        -- บริษัทที่ user เป็น owner
+        SELECT DISTINCT 
+            o.*,
+            1 as role_id,
+            'OWNER' as role_name,
+            o.created_date as joined_date
+        FROM sys_organizations o
+        WHERE o.owner_user_id = $1
+        
+        UNION
+        
+        -- บริษัทที่ user เป็น member (ไม่ใช่ owner)
         SELECT DISTINCT 
             o.*,
             m.role_id,
             r.role_name,
             m.joined_date
         FROM sys_organizations o
-        LEFT JOIN sys_organization_members m ON o.org_id = m.org_id
-        LEFT JOIN sys_role r ON m.role_id = r.role_id
-        WHERE o.owner_user_id = $1 OR m.user_id = $1
-        ORDER BY o.created_date DESC
+        INNER JOIN sys_organization_members m ON o.org_id = m.org_id
+        INNER JOIN sys_role r ON m.role_id = r.role_id
+        WHERE m.user_id = $1 
+          AND o.owner_user_id != $1
+        
+        ORDER BY created_date DESC
     `;
     const res = await dbQuery(sql, [userId]);
     return res.rows;
