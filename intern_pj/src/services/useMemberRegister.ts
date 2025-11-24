@@ -19,6 +19,7 @@ export interface MemberRegisterForm {
   user_address_2: string
   user_address_3: string
   join_date: string
+  inviteToken?: string
 }
 
 export function useMemberRegister(routerInstance?: Router) {
@@ -50,6 +51,7 @@ export function useMemberRegister(routerInstance?: Router) {
     user_address_2: '',
     user_address_3: '',
     join_date: getCurrentDate(),
+    inviteToken: '',
   })
 
   const resetForm = () => {
@@ -69,6 +71,7 @@ export function useMemberRegister(routerInstance?: Router) {
       user_address_2: '',
       user_address_3: '',
       join_date: getCurrentDate(),
+      inviteToken: '',
     })
     generalError.value = null
   }

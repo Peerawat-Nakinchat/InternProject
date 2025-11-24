@@ -41,6 +41,12 @@ const router = createRouter({
     },
 
     {
+      path: '/accept-invite',
+      name: 'accept-invite',
+      component: () => import('@/pages/AcceptInvitePage.vue')
+    },
+
+    {
       path: '/registerPage',
       name: 'registerPage',
       component: () => import('@/pages/RegisterPage.vue'),
