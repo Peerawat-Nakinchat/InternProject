@@ -72,11 +72,19 @@ const findOrganizationById = async (orgId) => {
 /**
  * Get all organizations belonging to user
  */
+/**
+ * Get all organizations belonging to user
+ */
 const findOrganizationsByUser = async (userId) => {
     const sql = `
-        SELECT DISTINCT o.*
+        SELECT DISTINCT 
+            o.*,
+            m.role_id,
+            r.role_name,
+            m.joined_date
         FROM sys_organizations o
         LEFT JOIN sys_organization_members m ON o.org_id = m.org_id
+        LEFT JOIN sys_role r ON m.role_id = r.role_id
         WHERE o.owner_user_id = $1 OR m.user_id = $1
         ORDER BY o.created_date DESC
     `;
