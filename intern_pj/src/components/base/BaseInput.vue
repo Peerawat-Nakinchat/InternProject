@@ -20,7 +20,7 @@
 
       <!-- 👁 Password Toggle Icon -->
       <div
-        v-if="isPassword && hasValue"
+        v-if="isPassword && hasValue && !props.hidePasswordToggle"
         class="absolute inset-y-0 right-3 flex items-center cursor-pointer select-none "
         @click="togglePassword"
       >
@@ -62,6 +62,7 @@ const props = defineProps<{
   label?: string
   error?: string | null
   type?: string
+  hidePasswordToggle?: boolean
 }>()
 
 const emit = defineEmits<{
