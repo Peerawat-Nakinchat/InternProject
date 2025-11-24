@@ -11,29 +11,6 @@
 
     <!-- Right side -->
     <div class="flex items-center gap-3">
-      
-
-      <!-- Search Input -->
-      <div class="relative">
-        <input
-          type="text"
-          placeholder="Search..."
-          class="bg-[#682DB5]/30 text-white placeholder-purple-200 px-3 py-2 rounded-lg border border-[#682DB5]/50 focus:ring-2 focus:ring-[#A16CE0] focus:outline-none transition duration-300 backdrop-blur-sm"
-        />
-        <svg
-          class="w-5 h-5 text-purple-300 absolute right-2 top-1/2 -translate-y-1/2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-          />
-        </svg>
-      </div>
 
       <button
         @click="$emit('open-invite')"
