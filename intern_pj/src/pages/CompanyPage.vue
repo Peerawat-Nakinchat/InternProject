@@ -1,125 +1,134 @@
 <template>
-  <div>
-    <AuthLayout variant="Company">
-      <form class="space-y-3" @submit.prevent="onSubmit">
-        <header class="space-y-1 text-left">
-          <h1 class="mb-4 text-xl font-semibold tracking-tight text-neutral-900">
-            สร้างบริษัทใหม่
+  <div class="min-h-full py-2 px-4 md:px-8 lg:px-16">
+
+    <transition name="fade">
+      <div v-if="loading" class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-1000">
+        <LoadingMessage title="กำลังสร้างบริษัท" subtitle="โปรดรอสักครู่" />
+      </div>
+    </transition>
+
+    <form @submit.prevent="onSubmit" class="max-w-5xl mx-auto space-y-4">
+
+      <!-- Page Title -->
+      <div class="flex justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight">
+            <span
+              class="bg-linear-to-br from-[#1C244B] to-[#682DB5] bg-clip-text text-transparent inline-flex items-center gap-2">
+              <i class="mdi mdi-home-modern text-[1.4rem] leading-none"></i>
+              สร้างบริษัทใหม่
+            </span>
           </h1>
-        </header>
 
-        <BaseInput
-          v-model="form.org_name"
-          label="ชื่อบริษัท"
-          type="text"
-          placeholder="กรอกชื่อบริษัท"
-          required
-        />
-
-        <BaseInput
-          v-model="form.org_code"
-          label="รหัสบริษัท"
-          type="text"
-          placeholder="ตั้งรหัสบริษัท (เช่น CMP001)"
-        />
-        <div class="w-full space-y-1">
-          <label class="block text-xs font-medium text-neutral-700"> ที่อยู่บริษัท</label>
-          <BaseInput v-model="form.org_address_1" type="text" placeholder="ที่อยู่ 1" />
-          <BaseInput v-model="form.org_address_2" type="text" placeholder="ที่อยู่ 2" />
-
-          <BaseInput v-model="form.org_address_3" type="text" placeholder="ที่อยู่ 3" />
+          <p class="text-neutral-500 text-sm mt-1">
+            กรอกข้อมูลสำหรับการสร้างบริษัทใหม่ในระบบของคุณ
+          </p>
         </div>
 
-        <div class="w-full space-y-1">
-          <label class="block text-xs font-medium text-neutral-700"> Integrate System</label>
+        <!-- Submit -->
+        <div class="flex justify-end">
+          <button type="submit" class="px-8 py-2 h-12 inline-flex items-center gap-2 rounded-lg 
+         text-white font-medium shadow-md 
+         bg-linear-to-br from-[#1C244B] to-[#682DB5]
+         hover:brightness-110 active:scale-95 transition-all">
+            <i class="mdi mdi-domain-plus text-lg"></i>
+            สร้างบริษัท
+          </button>
 
-          <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
-            <template #trigger>
-              <button
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
-              >
-                <span>
-                  {{ selectedIntegration ? selectedIntegration.label : 'เลือกการเชื่อมต่อระบบ' }}
-                </span>
-                <svg
-                  class="h-4 w-4 text-primary-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 011.133.976l-.073.084-4.25 4.25a.75.75 0 01-.976.073l-.084-.073-4.25-4.25a.75.75 0 01.02-1.06z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-            </template>
+        </div>
 
-            <div class="py-1">
-              <button
-                v-for="option in integrationOptions"
-                :key="option.value"
-                type="button"
-                class="flex w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
-                @click="onSelectIntegration(option)"
-              >
-                {{ option.label }}
-              </button>
+      </div>
+      <p v-if="errorMessage" class="text-red-500 text-sm text-center mt-2">
+        {{ errorMessage }}
+      </p>
+
+      <!-- Section: ข้อมูลบริษัท -->
+      <section class="bg-white rounded-xl shadow-sm border border-neutral-200 p-8 space-y-8">
+
+        <div class="flex items-center gap-4 mb-4">
+          <span
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+            <i class="mdi mdi-domain" aria-hidden="true"></i>
+          </span>
+          <h2 class="text-lg text-gray-800 font-semibold">ข้อมูลบริษัท</h2>
+        </div>
+
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-2">
+
+          <div class="space-y-4">
+            <BaseInput v-model="form.org_name" label="ชื่อบริษัท *" placeholder="กรอกชื่อบริษัท" input-class="h-11" />
+
+            <BaseInput v-model="form.org_code" label="รหัสบริษัท *" placeholder="เช่น CMP001" input-class="h-11" />
+
+            <div class="space-y-1">
+              <label class="text-sm font-medium text-neutral-700">Integrate System *</label>
+
+              <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
+                <template #trigger>
+                  <button type="button" class="flex w-full items-center justify-between rounded-lg border border-neutral-300
+                      bg-white px-3 h-10 text-sm text-neutral-700 hover:bg-neutral-50 shadow-sm">
+                    <span>{{ selectedIntegration ? selectedIntegration.label : "เลือกการเชื่อมต่อระบบ" }}</span>
+                    <i class="mdi mdi-chevron-down text-primary-500 text-lg"></i>
+                  </button>
+                </template>
+
+                <div class="py-1">
+                  <button v-for="option in integrationOptions" :key="option.value"
+                    class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100"
+                    @click="onSelectIntegration(option)">
+                    {{ option.label }}
+                  </button>
+                </div>
+              </BaseDropdown>
             </div>
-          </BaseDropdown>
+          </div>
+
+          <div class="space-y-4">
+            <BaseInput v-model="form.org_address_1" label="ที่อยู่ 1" placeholder="กรอกที่อยู่ 1" input-class="h-11" />
+
+            <BaseInput v-model="form.org_address_2" label="ที่อยู่ 2" placeholder="กรอกที่อยู่ 2" input-class="h-11" />
+
+            <BaseInput v-model="form.org_address_3" label="ที่อยู่ 3" placeholder="กรอกที่อยู่ 3" input-class="h-11" />
+          </div>
+
+        </div>
+        <div class="flex items-center gap-4 mb-4">
+          <span
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+            <i class="mdi mdi-lan-connect" aria-hidden="true"></i>
+          </span>
+          <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบ</h2>
         </div>
 
-        <div class="flex w-full justify-between gap-4">
-          <div class="flex-1/2">
-            <BaseInput
-              v-model="form.org_integrate_provider_id"
-              label="Integration Provider"
-              type="text"
-              placeholder="กรอก Provider ID"
-            />
-          </div>
-          <div class="flex-1/2">
-            <BaseInput
-              v-model="form.org_integrate_passcode"
-              label="Integration Passcode"
-              type="password"
-              placeholder="กรอกรหัสจากระบบภายนอก"
-            />
-          </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <BaseInput v-model="form.org_integrate_provider_id" label="Integration Provider"
+            placeholder="กรอก Provider ID" />
+
+          <BaseInput v-model="form.org_integrate_passcode" label="Integration Passcode" type="password"
+            placeholder="กรอกรหัสจากระบบภายนอก" />
+
+          <BaseInput v-model="form.org_integrate_url" label="Integration URL" type="url" placeholder="https://..." />
         </div>
-
-        <BaseInput
-          v-model="form.org_integrate_url"
-          label="Integration URL"
-          type="url"
-          placeholder="https://..."
-        />
-
-        <BaseButton type="submit" variant="Submit" class="w-full" :loading="loading">
-          สร้างบริษัท
-        </BaseButton>
-        <p v-if="errorMessage" class="mt-2 text-sm text-red-500">
-          {{ errorMessage }}
-        </p>
-      </form>
-    </AuthLayout>
+      </section>
+    </form>
   </div>
 </template>
+
 
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import AuthLayout from '@/layouts/AuthLayout.vue'
+
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseDropdown from '@/components/base/BaseDropdown.vue'
 
 import type { CreateCompanyForm, IntegrationOption } from '@/types/company'
 import { createCompany } from '@/services/useCompany'
+import LoadingMessage from '@/components/loading/LoadingMessage.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -146,7 +155,7 @@ onMounted(() => {
     router.push('/login')
     return
   }
-  
+
   form.owner_user_id = auth.user.user_id
   console.log('✅ User authenticated:', auth.user.email)
   console.log('✅ User ID:', auth.user.user_id)
@@ -272,3 +281,24 @@ const resetForm = () => {
 }
 </script>
 
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity .25s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.mdi {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.mdi.mdi-home-modern {
+  font-size: 2rem;
+  line-height: 1;
+}
+</style>

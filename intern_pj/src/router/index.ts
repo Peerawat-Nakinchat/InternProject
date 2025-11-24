@@ -1,90 +1,80 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import HomePage from '@/pages/HomePage.vue'
-import path from 'path'
-
-const routes = [
-  {
-    path: '/',
-    name: 'home',
-    component: HomePage,
-    meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/pages/LoginPage.vue'),
-    //meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
-  },
-  {
-    path: '/registerPage',
-    name: 'registerPage',
-    component: () => import('@/pages/RegisterPage.vue'),
-    //meta: { requiresGuest: true }, // เฉพาะคนที่ยังไม่ได้ล็อกอิน
-  },
-
-  {
-    path: '/profile',
-    name: 'profile',
-    component: () => import('@/pages/ProfilePage.vue'),
-    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path: '/company',
-    name: 'company',
-    component: () => import('@/pages/CompanyPage.vue'),
-    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path : '/invite',
-    name : 'invite',
-    component : () => import('@/pages/InvitePage.vue'),
-    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path: '/memberRegis',
-    name: 'memberRegister',
-    component: () => import('@/pages/MemberPageRegis.vue'),
-    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path: '/iso_test',
-    name: 'iso_test',
-    component: () => import('@/pages/ISO_testPage.vue'),
-    //meta: { requiresAuth: true }, // ต้องเข้าสู่ระบบ
-  },
-  {
-    path: '/auth/callback',
-    name: 'auth-callback',
-    component: () => import('@/pages/AuthCallback.vue'),
-  },
-]
+import { useAppLoading } from '@/stores/appLoading'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
+  routes: [
+    {
+      path: '/',
+      component: () => import('@/layouts/MainLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'home',
+          component: () => import('@/pages/HomePage.vue')
+        },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('@/pages/ProfilePage.vue')
+        },
+        {
+          path: 'company',
+          name: 'company',
+          component: () => import('@/pages/CompanyPage.vue')
+        },
+        {
+          path: 'invite',
+          name: 'invite',
+          component: () => import('@/pages/InvitePage.vue')
+        }
+      ]
+    },
+
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/pages/LoginPage.vue'),
+      meta: { requiresGuest: true }
+    },
+
+    {
+      path: '/registerPage',
+      name: 'registerPage',
+      component: () => import('@/pages/RegisterPage.vue'),
+      meta: { requiresGuest: true }
+    }
+  ]
 })
 
-// Navigation Guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  const loading = useAppLoading()
 
-  // ตรวจสอบว่ามี token และ user หรือไม่
+  // เริ่มแสดง Loading เมื่อเริ่มเปลี่ยนหน้า
+  loading.start()
+
   const isAuthenticated = authStore.isAuthenticated
 
-  // หน้าที่ต้อง login
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/login')
-    return
+    return next('/login')
   }
-
-  // หน้าที่ไม่ควรให้คนที่ login แล้วเข้าถึง (เช่น login, register)
   if (to.meta.requiresGuest && isAuthenticated) {
-    next('/')
-    return
+    return next('/')
   }
 
   next()
+})
+
+router.afterEach(() => {
+  const loading = useAppLoading()
+
+  // ดีเลย์เพื่อความ smooth
+  setTimeout(() => {
+    loading.stop()
+  }, 500)
 })
 
 export default router

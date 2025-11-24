@@ -9,7 +9,7 @@
     <div class="relative w-full max-w-md rounded-2xl bg-white backdrop-blur-lg border border-white/30 shadow-xl animate-fadeIn overflow-hidden">
       
       <!-- Header -->
-      <div class="flex justify-between items-center px-6 py-4 bg-linear-to-r from-purple-600 to-purple-400 text-white">
+      <div class="flex justify-between items-center px-6 py-4 bg-linear-to-r from-purple-600 to-purple-500 text-white">
         <h2 class="text-xl font-semibold flex items-center gap-2">
           <i class="mdi mdi-lock-alert-outline text-2xl text-white"></i>
           ลืมรหัสผ่าน

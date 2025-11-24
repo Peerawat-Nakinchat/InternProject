@@ -1,14 +1,14 @@
 <template>
-  <div class="relative w-60">
+  <div class="relative w-60 ">
     <!-- Dropdown Button -->
     <button
       @click="toggleDropdown"
-      class="w-full h-10 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-sm font-semibold backdrop-blur-md  shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5]
+      class="w-full h-9 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-md font-semibold backdrop-blur-md  shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5]
                 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
     >
       <span>บริษัท : {{ selectedCompanyName }}</span>
       <svg
-        class="w-5 h-5 text-gray-200 active:text-blue-950 transition-transform duration-300"
+        class="w-5 h-5 text-gray-200 active:text-blue-950 transition-transform duration-300 ml-2"
         :class="{'rotate-180': dropdownOpen}"
         fill="none"
         stroke="currentColor"
@@ -21,14 +21,14 @@
     <!-- Dropdown List -->
     <ul
       v-if="dropdownOpen"
-      class="absolute w-full  rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30  shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
+      class="absolute w-full rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30  shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
     >
       <li
         v-for="company in companyStore.companies"
         :key="company.org_id"
         @click="selectCompany(company)"
         class="px-4 py-3 bg-linear-to-r from-[#682DB5] to-[#8F3ED0]  cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5]
-                hover:text-yellow-400 transition-colors text-white "
+                hover:text-yellow-400 transition-colors text-white"
       >
         {{ company.org_name }}
       </li>
