@@ -17,18 +17,7 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
   if (userResult.rows.length === 0) throw new Error("User not found");
   const user = userResult.rows[0];
 
-  // 🔹 ตรวจสอบ member ซ้ำสำหรับ role != owner
-  if (roleId !== 1) {
-    const check = await executor.query(
-      `SELECT 1 FROM sys_organization_members WHERE user_id = $1 AND role_id != 1 LIMIT 1`,
-      [userId]
-    );
-    if (check.rows.length > 0) {
-      const error = new Error("ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น");
-      error.code = "23505"; // ใช้จับ 409 ใน controller
-      throw error;
-    }
-  }
+  // Database will handle duplicate prevention via ON CONFLICT (org_id, user_id)
 
   const sql = `
     INSERT INTO sys_organization_members (
