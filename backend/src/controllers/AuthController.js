@@ -68,7 +68,7 @@ export const registerUser = async (req, res) => {
                 email, password_hash, name, surname, full_name, sex,
                 user_address_1, user_address_2, user_address_3, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-            RETURNING user_id, email, name, surname, full_name, sex, user_address_1, user_address_2, user_address_3`,
+            RETURNING user_id, email, name, surname, full_name, sex, user_address_1, user_address_2, user_address_3, role_id, is_active, profile_image_url`,
       [
         email,
         hashedPassword,
@@ -142,7 +142,8 @@ export const loginUser = async (req, res) => {
 
     // ดึงข้อมูลผู้ใช้
     const result = await client.query(
-      `SELECT user_id, email, password_hash, name, surname, full_name, is_active
+      `SELECT user_id, email, password_hash, name, surname, full_name, is_active,
+              sex, user_address_1, user_address_2, user_address_3, role_id, profile_image_url
              FROM sys_users WHERE email = $1`,
       [email]
     );
@@ -213,6 +214,12 @@ export const loginUser = async (req, res) => {
         name: user.name,
         surname: user.surname,
         full_name: user.full_name,
+        sex: user.sex,
+        user_address_1: user.user_address_1,
+        user_address_2: user.user_address_2,
+        user_address_3: user.user_address_3,
+        role_id: user.role_id,
+        profile_image_url: user.profile_image_url,
       },
     });
   } catch (error) {
@@ -290,7 +297,8 @@ export const getProfile = async (req, res) => {
     const userId = req.user.user_id;
 
     const result = await client.query(
-      `SELECT user_id, email, name, surname, full_name, created_at
+      `SELECT user_id, email, name, surname, full_name, created_at, updated_at, sex,
+              user_address_1, user_address_2, user_address_3, role_id, is_active, profile_image_url
              FROM sys_users WHERE user_id = $1`,
       [userId]
     );

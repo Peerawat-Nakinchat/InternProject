@@ -10,6 +10,10 @@ export interface User {
   email: string
   full_name: string
   name?: string
+  sex?: "M" | "F" | "O"
+  user_address_1?: string
+  user_address_2?: string
+  user_address_3?: string
   surname?: string
   role_id: number
   profile_image_url?: string
@@ -117,6 +121,10 @@ export const useAuthStore = defineStore('auth', () => {
         password: data.password,
         name: data.name,
         surname: data.surname,
+        sex: data.sex,
+        user_address_1: data.user_address_1,
+        user_address_2: data.user_address_2,
+        user_address_3: data.user_address_3,
       })
 
       if (response.data.success) {
@@ -168,28 +176,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Fetch Profile
   const fetchProfile = async () => {
-    if (!accessToken.value) return
+  if (!accessToken.value) return
 
-    try {
-      const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
-        headers: {
-          Authorization: `Bearer ${accessToken.value}`,
-        },
-      })
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
+      headers: { Authorization: `Bearer ${accessToken.value}` }
+    })
 
-      if (response.data.success) {
-        user.value = response.data.user
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-      }
-    } catch (err: any) {
-      console.error('Fetch profile error:', err)
-      if (err.response?.status === 401) {
-        // Token expired, try refresh or logout
-        await logout()
-      }
+    console.log("🔍 Fetch profile result:", response.data.user)
+
+    if (response.data.success) {
+      user.value = response.data.user
+      localStorage.setItem('user', JSON.stringify(response.data.user))
     }
+  } catch (err: any) {
+    console.error('Fetch profile error:', err)
+    if (err.response?.status === 401) await logout()
   }
-
+}
 
   // Refresh Access Token
   const refreshAccessToken = async (): Promise<boolean> => {
