@@ -35,7 +35,6 @@
     </ul>
 
     <!-- Loading / Error -->
-    <p v-if="companyStore.loading" class="text-gray-300 text-sm mt-1">Loading companies...</p>
     <p v-if="companyStore.error" class="text-red-400 text-sm mt-1">{{ companyStore.error }}</p>
   </div>
 </template>
