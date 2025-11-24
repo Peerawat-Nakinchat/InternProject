@@ -53,7 +53,7 @@ const menuItems = ref([
   { title: 'Home', icon: 'mdi mdi-home', value: 'home', to: '/' },
   {
     title: 'Company',
-    icon: 'mdi mdi-file-chart-outline',
+    icon: 'mdi mdi-home-modern',
     value: 'company',
     to: '/company',
   },

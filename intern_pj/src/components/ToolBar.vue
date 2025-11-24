@@ -1,10 +1,13 @@
 <template>
   <div
-    class="w-full h-[55px] bg-linear-to-tr from-[#1C244B] to-[#682DB5] backdrop-blur-md border-t-white border-t border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
+    class="w-full h-[55px] overflow-visible bg-linear-to-tr from-[#1C244B] to-[#682DB5] backdrop-blur-md border-t-white border-t border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
   >
     <!-- Left side -->
     <!-- Company Selector -->
+    <div class="relative">
       <CompanySelector />
+    </div>
+
 
     <!-- Right side -->
     <div class="flex items-center gap-3">
