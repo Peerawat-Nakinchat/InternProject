@@ -72,9 +72,6 @@ const findOrganizationById = async (orgId) => {
 /**
  * Get all organizations belonging to user
  */
-/**
- * Get all organizations belonging to user
- */
 const findOrganizationsByUser = async (userId) => {
     const sql = `
         SELECT DISTINCT 
@@ -90,7 +87,7 @@ const findOrganizationsByUser = async (userId) => {
     `;
     const res = await dbQuery(sql, [userId]);
     return res.rows;
-};
+}
 
 /**
  * Update organization
