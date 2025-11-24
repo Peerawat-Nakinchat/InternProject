@@ -419,44 +419,101 @@ export const forgotPassword = async (req, res) => {
 };
 
 
+// แทนที่ฟังก์ชัน verifyResetToken และ resetPassword ใน AuthController.js
+
 export const verifyResetToken = async (req, res) => {
-    const { token } = req.query;
+    try {
+        const { token } = req.query;
 
-    if (!token) {
-        return res.status(400).json({ success: false, error: "token หาย" });
+        console.log('🔍 Verify reset token request:', token);
+
+        if (!token) {
+            console.log('❌ No token provided');
+            return res.status(400).json({ 
+                success: false, 
+                valid: false,
+                error: "token หาย" 
+            });
+        }
+
+        const user = await UserModel.findByResetToken(token);
+
+        if (!user) {
+            console.log('❌ Token not found or expired');
+            return res.status(400).json({ 
+                success: false, 
+                valid: false,
+                error: "token ไม่ถูกต้องหรือหมดอายุ"
+            });
+        }
+
+        console.log('✅ Token is valid for user:', user.user_id);
+        
+        return res.json({ 
+            success: true, 
+            valid: true 
+        });
+        
+    } catch (error) {
+        console.error('💥 Verify reset token error:', error);
+        res.status(500).json({ 
+            success: false, 
+            valid: false,
+            error: error.message 
+        });
     }
-
-    const user = await UserModel.findByResetToken(token);
-
-    if (!user) {
-        return res.status(400).json({ success: false, valid: false });
-    }
-
-    return res.json({ success: true, valid: true });
 };
 
-
 export const resetPassword = async (req, res) => {
-    const { token, password } = req.body;
+    try {
+        const { token, password } = req.body;
 
-    if (!token || !password) {
-        return res.status(400).json({ success: false, error: "ข้อมูลไม่ครบ" });
+        console.log('🔒 Reset password request for token:', token);
+
+        if (!token || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "ข้อมูลไม่ครบ" 
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" 
+            });
+        }
+
+        const user = await UserModel.findByResetToken(token);
+
+        if (!user) {
+            console.log('❌ Token not found or expired');
+            return res.status(400).json({ 
+                success: false, 
+                error: "token ไม่ถูกต้อง หรือหมดอายุ" 
+            });
+        }
+
+        console.log('🔐 Resetting password for user:', user.user_id);
+
+        const hash = await bcrypt.hash(password, 10);
+
+        await UserModel.updatePassword(user.user_id, hash);
+
+        console.log('✅ Password reset successful');
+
+        res.json({
+            success: true,
+            message: "เปลี่ยนรหัสผ่านสำเร็จ"
+        });
+        
+    } catch (error) {
+        console.error('💥 Reset password error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "เกิดข้อผิดพลาด"
+        });
     }
-
-    const user = await UserModel.findByResetToken(token);
-
-    if (!user) {
-        return res.status(400).json({ success: false, error: "token ไม่ถูกต้อง หรือหมดอายุ" });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    await UserModel.updatePassword(user.user_id, hash);
-
-    res.json({
-        success: true,
-        message: "เปลี่ยนรหัสผ่านสำเร็จ"
-    });
 };
 
 
