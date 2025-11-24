@@ -2,96 +2,350 @@
   <!-- LAYOUT WRAPPER -->
   <div class="flex min-h-screen bg-gray-100">
 
-    <!-- Sidebar -->
-    <Sidebar />
-
-    <!-- MAIN AREA -->
+    <!-- PAGE CONTENT -->
     <div class="flex-1 flex flex-col">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight mt-4 mb-1 px-4">
+          <span
+            class="bg-linear-to-br from-[#1C244B] to-[#682DB5] bg-clip-text text-transparent inline-flex items-center gap-2">
+            <i class="mdi mdi-account text-[1.4rem] leading-none"></i>
+            โปรไฟล์ของฉัน
+          </span>
+        </h1>
 
-      <!-- Navbar -->
-      <Navbar />
+        <p class="text-neutral-500 text-sm px-4 ">
+          กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ
+        </p>
+      </div>
 
-      <!-- PAGE CONTENT -->
-      <div class="p-6">
-        <div class="max-w-4xl mx-auto">
+      <!-- Back Button -->
+          <Button
+            @click="goBack"
+            class="absolute top-4 right-4 w-10 h-10 flex items-center justify-center
+                  bg-white/90 backdrop-blur rounded-full shadow-md
+                  hover:bg-white transition cursor-pointer"
+          >
+            <i class="mdi mdi-arrow-left text-gray-700 text-xl"></i>
+          </Button>
 
-          <!-- ========== PROFILE HEADER FACEBOOK STYLE ========== -->
-          <div class="relative bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-            
-            <!-- Back Button -->
-            <button
-              @click="goBack"
-              class="absolute top-4 left-4 w-10 h-10 flex items-center justify-center
-                    bg-white/90 backdrop-blur rounded-full shadow-md
-                    hover:bg-white transition cursor-pointer"
-            >
-              <i class="mdi mdi-arrow-left text-gray-700 text-xl"></i>
-            </button>
-            
-            <!-- Cover Background -->
-            <div class="h-36 bg-linear-to-r from-purple-600 to-blue-600"></div>
+      <div class="w-full max-w-full mx-auto p-4">
+        <!-- ========== PROFILE HEADER STYLE ========== -->
+        <div class="relative bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+          
+          <!-- Cover Background -->
+          <div class="h-36 bg-linear-to-r from-purple-600 to-[#1C244B]"></div>
 
-            <!-- Profile image + name -->
-            <div class="px-6 pb-6">
-              <div class="flex items-end gap-4 -mt-12">
-                
-                <!-- Profile Picture -->
-                <div class="relative">
-                  <img
-                    v-if="form.profile_image_url"
-                    :src="form.profile_image_url"
-                    class="w-28 h-28 rounded-full object-cover border-4 border-white shadow"
-                  />
+          <!-- Profile image + name -->
+          <div class="px-6 pb-6">
+            <div class="flex items-end gap-4 -mt-12">
+              
+              <!-- Profile Picture -->
+              <div class="relative">
+                <img
+                  v-if="form.profile_image_url"
+                  :src="form.profile_image_url"
+                  class="w-28 h-28 rounded-full object-cover border-4 border-white shadow"
+                />
 
-                  <div
-                    v-else
-                    class="w-28 h-28 rounded-full bg-purple-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow"
-                  >
-                    {{ userInitials }}
-                  </div>
-
-                  <!-- Upload button -->
-                  <label
-                    class="absolute bottom-2 right-2 bg-white shadow p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition"
-                  >
-                    <i class="mdi mdi-camera text-gray-700 text-xl"></i>
-                    <input type="file" class="hidden" @change="onImageUpload" />
-                  </label>
+                <div
+                  v-else
+                  class="w-28 h-28 rounded-full bg-purple-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow"
+                >
+                  {{ userInitials }}
                 </div>
 
-                <!-- Name + Email -->
-                <div class="flex-1">
-                  <h1 class="text-2xl font-bold text-gray-900">{{ form.full_name || userInitials }}</h1>
-                  <p class="text-gray-500 text-sm">{{ authStore.user?.email }}</p>
+                <!-- Upload button -->
+                <label
+                  class="absolute bottom-2 right-2 bg-white shadow p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition"
+                >
+                  <i class="mdi mdi-camera text-gray-700 text-xl"></i>
+                  <input type="file" class="hidden" @change="onImageUpload" />
+                </label>
+              </div>
+
+              <!-- Name + Email -->
+              <div class="flex-1">
+                <h1 class="text-2xl font-bold text-gray-900">{{ form.full_name || userInitials }}</h1>
+                <p class="text-gray-500 text-sm">{{ authStore.user?.email }}</p>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- ========== COL 1 — ข้อมูลส่วนตัว ========== -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
+          <!-- ========== PERSONAL INFO CARD ========== -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <div class="flex items-center gap-4 mb-4">
+              <span
+                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+                <i class="mdi mdi-account" aria-hidden="true"></i>
+              </span>
+              <h2 class="text-lg text-gray-800 font-semibold">ข้อมูลส่วนตัว</h2>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+              <base-input 
+                v-model="form.name" 
+                label="ชื่อจริง" 
+                placeholder="ชื่อจริง" 
+              />
+
+              <base-input 
+                v-model="form.surname" 
+                label="นามสกุล" 
+                placeholder="นามสกุล" 
+              />
+
+              <!-- Gender -->
+              <div class="relative">
+                <label class="text-xs font-medium text-neutral-700">เพศ *</label>
+
+                <!-- Selected box -->
+                <div
+                  class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
+                  @click="openGender = !openGender"
+                >
+                  <span>{{ genderLabel }}</span>
+                  <svg
+                    class="w- h-4 text-slate-500 transition-transform"
+                    :class="openGender ? 'rotate-180' : ''"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+
+                <!-- Dropdown -->
+                <div
+                  v-if="openGender"
+                  class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
+                >
+                  <div
+                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+                    @click="selectGender('M')"
+                  >
+                    ชาย
+                  </div>
+
+                  <div
+                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+                    @click="selectGender('F')"
+                  >
+                    หญิง
+                  </div>
+
+                  <div
+                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+                    @click="selectGender('O')"
+                  >
+                    อื่น ๆ
+                  </div>
+                </div>
+              </div>
+
+              <base-input :model-value="getRoleName(authStore.user?.role_id)" label="บทบาท" disabled />
+
+            </div>
+        </div>
+        
+        <!-- ========== COL 2 — ความปลอดภัย ========== -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <div class="flex items-center gap-4 mb-4">
+              <span
+                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+                <i class="mdi mdi-map" aria-hidden="true"></i>
+              </span>
+              <h2 class="text-lg text-gray-800 font-semibold">ที่อยู่</h2>
+            </div>
+
+            <base-input 
+              v-model="form.user_address_1" 
+              label="ที่อยู่ 1" 
+              placeholder="กรอกที่อยู่"
+              class="mb-2"
+            />
+            <base-input 
+              v-model="form.user_address_2" 
+              label="ที่อาคาร / ชั้น" 
+              placeholder="อาคาร / ชั้น"
+              class="mb-2"
+            />
+            <base-input 
+              v-model="form.user_address_3" 
+              label="ที่อยู่ 3" 
+              placeholder="ตำบล / อำเภอ / จังหวัด"
+              class="mb-2"
+            />
+          </div>
+
+
+          <!-- ========== COL 3 — ความปลอดภัย ========== -->
+            <!-- SECURITY SECTION -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+              <div class="flex items-center gap-4 mb-4">
+                <span
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+                  <i class="mdi mdi-shield-lock" aria-hidden="true"></i>
+                </span>
+                <h2 class="text-lg text-gray-800 font-semibold">ความปลอดภัย</h2>
+              </div>
+
+              <!-- Email Row -->
+              <div class="flex items-end justify-between mb-4">
+                <div class="w-full flex-1">
+                  <BaseInput :model-value="authStore.user?.email" label="อีเมล" disabled />
+                </div>
+
+                <button
+                  @click="changeEmail"
+                  class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
+                >
+                  เปลี่ยนอีเมล
+                </button>
+              </div>
+
+              <!-- Password Row -->
+              <div class="flex items-end justify-between">
+                <div class="w-full flex-1">
+                  <BaseInput 
+                    model-value="********"
+                    type="password" 
+                    label="รหัสผ่าน" 
+                    disabled
+                    :hidePasswordToggle="true"
+                    />
+                </div>
+
+                <button
+                  @click="changePassword"
+                  class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
+                >
+                  เปลี่ยนรหัสผ่าน
+                </button>
+              </div>
+
+              <!-- Email Popup -->
+              <div
+                v-if="showEmailPopup"
+                class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+              >
+                <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+                  <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
+
+                  <BaseInput v-model="newEmail" type="email" label="อีเมลใหม่" placeholder="example@mail.com" />
+
+                  <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
+
+                  <div class="flex justify-end gap-3 mt-6">
+                    <base-button class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500" @click="closeEmailPopup">ยกเลิก</base-button>
+                    <base-button class="w-full" @click="saveEmail">บันทึก</base-button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Password Popup -->
+              <div
+                v-if="showPasswordPopup"
+                class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+              >
+                <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+                  <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนรหัสผ่าน</h2>
+
+                  <!-- Old Password -->
+                  <BaseInput
+                    v-model="oldPassword"
+                    label="รหัสผ่านเดิม"
+                    :type="showOldPassword ? 'text' : 'password'"
+                  >
+                    <template #append>
+                      <i
+                        :class="showOldPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+                        class="text-xl text-gray-500 cursor-pointer hover:text-primary"
+                        @click="showOldPassword = !showOldPassword"
+                      />
+                    </template>
+                  </BaseInput>
+
+                  <!-- New Password -->
+                  <BaseInput
+                    v-model="newPassword"
+                    label="รหัสผ่านใหม่"
+                    :type="showNewPassword ? 'text' : 'password'"
+                    class=""
+                  >
+                    <template #append>
+                      <i
+                        :class="showNewPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+                        class="text-xl text-gray-500 cursor-pointer hover:text-primary"
+                        @click="showNewPassword = !showNewPassword"
+                      />
+                    </template>
+                  </BaseInput>
+
+                  <!-- Confirm Password -->
+                  <BaseInput
+                    v-model="confirmPassword"
+                    label="ยืนยันรหัสผ่านใหม่"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    class=""
+                  >
+                    <template #append>
+                      <i
+                        :class="showConfirmPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
+                        class="text-xl text-gray-500 cursor-pointer hover:text-primary"
+                        @click="showConfirmPassword = !showConfirmPassword"
+                      />
+                    </template>
+                  </BaseInput>
+
+                  <p v-if="passwordError" class="text-red-500 text-sm mt-2">
+                    {{ passwordError }}
+                  </p>
+
+                  <div class="flex justify-end gap-3 mt-6">
+                    <base-button
+                      class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+                      @click="closePasswordPopup"
+                    >
+                      ยกเลิก
+                    </base-button>
+
+                    <base-button class="w-full" @click="savePassword">
+                      บันทึก
+                    </base-button>
+                  </div>
                 </div>
               </div>
               
-            </div>
-          </div>
-
-          <!-- ========== MAIN PROFILE SECTIONS ========== -->
-          <div class="space-y-6">
-            <!-- ========== PERSONAL INFO CARD ========== -->
-            <div class="bg-white rounded-xl shadow-sm p-6">
-              <h2 class="text-xl font-semibold text-gray-800 mb-6">ข้อมูลส่วนตัว</h2>
+              <!-- Integrate Provider -->
+               <div class="flex items-center gap-4 mt-5">
+                <span
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
+                  <i class="mdi mdi-shield-lock" aria-hidden="true"></i>
+                </span>
+                <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบอื่น</h2>
+              </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <base-input v-model="form.name" label="ชื่อจริง" placeholder="ชื่อจริง" />
-                <base-input v-model="form.surname" label="นามสกุล" placeholder="นามสกุล" />
-
-                <!-- Gender -->
+                <!-- Integrate Dropdown -->
                 <div class="relative">
-                  <label class="text-xs font-medium text-neutral-700">เพศ *</label>
-
-                  <!-- Selected box -->
+                  <label class="text-xs font-medium text-neutral-700">เชื่อมต่อหรือไม่ *</label>
                   <div
-                    class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
-                    @click="openGender = !openGender"
+                    class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 
+                          text-slate-700 text-sm shadow-sm cursor-pointer flex items-center 
+                          justify-between transition-all hover:border-purple-400"
+                    @click="openIntegrate = !openIntegrate"
                   >
-                    <span>{{ genderLabel }}</span>
+                    <span>{{ form.user_integrate === 'Y' ? 'เชื่อมต่อ' : 'ไม่เชื่อมต่อ' }}</span>
+
                     <svg
-                      class="w- h-4 text-slate-500 transition-transform"
-                      :class="openGender ? 'rotate-180' : ''"
+                      class="w-4 h-4 text-slate-500 transition-transform"
+                      :class="openIntegrate ? 'rotate-180' : ''"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -103,275 +357,74 @@
 
                   <!-- Dropdown -->
                   <div
-                    v-if="openGender"
-                    class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
+                    v-if="openIntegrate"
+                    class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 
+                          rounded-md shadow-lg overflow-hidden"
                   >
                     <div
                       class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                      @click="selectGender('M')"
+                      @click="selectIntegrate('N')"
                     >
-                      ชาย
-                    </div>
-
-                    <div
-                      class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                      @click="selectGender('F')"
-                    >
-                      หญิง
+                      ไม่เชื่อม
                     </div>
 
                     <div
                       class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                      @click="selectGender('O')"
+                      @click="selectIntegrate('Y')"
                     >
-                      อื่น ๆ
+                      เชื่อม
                     </div>
                   </div>
                 </div>
 
-                <base-input :model-value="getRoleName(authStore.user?.role_id)" label="บทบาท" disabled />
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 mt-4">
-                <base-input v-model="form.user_address_1" label="ที่อยู่ 1" placeholder="กรอกที่อยู่" />
-                <base-input v-model="form.user_address_2" label="ที่อาคาร / ชั้น" placeholder="อาคาร / ชั้น" />
-                <base-input v-model="form.user_address_3" label="ที่อยู่ 3" placeholder="ตำบล / อำเภอ / จังหวัด" />
-              </div>
-
-              <hr class="my-7 border-t-3 border-gray-300" />
-
-              <!-- SECURITY SECTION -->
-              <div class="grid grid-cols-1 gap-4 mt-4">
-                <h2 class="text-xl font-semibold text-gray-800">ความปลอดภัย</h2>
-
-                <!-- Email Row -->
-                <div class="flex items-end justify-between mb-4">
-                  <div class="w-full flex-1">
-                    <BaseInput :model-value="authStore.user?.email" label="อีเมล" disabled />
-                  </div>
-
-                  <button
-                    @click="changeEmail"
-                    class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
-                  >
-                    เปลี่ยนอีเมล
-                  </button>
-                </div>
-
-                <!-- Password Row -->
-                <div class="flex items-end justify-between">
-                  <div class="w-full flex-1">
-                    <BaseInput 
-                      model-value="********"
-                      type="password" 
-                      label="รหัสผ่าน" 
-                      disabled
-                      :hidePasswordToggle="true"
-                      />
-                  </div>
-
-                  <button
-                    @click="changePassword"
-                    class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
-                  >
-                    เปลี่ยนรหัสผ่าน
-                  </button>
-                </div>
-
-                <!-- Email Popup -->
-                <div
-                  v-if="showEmailPopup"
-                  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-                >
-                  <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
-
-                    <BaseInput v-model="newEmail" type="email" label="อีเมลใหม่" placeholder="example@mail.com" />
-
-                    <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
-
-                    <div class="flex justify-end gap-3 mt-6">
-                      <base-button class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500" @click="closeEmailPopup">ยกเลิก</base-button>
-                      <base-button class="w-full" @click="saveEmail">บันทึก</base-button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Password Popup -->
-                <div
-                  v-if="showPasswordPopup"
-                  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-                >
-                  <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนรหัสผ่าน</h2>
-
-                    <!-- Old Password -->
-                    <BaseInput
-                      v-model="oldPassword"
-                      label="รหัสผ่านเดิม"
-                      :type="showOldPassword ? 'text' : 'password'"
-                    >
-                      <template #append>
-                        <i
-                          :class="showOldPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-                          class="text-xl text-gray-500 cursor-pointer hover:text-primary"
-                          @click="showOldPassword = !showOldPassword"
-                        />
-                      </template>
-                    </BaseInput>
-
-                    <!-- New Password -->
-                    <BaseInput
-                      v-model="newPassword"
-                      label="รหัสผ่านใหม่"
-                      :type="showNewPassword ? 'text' : 'password'"
-                      class=""
-                    >
-                      <template #append>
-                        <i
-                          :class="showNewPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-                          class="text-xl text-gray-500 cursor-pointer hover:text-primary"
-                          @click="showNewPassword = !showNewPassword"
-                        />
-                      </template>
-                    </BaseInput>
-
-                    <!-- Confirm Password -->
-                    <BaseInput
-                      v-model="confirmPassword"
-                      label="ยืนยันรหัสผ่านใหม่"
-                      :type="showConfirmPassword ? 'text' : 'password'"
-                      class=""
-                    >
-                      <template #append>
-                        <i
-                          :class="showConfirmPassword ? 'mdi mdi-eye' : 'mdi mdi-eye-off'"
-                          class="text-xl text-gray-500 cursor-pointer hover:text-primary"
-                          @click="showConfirmPassword = !showConfirmPassword"
-                        />
-                      </template>
-                    </BaseInput>
-
-                    <p v-if="passwordError" class="text-red-500 text-sm mt-2">
-                      {{ passwordError }}
-                    </p>
-
-                    <div class="flex justify-end gap-3 mt-6">
-                      <base-button
-                        class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
-                        @click="closePasswordPopup"
-                      >
-                        ยกเลิก
-                      </base-button>
-
-                      <base-button class="w-full" @click="savePassword">
-                        บันทึก
-                      </base-button>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Integrate Provider -->
-                <hr class="my-3 border-t-3 border-gray-300" />
-                <h2 class="text-xl font-semibold text-gray-800">การเชื่อมต่อระบบอื่น</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <!-- Integrate Dropdown -->
-                  <div class="relative">
-                    <label class="text-xs font-medium text-neutral-700">เชื่อมต่อหรือไม่ *</label>
-                    <div
-                      class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 
-                            text-slate-700 text-sm shadow-sm cursor-pointer flex items-center 
-                            justify-between transition-all hover:border-purple-400"
-                      @click="openIntegrate = !openIntegrate"
-                    >
-                      <span>{{ form.user_integrate === 'Y' ? 'เชื่อมต่อ' : 'ไม่เชื่อมต่อ' }}</span>
-
-                      <svg
-                        class="w-4 h-4 text-slate-500 transition-transform"
-                        :class="openIntegrate ? 'rotate-180' : ''"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-
-                    <!-- Dropdown -->
-                    <div
-                      v-if="openIntegrate"
-                      class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 
-                            rounded-md shadow-lg overflow-hidden"
-                    >
-                      <div
-                        class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                        @click="selectIntegrate('N')"
-                      >
-                        ไม่เชื่อม
-                      </div>
-
-                      <div
-                        class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                        @click="selectIntegrate('Y')"
-                      >
-                        เชื่อม
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Provider ID -->
-                  <base-input
-                    v-if="form.user_integrate === 'Y'"
-                    v-model="form.user_integrate_provider_id"
-                    label="Provider ID"
-                    placeholder="Provider ID"
-                    disabled
-                  />
-                </div>
-
-                <!-- URL -->
+                <!-- Provider ID -->
                 <base-input
                   v-if="form.user_integrate === 'Y'"
-                  v-model="form.user_integrate_url"
-                  label="URL เชื่อมต่อข้อมูล"
-                  placeholder="https://..."
-                  class="mt-4"
+                  v-model="form.user_integrate_provider_id"
+                  label="Provider ID"
+                  placeholder="Provider ID"
                   disabled
                 />
-
-                <!-- ACTION BUTTONS -->
-                <hr class="my-3 border-t-3 border-gray-300" />
-                <div class="p-3 flex gap-4">
-                  <base-button class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500" @click="resetForm">รีเซ็ต</base-button>
-                  <base-button class="w-full" @click="updateProfile">บันทึกการเปลี่ยนแปลง</base-button>
-                </div>
-
               </div>
-            </div>
 
-            <!-- LOGOUT ALL -->
-            <div class="bg-white rounded-xl shadow-sm p-6">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="font-medium text-gray-900">ออกจากระบบทุกอุปกรณ์</p>
-                  <p class="text-sm text-gray-500">ออกจากระบบในอุปกรณ์อื่นทั้งหมด</p>
-                </div>
+              <!-- URL -->
+              <base-input
+                v-if="form.user_integrate === 'Y'"
+                v-model="form.user_integrate_url"
+                label="URL เชื่อมต่อข้อมูล"
+                placeholder="https://..."
+                class="mt-4"
+                disabled
+              />
 
-                <button
-                  @click="logoutAllDevices"
-                  class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-sm text-white transition"
-                >
-                  ออกจากระบบ
-                </button>
+              <!-- ACTION BUTTONS -->
+              <hr class="my-3 border-t-3 border-gray-300 mt-4" />
+              <div class="p-3 flex gap-4">
+                <base-button class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500" @click="resetForm">รีเซ็ต</base-button>
+                <base-button class="w-full" @click="updateProfile">บันทึกการเปลี่ยนแปลง</base-button>
               </div>
-            </div>
 
+            </div>
           </div>
-        </div>
-      </div>
 
+          <!-- LOGOUT ALL -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium text-gray-900">ออกจากระบบทุกอุปกรณ์</p>
+                <p class="text-sm text-gray-500">ออกจากระบบในอุปกรณ์อื่นทั้งหมด</p>
+              </div>
+
+              <button
+                @click="logoutAllDevices"
+                class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-sm text-white transition"
+              >
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+
+      </div>
     </div>
   </div>
 </template>
@@ -382,9 +435,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
-import Sidebar from "@/components/Sidebar.vue";
-import Navbar from "@/components/Navbar.vue";
-
 
 const router = useRouter()
 const authStore = useAuthStore()
