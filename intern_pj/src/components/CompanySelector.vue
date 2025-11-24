@@ -20,7 +20,7 @@
     <!-- Dropdown List -->
     <ul
       v-if="dropdownOpen"
-      class="absolute w-full rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30 shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
+      class="absolute w-full text-sm rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30 shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
     >
       <!-- Loop ตาม role group -->
       <template v-for="(items, role) in groupedCompanies" :key="role">
