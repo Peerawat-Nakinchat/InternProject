@@ -65,7 +65,10 @@
             <span class="text-slate-600">จำการเข้าสู่ระบบ</span>
           </label>
 
-          <a class="font-medium text-primary-600 hover:underline cursor-pointer" @click="openForgot">
+          <a
+            class="font-medium text-primary-600 hover:underline cursor-pointer"
+            @click="openForgot"
+          >
             ลืมรหัสผ่าน?
           </a>
         </div>
@@ -133,183 +136,180 @@
         </div>
       </form>
       <!-- ❗ ย้าย Modal มาไว้นอก form -->
-        <ForgotPasswordModal
-          :open="showForgot"
-          @close="showForgot = false"
-          @sent="onForgotSent"
-        />
+      <ForgotPasswordModal :open="showForgot" @close="showForgot = false" @sent="onForgotSent" />
 
-        <ResetPasswordModal
-          :open="showReset"
-          :token="resetToken"
-          @close="showReset = false"
-          @reset-success="onResetSuccess"
-        />
+      <ResetPasswordModal
+        :open="showReset"
+        :token="resetToken"
+        @close="handleCloseReset"
+        @reset-success="onResetSuccess"
+      />
     </AuthLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
+import { reactive, ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
-import AuthLayout from "@/layouts/AuthLayout.vue";
-import BaseInput from "@/components/base/BaseInput.vue";
-import BaseButton from "@/components/base/BaseButton.vue";
-import LoadingMessage from "@/components/loading/LoadingMessage.vue";
-import ForgotPasswordModal from "@/components/auth/ForgotPasswordModal.vue";
-import ResetPasswordModal from "@/components/auth/ResetPasswordModal.vue";
+import AuthLayout from '@/layouts/AuthLayout.vue'
+import BaseInput from '@/components/base/BaseInput.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
+import LoadingMessage from '@/components/loading/LoadingMessage.vue'
+import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
+import ResetPasswordModal from '@/components/auth/ResetPasswordModal.vue'
 
 interface LoginForm {
-  email: string;
-  password: string;
-  remember: boolean;
+  email: string
+  password: string
+  remember: boolean
 }
 
-const router = useRouter();
-const route = useRoute();
-const authStore = useAuthStore();
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 
 const form = reactive<LoginForm>({
-  email: "",
-  password: "",
+  email: '',
+  password: '',
   remember: true,
-});
+})
 
-const isLoading = ref(false);
-const errorMessage = ref("");
-const successMessage = ref("");
+const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 // Modal states
-const showForgot = ref(false);
-const showReset = ref(false);
-const resetToken = ref("");
+const showForgot = ref(false)
+const showReset = ref(false)
+const resetToken = ref('')
 
 const openForgot = () => {
-  showForgot.value = true;
-};
+  showForgot.value = true
+}
 
 const onForgotSent = () => {
-  showForgot.value = false;
-  successMessage.value = "ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว";
+  showForgot.value = false
+  successMessage.value = 'ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว'
   setTimeout(() => {
-    successMessage.value = "";
-  }, 5000);
-};
+    successMessage.value = ''
+  }, 5000)
+}
 
 const onResetSuccess = () => {
-  localStorage.removeItem("reset_token");
-  showReset.value = false;
-  successMessage.value = "เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่";
-  
+  localStorage.removeItem('reset_token')
+  showReset.value = false
+  successMessage.value = 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่'
+
   setTimeout(() => {
-    successMessage.value = "";
-  }, 5000);
-};
+    successMessage.value = ''
+  }, 5000)
+}
 
 const handleCloseReset = () => {
-  localStorage.removeItem("reset_token");
-  showReset.value = false;
-  
+  localStorage.removeItem('reset_token')
+  showReset.value = false
+
   // ลบ token จาก URL
-  router.replace({ path: route.path, query: {} });
-};
+  router.replace({ path: route.path, query: {} })
+}
 
 // ⭐ ตรวจจับ token จาก URL
 onMounted(() => {
-  const tokenFromUrl = route.query.token;
+  const tokenFromUrl = route.query.token
 
-  console.group("🔍 Token Detection");
-  console.log("URL:", window.location.href);
-  console.log("Query token:", tokenFromUrl);
-  console.log("Stored token:", localStorage.getItem("reset_token"));
-  console.groupEnd();
+  console.group('🔍 Token Detection')
+  console.log('URL:', window.location.href)
+  console.log('Query token:', tokenFromUrl)
+  console.log('Stored token:', localStorage.getItem('reset_token'))
+  console.groupEnd()
 
   if (tokenFromUrl) {
-    const token = Array.isArray(tokenFromUrl) ? tokenFromUrl[0] : tokenFromUrl;
-    
-    if (token && typeof token === "string") {
-      console.log("✅ Token found in URL:", token);
-      localStorage.setItem("reset_token", token);
-      resetToken.value = token;
-      showReset.value = true;
-      
+    const token = Array.isArray(tokenFromUrl) ? tokenFromUrl[0] : tokenFromUrl
+
+    if (token && typeof token === 'string') {
+      console.log('✅ Token found in URL:', token)
+      localStorage.setItem('reset_token', token)
+      resetToken.value = token
+      showReset.value = true
+
       // ลบ query token ออกจาก URL
-      router.replace({ path: route.path, query: {} });
+      router.replace({ path: route.path, query: {} })
     }
   } else {
     // ตรวจสอบ localStorage
-    const storedToken = localStorage.getItem("reset_token");
+    const storedToken = localStorage.getItem('reset_token')
     if (storedToken) {
-      console.log("✅ Token found in localStorage:", storedToken);
-      resetToken.value = storedToken;
-      showReset.value = true;
+      console.log('✅ Token found in localStorage:', storedToken)
+      resetToken.value = storedToken
+      showReset.value = true
     }
   }
-});
+})
 
 // ⭐ Watch route changes
 watch(
   () => route.query.token,
   (newToken) => {
     if (newToken && !showReset.value) {
-      const token = Array.isArray(newToken) ? newToken[0] : newToken;
-      console.log("🔄 Token changed in URL:", token);
-      
-      if (token && typeof token === "string") {
-        localStorage.setItem("reset_token", token);
-        resetToken.value = token;
-        showReset.value = true;
+      const token = Array.isArray(newToken) ? newToken[0] : newToken
+      console.log('🔄 Token changed in URL:', token)
+
+      if (token && typeof token === 'string') {
+        localStorage.setItem('reset_token', token)
+        resetToken.value = token
+        showReset.value = true
       }
     }
-  }
-);
+  },
+)
 
 const handleLogin = async () => {
-  errorMessage.value = "";
-  successMessage.value = "";
+  errorMessage.value = ''
+  successMessage.value = ''
 
   if (!form.email || !form.password) {
-    errorMessage.value = "กรุณากรอกอีเมลและรหัสผ่าน";
-    return;
+    errorMessage.value = 'กรุณากรอกอีเมลและรหัสผ่าน'
+    return
   }
 
-  isLoading.value = true;
+  isLoading.value = true
 
   try {
     const result = await authStore.login({
       email: form.email,
       password: form.password,
       remember: form.remember,
-    });
+    })
 
     if (result?.success) {
-      successMessage.value = "เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...";
+      successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
 
+      // Redirect
       setTimeout(() => {
-        router.push("/");
-      }, 1000);
+        const redirectPath = (route.query.redirect as string) || '/'
+        router.push(redirectPath)
+      }, 1000)
 
-      return;
+      return
     }
 
-    errorMessage.value = result?.error || "เข้าสู่ระบบไม่สำเร็จ";
-  } catch (err) {
-    errorMessage.value = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์";
+    errorMessage.value = result?.error || 'เข้าสู่ระบบไม่สำเร็จ'
+  } catch {
+    errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
   } finally {
     if (!successMessage.value) {
-      isLoading.value = false;
+      isLoading.value = false
     }
   }
-};
+}
 
 const handleGoogleLogin = () => {
-  window.location.href = "http://localhost:3000/api/auth/google";
-};
+  window.location.href = 'http://localhost:3000/api/auth/google'
+}
 
 const handleMicrosoftLogin = () => {
-  alert("Microsoft OAuth ยังไม่พร้อมใช้งาน");
-};
+  alert('Microsoft OAuth ยังไม่พร้อมใช้งาน')
+}
 </script>
-

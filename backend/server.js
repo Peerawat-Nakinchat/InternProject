@@ -17,10 +17,12 @@ app.use(passport.initialize());
 import userRoutes from "./src/routes/memberRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
+import invitationRoutes from "./src/routes/invitationRoutes.js";
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
+app.use("/api/invitations", invitationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API server is running");

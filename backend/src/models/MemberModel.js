@@ -1,5 +1,5 @@
 // src/models/MemberModel.js
-import { pool } from '../config/db.js';
+import { pool } from "../config/db.js";
 
 const dbQuery = pool.query.bind(pool);
 
@@ -14,7 +14,7 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
     [userId]
   );
 
-  if (userResult.rows.length === 0) throw new Error('User not found');
+  if (userResult.rows.length === 0) throw new Error("User not found");
   const user = userResult.rows[0];
 
   // 🔹 ตรวจสอบ member ซ้ำสำหรับ role != owner
@@ -24,8 +24,8 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
       [userId]
     );
     if (check.rows.length > 0) {
-      const error = new Error('ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น');
-      error.code = '23505'; // ใช้จับ 409 ใน controller
+      const error = new Error("ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น");
+      error.code = "23505"; // ใช้จับ 409 ใน controller
       throw error;
     }
   }
@@ -57,9 +57,9 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
     user.name,
     user.surname,
     user.full_name,
-    user.user_address_1 || '',
-    user.user_address_2 || '',
-    user.user_address_3 || ''
+    user.user_address_1 || "",
+    user.user_address_2 || "",
+    user.user_address_3 || "",
   ]);
 
   return res.rows[0];
@@ -67,5 +67,11 @@ const addMemberToOrganization = async (clientOrPool, orgId, userId, roleId) => {
 
 export const MemberModel = {
   addMemberToOrganization,
-  // ... ฟังก์ชันอื่นเหมือนเดิม
+  checkMembership: async (orgId, email) => {
+    const result = await pool.query(
+      `SELECT 1 FROM sys_organization_members WHERE org_id = $1 AND email = $2`,
+      [orgId, email]
+    );
+    return result.rows.length > 0;
+  },
 };

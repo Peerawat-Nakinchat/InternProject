@@ -1,10 +1,15 @@
 // src/controllers/AuthController.js
 import bcrypt from "bcryptjs";
 import { pool } from "../config/db.js";
-import crypto from 'crypto';
-import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
-import { UserModel } from '../models/UserModel.js';
-import nodemailer from 'nodemailer';
+import crypto from "crypto";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../utils/token.js";
+import { UserModel } from "../models/UserModel.js";
+import { MemberModel } from "../models/MemberModel.js";
+import nodemailer from "nodemailer";
 
 // ลงทะเบียนผู้ใช้ใหม่
 export const registerUser = async (req, res) => {
@@ -99,6 +104,29 @@ export const registerUser = async (req, res) => {
     );
 
     console.log("✅ Register successful:", user.email);
+
+    // Handle Invite Token
+    const { inviteToken } = req.body;
+    if (inviteToken) {
+      try {
+        console.log("🎫 Processing invite token during registration...");
+        const payload = verifyRefreshToken(inviteToken);
+        if (payload && payload.org_id && payload.role_id) {
+          console.log("🤝 Accepting invitation for new user:", user.user_id);
+          await MemberModel.addMemberToOrganization(
+            client,
+            payload.org_id,
+            user.user_id,
+            parseInt(payload.role_id, 10)
+          );
+          console.log("✅ Member added via invite token");
+        } else {
+          console.log("⚠️ Invalid or expired invite token ignored");
+        }
+      } catch (inviteError) {
+        console.error("❌ Error processing invite token:", inviteError);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -328,68 +356,67 @@ export const getProfile = async (req, res) => {
 // เปลี่ยนเฉพาะฟังก์ชัน forgotPassword ใน AuthController.js
 
 export const forgotPassword = async (req, res) => {
-    const client = await pool.connect();
+  const client = await pool.connect();
 
+  try {
+    const { email } = req.body;
+
+    console.log("🔔 Forgot password request for:", email);
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "กรุณากรอกอีเมล",
+      });
+    }
+
+    const user = await UserModel.findByEmail(email);
+
+    // ป้องกัน brute-force (ตอบแบบเดียวกันไม่ว่าจะมี user หรือไม่)
+    if (!user) {
+      console.log("⚠️ Email not found but returning success:", email);
+      return res.json({
+        success: true,
+        message: "ถ้ามีอีเมลนี้ในระบบ จะส่งลิงก์รีเซ็ตรหัสผ่านให้",
+      });
+    }
+
+    // สร้าง token
+    const token = crypto.randomUUID();
+    const expire = new Date(Date.now() + 1000 * 60 * 15); // 15 นาที
+
+    await UserModel.setResetToken(user.user_id, token, expire);
+
+    console.log("🔑 Reset token created:", { user_id: user.user_id, token });
+
+    // ตั้งค่า transporter
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // true for 465
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+
+    // ทดสอบการเชื่อมต่อ
     try {
-        const { email } = req.body;
+      await transporter.verify();
+      console.log("✅ Email server connection verified");
+    } catch (verifyError) {
+      console.error("❌ Email server connection failed:", verifyError);
+      throw new Error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์อีเมลได้");
+    }
 
-        console.log('🔔 Forgot password request for:', email);
+    // ส่งอีเมล
+    const link = `${process.env.FRONTEND_URL}/login?token=${token}`;
 
-        if (!email) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "กรุณากรอกอีเมล" 
-            });
-        }
-
-        const user = await UserModel.findByEmail(email);
-
-        // ป้องกัน brute-force (ตอบแบบเดียวกันไม่ว่าจะมี user หรือไม่)
-        if (!user) {
-            console.log('⚠️ Email not found but returning success:', email);
-            return res.json({
-                success: true,
-                message: "ถ้ามีอีเมลนี้ในระบบ จะส่งลิงก์รีเซ็ตรหัสผ่านให้"
-            });
-        }
-
-        // สร้าง token
-        const token = crypto.randomUUID();
-        const expire = new Date(Date.now() + 1000 * 60 * 15); // 15 นาที
-
-        await UserModel.setResetToken(user.user_id, token, expire);
-
-        console.log('🔑 Reset token created:', { user_id: user.user_id, token });
-
-        // ตั้งค่า transporter
-        const transporter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
-            port: 465,
-            secure: true, // true for 465
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASS
-            }
-        });
-
-
-        // ทดสอบการเชื่อมต่อ
-        try {
-            await transporter.verify();
-            console.log('✅ Email server connection verified');
-        } catch (verifyError) {
-            console.error('❌ Email server connection failed:', verifyError);
-            throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์อีเมลได้');
-        }
-
-        // ส่งอีเมล
-        const link = `${process.env.FRONTEND_URL}/login?token=${token}`;
-        
-        const mailOptions = {
-            from: process.env.MAIL_USER,
-            to: email,
-            subject: "รีเซ็ตรหัสผ่าน",
-            html: `
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: email,
+      subject: "รีเซ็ตรหัสผ่าน",
+      html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #9333ea;">รีเซ็ตรหัสผ่าน</h2>
                     <p>คุณได้ร้องขอรีเซ็ตรหัสผ่าน</p>
@@ -401,129 +428,124 @@ export const forgotPassword = async (req, res) => {
                     <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
                     <p style="color: #999; font-size: 12px;">หากคุณไม่ได้ร้องขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยอีเมลนี้</p>
                 </div>
-            `
-        };
+            `,
+    };
 
-        console.log('📧 Sending email to:', email);
-        
-        const info = await transporter.sendMail(mailOptions);
-        
-        console.log('✅ Email sent successfully:', info.messageId);
+    console.log("📧 Sending email to:", email);
 
-        res.json({ 
-            success: true, 
-            message: "ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว" 
-        });
+    const info = await transporter.sendMail(mailOptions);
 
-    } catch (err) {
-        console.error('💥 Forgot password error:', err);
-        res.status(500).json({ 
-            success: false, 
-            error: err.message || 'เกิดข้อผิดพลาดในการส่งอีเมล'
-        });
-    } finally {
-        client.release();
-    }
+    console.log("✅ Email sent successfully:", info.messageId);
+
+    res.json({
+      success: true,
+      message: "ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว",
+    });
+  } catch (err) {
+    console.error("💥 Forgot password error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "เกิดข้อผิดพลาดในการส่งอีเมล",
+    });
+  } finally {
+    client.release();
+  }
 };
-
 
 // แทนที่ฟังก์ชัน verifyResetToken และ resetPassword ใน AuthController.js
 
 export const verifyResetToken = async (req, res) => {
-    try {
-        const { token } = req.query;
+  try {
+    const { token } = req.query;
 
-        console.log('🔍 Verify reset token request:', token);
+    console.log("🔍 Verify reset token request:", token);
 
-        if (!token) {
-            console.log('❌ No token provided');
-            return res.status(400).json({ 
-                success: false, 
-                valid: false,
-                error: "token หาย" 
-            });
-        }
-
-        const user = await UserModel.findByResetToken(token);
-
-        if (!user) {
-            console.log('❌ Token not found or expired');
-            return res.status(400).json({ 
-                success: false, 
-                valid: false,
-                error: "token ไม่ถูกต้องหรือหมดอายุ"
-            });
-        }
-
-        console.log('✅ Token is valid for user:', user.user_id);
-        
-        return res.json({ 
-            success: true, 
-            valid: true 
-        });
-        
-    } catch (error) {
-        console.error('💥 Verify reset token error:', error);
-        res.status(500).json({ 
-            success: false, 
-            valid: false,
-            error: error.message 
-        });
+    if (!token) {
+      console.log("❌ No token provided");
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        error: "token หาย",
+      });
     }
+
+    const user = await UserModel.findByResetToken(token);
+
+    if (!user) {
+      console.log("❌ Token not found or expired");
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        error: "token ไม่ถูกต้องหรือหมดอายุ",
+      });
+    }
+
+    console.log("✅ Token is valid for user:", user.user_id);
+
+    return res.json({
+      success: true,
+      valid: true,
+    });
+  } catch (error) {
+    console.error("💥 Verify reset token error:", error);
+    res.status(500).json({
+      success: false,
+      valid: false,
+      error: error.message,
+    });
+  }
 };
 
 export const resetPassword = async (req, res) => {
-    try {
-        const { token, password } = req.body;
+  try {
+    const { token, password } = req.body;
 
-        console.log('🔒 Reset password request for token:', token);
+    console.log("🔒 Reset password request for token:", token);
 
-        if (!token || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "ข้อมูลไม่ครบ" 
-            });
-        }
-
-        if (password.length < 6) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" 
-            });
-        }
-
-        const user = await UserModel.findByResetToken(token);
-
-        if (!user) {
-            console.log('❌ Token not found or expired');
-            return res.status(400).json({ 
-                success: false, 
-                error: "token ไม่ถูกต้อง หรือหมดอายุ" 
-            });
-        }
-
-        console.log('🔐 Resetting password for user:', user.user_id);
-
-        const hash = await bcrypt.hash(password, 10);
-
-        await UserModel.updatePassword(user.user_id, hash);
-
-        console.log('✅ Password reset successful');
-
-        res.json({
-            success: true,
-            message: "เปลี่ยนรหัสผ่านสำเร็จ"
-        });
-        
-    } catch (error) {
-        console.error('💥 Reset password error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message || "เกิดข้อผิดพลาด"
-        });
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "ข้อมูลไม่ครบ",
+      });
     }
-};
 
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+      });
+    }
+
+    const user = await UserModel.findByResetToken(token);
+
+    if (!user) {
+      console.log("❌ Token not found or expired");
+      return res.status(400).json({
+        success: false,
+        error: "token ไม่ถูกต้อง หรือหมดอายุ",
+      });
+    }
+
+    console.log("🔐 Resetting password for user:", user.user_id);
+
+    const hash = await bcrypt.hash(password, 10);
+
+    await UserModel.updatePassword(user.user_id, hash);
+
+    console.log("✅ Password reset successful");
+
+    res.json({
+      success: true,
+      message: "เปลี่ยนรหัสผ่านสำเร็จ",
+    });
+  } catch (error) {
+    console.error("💥 Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาด",
+    });
+  }
+};
 
 // Logout
 export const logoutUser = async (req, res) => {
