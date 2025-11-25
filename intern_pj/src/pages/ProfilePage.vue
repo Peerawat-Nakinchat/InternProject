@@ -1,15 +1,10 @@
 <template>
-  <!-- LAYOUT WRAPPER -->
   <div class="flex min-h-screen bg-gray-100">
-
     <!-- PAGE CONTENT -->
     <div class="flex-1 flex flex-col">
       <div class="px-4 mt-4">
 
-      <!-- TOP BAR -->
       <div class="flex items-center justify-between gap-3">
-
-        <!-- LEFT SIDE (Back + Title) -->
         <div class="flex items-center gap-3">
           <Button
             @click="goBack"
@@ -17,7 +12,6 @@
           >
             <i class="mdi mdi-arrow-left text-gray-700 text-xl"></i>
           </Button>
-
           <h1 class="text-2xl font-semibold tracking-tight">
             <span class="bg-linear-to-br from-[#1C244B] to-[#682DB5] bg-clip-text text-transparent inline-flex items-center gap-2">
               <i class="mdi mdi-account text-3xl leading-none"></i>
@@ -26,26 +20,18 @@
           </h1>
         </div>
       </div>
-
-      <!-- Subtitle -->
       <p class="text-neutral-500 text-sm mt-1 pl-15">
         กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ
       </p>
-
     </div>
 
       <div class="w-full max-w-full mx-auto p-4">
-        <!-- ========== PROFILE HEADER STYLE ========== -->
         <div class="relative bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-          
-          <!-- Cover Background -->
           <div class="h-36 bg-linear-to-r from-purple-600 to-[#1C244B]"></div>
 
-          <!-- Profile image + name -->
           <div class="px-6 pb-6">
             <div class="flex items-end gap-4 -mt-12">
               
-              <!-- Profile Picture -->
               <div class="relative">
                 <img
                   v-if="form.profile_image_url"
@@ -60,7 +46,6 @@
                   {{ userInitials }}
                 </div>
 
-                <!-- Upload button -->
                 <label
                   class="absolute bottom-2 right-2 bg-white shadow p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition"
                 >
@@ -69,28 +54,24 @@
                 </label>
               </div>
 
-              <!-- Name + Email -->
-              <div class="flex-1">
-                <h1 class="text-2xl font-bold text-gray-900">{{ form.full_name || userInitials }}</h1>
-                <p class="text-gray-500 text-sm">{{ authStore.user?.email }}</p>
-              </div>
+              <div class="flex items-center gap-3 w-auto flex-1">
+                <div class="flex-1">
+                  <h1 class="text-2xl font-bold text-gray-900">{{ form.full_name || userInitials }}</h1>
+                  <p class="text-gray-500 text-sm">{{ authStore.user?.email }}</p>
+                </div>
 
-              <!-- RIGHT SIDE (Desktop Save Button) -->
-              <div class="hidden md:block">
-                <base-button 
-                  class="bg-primary text-white px-4 py-2 inline-flex"
-                  @click="updateProfile"
-                >
-                  บันทึกการเปลี่ยนแปลง
-                </base-button>
+                <!-- RIGHT: ปุ่ม -->
+                <div class="hidden md:flex items-center gap-3 ml-auto">
+                  <base-button class="bg-neutral-400 hover:bg-gray-500" @click="openResetConfirm">รีเซ็ต</base-button>
+                  <base-button class="bg-primary text-white px-4 py-2 inline-flex whitespace-nowrap rounded-mb" @click="updateProfile">บันทึกการเปลี่ยนแปลง</base-button>
+                </div>
+
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ========== COL 1 — ข้อมูลส่วนตัว ========== -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
-          <!-- ========== PERSONAL INFO CARD ========== -->
           <div class="bg-white rounded-xl shadow-sm p-6">
             <div class="flex items-center gap-4 mb-4">
               <span
@@ -113,11 +94,9 @@
                 placeholder="นามสกุล" 
               />
 
-              <!-- Gender -->
               <div class="relative">
                 <label class="block text-sm font-medium text-neutral-700 mb-1">เพศ</label>
 
-                <!-- Selected box -->
                 <div
                   class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
                   @click="openGender = !openGender"
@@ -135,7 +114,6 @@
                   </svg>
                 </div>
 
-                <!-- Dropdown -->
                 <div
                   v-if="openGender"
                   class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
@@ -168,8 +146,7 @@
             </div>
         </div>
         
-        <!-- ========== COL 2 — ความปลอดภัย ========== -->
-          <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="bg-white rounded-xl shadow-sm p-6">
             <div class="flex items-center gap-4 mb-4">
               <span
                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
@@ -198,8 +175,6 @@
             />
           </div>
 
-          <!-- ========== COL 3 — ความปลอดภัย ========== -->
-          <!-- SECURITY SECTION -->
           <div class="bg-white rounded-xl shadow-sm p-6">
             <div class="flex items-center gap-4 mb-4">
               <span
@@ -209,9 +184,8 @@
               <h2 class="text-lg text-gray-800 font-semibold">ความปลอดภัย</h2>
             </div>
 
-            <!-- Email Row -->
-            <div class="flex items-end justify-between mb-4">
-              <div class="w-full flex-1">
+            <div class="flex items-end justify-between mb-4 gap-4">
+              <div class="flex-1">
                 <BaseInput 
                   :model-value="authStore.user?.email" 
                   label="อีเมล" disabled 
@@ -220,15 +194,14 @@
 
               <button
                 @click="changeEmail"
-                class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
+                class="p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md"
               >
-                เปลี่ยนอีเมล
+                <i class="mdi mdi-email-edit text-xl"></i>
               </button>
             </div>
 
-            <!-- Password Row -->
-            <div class="flex items-end justify-between">
-              <div class="w-full flex-1">
+            <div class="flex items-end justify-between gap-4">
+              <div class="flex-1">
                 <BaseInput 
                   model-value="********"
                   type="password" 
@@ -240,13 +213,12 @@
 
               <button
                 @click="changePassword"
-                class="ml-4 px-4 py-2 bg-gray-100 hover:bg-red-500 hover:text-white rounded-md text-sm text-gray-700"
+                class="p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md"
               >
-                เปลี่ยนรหัสผ่าน
+                <i class="mdi mdi-lock-reset text-xl"></i>
               </button>
             </div>
 
-            <!-- Email Popup -->
             <div
               v-if="showEmailPopup"
               class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -254,20 +226,29 @@
               <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
 
-                <BaseInput v-model="newEmail" type="email" label="อีเมลใหม่" placeholder="example@mail.com" class="mb-4" />
+                <BaseInput 
+                  v-model="newEmail" type="email" 
+                  label="อีเมลใหม่" 
+                  placeholder="example@mail.com" 
+                  class="mb-4"
+                />
                 
-                <BaseInput v-model="passwordForEmail" type="password" label="รหัสผ่านปัจจุบัน (เพื่อยืนยัน)" placeholder="********" />
+                <BaseInput 
+                  v-model="passwordForEmail" 
+                  type="password" 
+                  label="รหัสผ่านปัจจุบัน (เพื่อยืนยัน)" 
+                  placeholder="********"
+                />
 
                 <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
 
                 <div class="flex justify-end gap-3 mt-6">
                   <base-button class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500" @click="closeEmailPopup">ยกเลิก</base-button>
-                  <base-button class="w-full" @click="saveEmail" :disabled="authStore.isLoading">บันทึก</base-button>
+                  <base-button class="w-full" @click="openEmailConfirm" :disabled="authStore.isLoading">บันทึก</base-button>
                 </div>
               </div>
             </div>
 
-            <!-- Password Popup -->
             <div
               v-if="showPasswordPopup"
               class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -275,7 +256,6 @@
               <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนรหัสผ่าน</h2>
 
-                <!-- Old Password -->
                 <BaseInput
                   v-model="oldPassword"
                   label="รหัสผ่านเดิม"
@@ -291,7 +271,6 @@
                   </template>
                 </BaseInput>
 
-                <!-- New Password -->
                 <BaseInput
                   v-model="newPassword"
                   label="รหัสผ่านใหม่"
@@ -307,7 +286,6 @@
                   </template>
                 </BaseInput>
 
-                <!-- Confirm Password -->
                 <BaseInput
                   v-model="confirmPassword"
                   label="ยืนยันรหัสผ่านใหม่"
@@ -335,14 +313,13 @@
                     ยกเลิก
                   </base-button>
 
-                  <base-button class="w-full" @click="savePassword">
+                  <base-button class="w-full" @click="openPasswordConfirm">
                     บันทึก
                   </base-button>
                 </div>
               </div>
             </div>
             
-            <!-- Integrate Provider -->
             <div class="flex items-center gap-4 mt-6 mb-4">
               <span
                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
@@ -351,9 +328,7 @@
               <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบอื่น</h2>
             </div>
 
-            <!-- GRID บน: 2 คอลัมน์ -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- Integrate Dropdown -->
               <div class="relative">
                 <label class="block text-sm font-medium text-neutral-700 mb-1">เชื่อมต่อหรือไม่ *</label>
                 <div
@@ -374,7 +349,6 @@
                   </svg>
                 </div>
 
-                <!-- Dropdown -->
                 <div
                   v-if="openIntegrate"
                   class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
@@ -395,7 +369,6 @@
                 </div>
               </div>
 
-              <!-- Provider ID -->
               <base-input
                 v-model="form.user_integrate_provider_id"
                 label="Provider ID"
@@ -404,9 +377,7 @@
               />
             </div>
 
-            <!-- GRID ล่าง: 1 คอลัมน์เต็มแถว -->
             <div class="grid grid-cols-1 mt-4">
-              <!-- URL -->
               <base-input
                 v-model="form.user_integrate_url"
                 label="URL เชื่อมต่อข้อมูล"
@@ -416,9 +387,8 @@
             </div>
 
             <hr class="my-3 border-t-3 border-gray-400 mt-6 md:hidden" />
-            <!-- MOBILE BOTTOM BUTTON -->
             <div class="p-3 flex gap-4 md:hidden">
-              <base-button class="w-full bg-neutral-400" @click="resetForm">รีเซ็ต</base-button>
+              <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
               <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
             </div>
 
@@ -427,6 +397,49 @@
       </div>
     </div>
   </div>
+
+  <ConfirmDialog
+    v-model="showResetConfirm"
+    title="ยืนยันการรีเซ็ตข้อมูล"
+    message="คุณแน่ใจหรือไม่ที่จะรีเซ็ตข้อมูลในฟอร์มทั้งหมดเป็นค่าเริ่มต้น?"
+    confirmText="รีเซ็ต"
+    cancelText="ยกเลิก"
+    @confirm="resetForm" 
+    icon="mdi-autorenew"
+  />
+
+  <ConfirmDialog
+    v-model="showEmailConfirm"
+    title="ยืนยันการเปลี่ยนอีเมล"
+    :message="`คุณต้องการเปลี่ยนเป็น ${newEmail} ใช่หรือไม่? ระบบจะทำการบันทึกอีเมลใหม่ของคุณ`"
+    confirmText="เปลี่ยนอีเมล"
+    cancelText="ยกเลิก"
+    @confirm="saveEmail"
+    @cancel="closeEmailConfirm"
+    icon="mdi-email-edit"
+  />
+
+  <ConfirmDialog
+    v-model="showPasswordConfirm"
+    title="ยืนยันการเปลี่ยนรหัสผ่าน"
+    message="เมื่อเปลี่ยนรหัสผ่านสำเร็จ ระบบจะนำคุณออกจากระบบโดยอัตโนมัติ คุณต้องเข้าสู่ระบบด้วยรหัสผ่านใหม่"
+    confirmText="เปลี่ยนรหัสผ่าน"
+    cancelText="ยกเลิก"
+    @confirm="savePassword"
+    @cancel="closePasswordConfirm"
+    icon="mdi-lock-reset"
+  />
+
+  <ConfirmDialog
+    v-model="showSaveConfirm"
+    title="ยืนยันการบันทึกโปรไฟล์"
+    message="คุณแน่ใจหรือไม่ที่จะบันทึกการเปลี่ยนแปลงทั้งหมดในโปรไฟล์ของคุณ?"
+    confirmText="บันทึก"
+    cancelText="ยกเลิก"
+    @confirm="saveProfileChanges" 
+    :loading="isLoading"
+    icon="mdi-content-save"
+  />
 </template>
 
 <script setup lang="ts">
@@ -435,6 +448,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -467,10 +481,17 @@ const errorMessage = ref('')
 // Dropdown
 const openGender = ref(false)
 
+// Confirm Dialog states
+const showResetConfirm = ref(false) //
+const showEmailConfirm = ref(false) //
+const showPasswordConfirm = ref(false) //
+const showSaveConfirm = ref(false)
+
 // Email popup
 const showEmailPopup = ref(false)
 const newEmail = ref('')
 const emailError = ref('')
+const passwordForEmail = ref('') // เพิ่ม state สำหรับรหัสผ่านยืนยัน
 
 // Password popup
 const showPasswordPopup = ref(false)
@@ -482,6 +503,8 @@ const showOldPassword = ref(false)
 const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 
+// Dropdown: integrate
+const openIntegrate = ref(false)
 
 // =====================================================
 // COMPUTED
@@ -528,8 +551,6 @@ const selectGender = (value: string) => {
   openGender.value = false
 }
 
-// Dropdown: integrate
-const openIntegrate = ref(false)
 
 const selectIntegrate = (value: string) => {
   form.user_integrate = value
@@ -554,8 +575,6 @@ const onImageUpload = (event: Event) => {
 // =====================================================
 // POPUP: Change Email
 // =====================================================
-const passwordForEmail = ref('') // เพิ่ม state สำหรับรหัสผ่านยืนยัน
-
 const changeEmail = () => {
   newEmail.value = authStore.user?.email || ''
   passwordForEmail.value = '' // ล้างค่า
@@ -567,10 +586,11 @@ const closeEmailPopup = () => {
   showEmailPopup.value = false
 }
 
-const saveEmail = async () => { // เปลี่ยนเป็น async
+// ฟังก์ชันเปิด Confirmation Dialog สำหรับอีเมล
+const openEmailConfirm = () => {
   emailError.value = ''
 
-  if (!newEmail.value.trim() || !passwordForEmail.value.trim()) { // ตรวจสอบรหัสผ่านยืนยันด้วย
+  if (!newEmail.value.trim() || !passwordForEmail.value.trim()) { 
     emailError.value = 'กรุณากรอกอีเมลใหม่และรหัสผ่านเพื่อยืนยัน'
     return
   }
@@ -579,23 +599,59 @@ const saveEmail = async () => { // เปลี่ยนเป็น async
     emailError.value = 'อีเมลใหม่ต้องไม่ซ้ำกับอีเมลเดิม'
     return
   }
+  
+  // ปิด Email Popup หลักก่อน
+  showEmailPopup.value = false 
+  setTimeout(() => {
+    showEmailConfirm.value = true // เปิด Confirmation Dialog
+  }, 20)
+}
 
-  // เรียกใช้ action จาก Pinia Store
-  const result = await authStore.changeEmail({
-    newEmail: newEmail.value.trim(),
-    password: passwordForEmail.value,
-  })
+// ฟังก์ชันปิด Confirmation Dialog สำหรับอีเมล
+const closeEmailConfirm = () => {
+  showEmailConfirm.value = false
+  showEmailPopup.value = true
+}
 
-  if (result.success) {
-    successMessage.value = 'เปลี่ยนอีเมลสำเร็จ'
-    closeEmailPopup()
-    // ไม่จำเป็นต้องอัปเดต authStore.user และ localStorage เอง เพราะทำใน Pinia Store แล้ว
-    setTimeout(() => (successMessage.value = ''), 3000)
-  } else {
-    emailError.value = result.error || 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
-  }
+// ฟังก์ชันบันทึกอีเมลจริง (ถูกเรียกหลังจากยืนยันแล้ว)
+const saveEmail = async () => { 
+  showEmailConfirm.value = false // ปิด Confirm Dialog
+  
+  setTimeout(async () => {
+    // 1. ลองเรียก Pinia Action/API
+    const result = await authStore.changeEmail({
+      newEmail: newEmail.value.trim(),
+      password: passwordForEmail.value,
+    })
 
-  closeEmailPopup()
+    if (result.success) {
+      successMessage.value = 'เปลี่ยนอีเมลสำเร็จ'
+      closeEmailPopup()
+      setTimeout(() => (successMessage.value = ''), 3000)
+    } else {
+      // 2. LOGIC ดักรหัสผ่านไม่ถูกต้อง
+      const error = result.error || '' // ใช้ค่าว่างแทนค่า default เพื่อให้ดัก Error ได้ละเอียดขึ้น
+
+      let displayError = 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล' // Default error message
+
+      // ตรวจสอบข้อความ Error ที่บ่งชี้ถึงรหัสผ่าน/การรับรองความถูกต้อง
+      // เพิ่มการตรวจสอบแบบรวมหลายคำเพื่อครอบคลุม Error จาก API
+      if (
+        error.includes('รหัสผ่านไม่ถูกต้อง') || 
+        error.includes('Incorrect password') || 
+        error.includes('Invalid credentials') ||
+        error.includes('authentication failed')
+      ) {
+        displayError = 'รหัสผ่านปัจจุบันไม่ถูกต้อง ไม่สามารถเปลี่ยนอีเมลได้'
+      } else if (error.trim().length > 0) {
+        // หากมีข้อความ Error อื่น ๆ ที่ไม่ใช่รหัสผ่าน ให้แสดงข้อความนั้น
+        displayError = error
+      }
+      
+      emailError.value = displayError
+      showEmailPopup.value = true // ถ้าเกิดข้อผิดพลาด ให้เปิด Email Popup หลักกลับมา
+    }
+  }, 20)
 }
 
 defineProps({
@@ -617,7 +673,8 @@ const closePasswordPopup = () => {
   showPasswordPopup.value = false
 }
 
-const savePassword = async () => { // เปลี่ยนเป็น async
+// ฟังก์ชันเปิด Confirmation Dialog สำหรับรหัสผ่าน (มีการตรวจสอบข้อมูลก่อน)
+const openPasswordConfirm = () => {
   passwordError.value = ''
 
   if (!oldPassword.value.trim()) {
@@ -640,25 +697,44 @@ const savePassword = async () => { // เปลี่ยนเป็น async
     return
   }
   
-  // เรียกใช้ action จาก Pinia Store
+  // ปิด Password Popup หลักก่อน
+  showPasswordPopup.value = false 
+  setTimeout(() => {
+    showPasswordConfirm.value = true // เปิด Confirmation Dialog
+  }, 20)
+}
+
+// ฟังก์ชันปิด Confirmation Dialog สำหรับรหัสผ่าน
+const closePasswordConfirm = () => {
+  showPasswordConfirm.value = false
+  showPasswordPopup.value = true
+}
+
+
+// ฟังก์ชันบันทึกรหัสผ่านจริง (ถูกเรียกหลังจากยืนยันแล้ว)
+const savePassword = async () => {
+  showPasswordConfirm.value = false // ปิด Confirm Dialog
+
   const result = await authStore.changePassword({
     oldPassword: oldPassword.value,
     newPassword: newPassword.value,
   })
 
   if (result.success) {
-    // การเปลี่ยนรหัสผ่านจะทำให้ logout ต้องเปลี่ยนไปหน้า login
+    // การเปลี่ยนรหัสผ่านจะทำให้ logout
     closePasswordPopup()
     alert('เปลี่ยนรหัสผ่านสำเร็จ คุณต้องเข้าสู่ระบบใหม่')
     router.push('/login') 
   } else {
     passwordError.value = result.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+    showPasswordPopup.value = true // ถ้ามีข้อผิดพลาด ให้เปิด Popup หลักกลับมา
   }
 }
 
 // =====================================================
 // FORM: Reset
 // =====================================================
+// ฟังก์ชันที่ถูกเรียกเมื่อกดยืนยันจาก ConfirmDialog
 const resetForm = () => {
   const u = authStore.user
   if (!u) return
@@ -675,51 +751,65 @@ const resetForm = () => {
   form.user_address_2 = u.user_address_2 || ''
   form.user_address_3 = u.user_address_3 || ''
   form.profile_image_url = u.profile_image_url || ''
+  
+  showResetConfirm.value = false // ปิด Dialog หลังทำรายการ
 }
 
+// ฟังก์ชันที่ถูกเรียกจากปุ่ม "รีเซ็ต" เพื่อเปิด ConfirmDialog
+const openResetConfirm = () => {
+  showResetConfirm.value = true
+}
+
+
 // =====================================================
-// FORM: Save
+// FORM: Save (Update Profile)
 // =====================================================
-const updateProfile = async () => {
+const updateProfile = () => {
   errorMessage.value = ''
   successMessage.value = ''
-
-  form.full_name = fullNameComputed.value
-
+  
+  // 1. Validation Logic
   if (!form.name.trim() || !form.surname.trim()) {
-    errorMessage.value = 'กรุณากรอกชื่อและนามสกุล'
+    errorMessage.value = 'กรุณากรอกชื่อและนามสกุลก่อนบันทึก'
     return
   }
+  
+  // 2. Open Confirm Dialog
+  showSaveConfirm.value = true
+}
 
-  isLoading.value = true
+// สร้างฟังก์ชันใหม่สำหรับ Logic การเรียก API จริง
+const saveProfileChanges = async () => {
+  showSaveConfirm.value = false // ปิด Confirm Dialog
+
+  errorMessage.value = ''
+  successMessage.value = ''
+  isLoading.value = true // ตั้งค่า Loading 
+
+  // คำนวณ full_name ก่อนส่ง
+  form.full_name = fullNameComputed.value
 
   try {
-    const token = localStorage.getItem("accessToken")
-
-    const res = await fetch("https://your-api.com/member/update", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(form)
+    const result = await authStore.updateProfile({
+        name: form.name,
+        surname: form.surname,
+        full_name: form.full_name,
+        sex: form.sex,
+        user_address_1: form.user_address_1,
+        user_address_2: form.user_address_2,
+        user_address_3: form.user_address_3,
+        profile_image_url: form.profile_image_url,
+        user_integrate: form.user_integrate, 
+        user_integrate_provider_id: form.user_integrate_provider_id, 
+        user_integrate_url: form.user_integrate_url, 
     })
 
-    const data = await res.json()
-
-    if (!data.success) {
-      errorMessage.value = data.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล"
-      return
+    if (result.success) {
+      successMessage.value = "บันทึกข้อมูลสำเร็จ"
+      setTimeout(() => (successMessage.value = ''), 3000)
+    } else {
+      errorMessage.value = result.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล"
     }
-
-    // อัปเดตค่าใน Pinia + localStorage
-    if (authStore.user) {
-      Object.assign(authStore.user, form)
-      localStorage.setItem("user", JSON.stringify(authStore.user))
-    }
-
-    successMessage.value = "บันทึกข้อมูลสำเร็จ"
-    setTimeout(() => (successMessage.value = ''), 3000)
 
   } catch (err) {
     errorMessage.value = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"
@@ -739,5 +829,3 @@ onMounted(() => {
   resetForm()
 })
 </script>
-
-

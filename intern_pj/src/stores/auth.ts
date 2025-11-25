@@ -48,6 +48,20 @@ export interface ChangePasswordData {
   newPassword: string
 }
 
+export interface ProfileUpdateData {
+    name: string
+    surname: string
+    full_name: string
+    sex: "M" | "F" | "O" | string
+    user_address_1: string
+    user_address_2: string
+    user_address_3: string
+    profile_image_url: string
+    user_integrate?: 'Y' | 'N' | string
+    user_integrate_provider_id?: string
+    user_integrate_url?: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
@@ -315,6 +329,35 @@ const changePassword = async (data: ChangePasswordData): Promise<{ success: bool
   }
 }
 
+const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolean; error?: string }> => {
+  isLoading.value = true
+  error.value = null
+  if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
+
+  try {
+    const response = await axios.put(`${API_BASE_URL}/auth/profile`, data, {
+      headers: {
+        Authorization: `Bearer ${accessToken.value}`,
+      },
+    })
+
+    if (response.data.success) {
+      // อัปเดตข้อมูลผู้ใช้ใน Store และ LocalStorage ด้วยข้อมูลใหม่ที่ได้รับจาก Backend
+      user.value = { ...user.value, ...response.data.user }
+      localStorage.setItem('user', JSON.stringify(user.value))
+
+      return { success: true }
+    }
+    
+    return { success: false, error: response.data.error || 'บันทึกข้อมูลไม่สำเร็จ' }
+  } catch (err: any) {
+    error.value = err.response?.data?.error || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+    return { success: false, error: error.value ?? undefined }
+  } finally {
+    isLoading.value = false
+  }
+}
+
   // Initialize on store creation
   initAuth()
 
@@ -336,6 +379,7 @@ const changePassword = async (data: ChangePasswordData): Promise<{ success: bool
     refreshAccessToken,
     initAuth,
     changeEmail,
-    changePassword
+    changePassword,
+    updateProfile
   }
 })

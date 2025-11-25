@@ -802,6 +802,47 @@ export const changePassword = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.user.user_id; // ได้มาจาก protect middleware
+    const dataToUpdate = req.body;
+
+    console.log("✏️ Profile update request for:", userId, "Data:", dataToUpdate);
+
+    // ตรวจสอบข้อมูลที่จำเป็นสำหรับการอัปเดตที่สำคัญ (ชื่อ/นามสกุล)
+    if (!dataToUpdate.name || !dataToUpdate.surname) {
+      return res.status(400).json({
+        success: false,
+        error: "กรุณากรอกชื่อและนามสกุล",
+      });
+    }
+    
+    // เตรียมข้อมูล Full Name ใหม่ (สำคัญ)
+    dataToUpdate.full_name = `${dataToUpdate.name} ${dataToUpdate.surname}`;
+
+    // อัปเดตข้อมูล
+    const updatedUser = await UserModel.updateProfile(userId, dataToUpdate);
+    
+    // ลบ password_hash ออกก่อนส่งกลับ
+    delete updatedUser.password_hash; 
+
+    res.json({
+      success: true,
+      message: "บันทึกข้อมูลสำเร็จ",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("💥 Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาดในการอัปเดตข้อมูล",
+    });
+  } finally {
+    client.release();
+  }
+};
+
 // Logout
 export const logoutUser = async (req, res) => {
   const client = await pool.connect();

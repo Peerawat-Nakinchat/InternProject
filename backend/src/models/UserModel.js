@@ -189,6 +189,54 @@ const updateEmail = async (userId, newEmail) => {
     }
 };
 
+const updateProfile = async (userId, data) => {
+    try {
+        console.log('📝 Updating profile for user:', userId);
+
+        const { name, surname, full_name, sex, user_address_1, user_address_2, user_address_3, profile_image_url } = data;
+        
+        const result = await dbQuery(
+            `UPDATE sys_users 
+             SET 
+                name = $1, 
+                surname = $2, 
+                full_name = $3, 
+                sex = $4, 
+                user_address_1 = $5, 
+                user_address_2 = $6, 
+                user_address_3 = $7,
+                profile_image_url = $8,
+                updated_at = NOW()
+             WHERE user_id = $9
+             RETURNING 
+                user_id, email, name, surname, full_name, sex, 
+                user_address_1, user_address_2, user_address_3, 
+                role_id, is_active, profile_image_url`,
+            [
+                name, 
+                surname, 
+                full_name, 
+                sex, 
+                user_address_1, 
+                user_address_2, 
+                user_address_3,
+                profile_image_url,
+                userId
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('User not found for profile update');
+        }
+
+        console.log('✅ Profile updated successfully');
+        return result.rows[0];
+    } catch (error) {
+        console.error('❌ Error updating profile:', error);
+        throw error;
+    }
+};
+
 export const UserModel = {
     findByEmail,
     findById,
@@ -196,5 +244,6 @@ export const UserModel = {
     setResetToken,
     findByResetToken,
     updatePassword,
-    updateEmail
+    updateEmail,
+    updateProfile
 };

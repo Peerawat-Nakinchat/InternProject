@@ -93,8 +93,7 @@ defineProps({
   cancelText: String,
   loading: Boolean,
   icon: {
-    type: String,
-    default: "mdi-logout", // Default icon
+    type: String
   },
 });
 

@@ -12,6 +12,7 @@ import {
   resetPassword,
   changeEmail,
   changePassword,
+  updateProfile
 } from "../controllers/AuthController.js";
 import passport from "passport";
 
@@ -65,5 +66,6 @@ router.post("/logout-all", protect, logoutAllUser);
 router.get("/profile", protect, getProfile);
 router.put("/change-email", protect, validateChangeEmail, changeEmail);
 router.put("/change-password", protect, validateChangePassword, changePassword);
+router.put("/update-profile", protect, updateProfile);
 
 export default router;
