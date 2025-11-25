@@ -9,8 +9,8 @@
 
     <form @submit.prevent="onSubmit" class="max-w-5xl mx-auto space-y-4">
 
-      <!-- Page Title -->
-      <div class="flex justify-between">
+      <!-- Header / Title -->
+      <div class="flex justify-between items-center">
         <div>
           <h1 class="text-2xl font-semibold tracking-tight">
             <span
@@ -19,102 +19,86 @@
               สร้างบริษัทใหม่
             </span>
           </h1>
-
           <p class="text-neutral-500 text-sm mt-1">
             กรอกข้อมูลสำหรับการสร้างบริษัทใหม่ในระบบของคุณ
           </p>
         </div>
 
-        <!-- Submit -->
-<div class="flex justify-end">
-  <button
-    type="submit"
-    class="h-12 inline-flex items-center justify-center
-           rounded-full sm:rounded-lg
-           bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white font-medium shadow-md
-           transition-all duration-300 hover:brightness-110 active:scale-95
-           px-4 sm:px-8 gap-0 sm:gap-2"
-  >
-    <i class="mdi mdi-domain-plus text-lg"></i>
-    <span class="hidden sm:inline">สร้างบริษัท</span>
-  </button>
-</div>
-
-
+        <!-- Desktop / Tablet: ปุ่มด้านบนขวา -->
+        <div class="hidden sm:flex">
+          <button type="submit" class="h-12 inline-flex items-center justify-center
+               rounded-lg
+               bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white font-medium shadow-md
+               transition-all duration-300 hover:brightness-110 active:scale-95
+               px-8 gap-2">
+            <i class="mdi mdi-domain-plus text-lg"></i>
+            <span>สร้างบริษัท</span>
+          </button>
+        </div>
       </div>
-      <p v-if="errorMessage" class="text-red-500 text-sm text-center mt-2">
-        {{ errorMessage }}
-      </p>
 
       <!-- Section: ข้อมูลบริษัท -->
       <section class="bg-white rounded-xl shadow-sm border border-neutral-200 p-8 space-y-8">
-
-        <div class="flex items-center gap-4 mb-4">
-          <span
+        <div class="flex items-center gap-4 mb-4"> <span
             class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
-            <i class="mdi mdi-domain" aria-hidden="true"></i>
-          </span>
+            <i class="mdi mdi-domain" aria-hidden="true"></i> </span>
           <h2 class="text-lg text-gray-800 font-semibold">ข้อมูลบริษัท</h2>
         </div>
 
-
+        <!-- ฟิลด์ฟอร์มทั้งหมด -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-2">
-
           <div class="space-y-4">
             <BaseInput v-model="form.org_name" label="ชื่อบริษัท *" placeholder="กรอกชื่อบริษัท" input-class="h-11" />
-
             <BaseInput v-model="form.org_code" label="รหัสบริษัท *" placeholder="เช่น CMP001" input-class="h-11" />
-
-            <div class="space-y-1">
-              <label class="text-sm font-medium text-neutral-700">Integrate System *</label>
-
-              <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full">
-                <template #trigger>
-                  <button type="button" class="flex w-full items-center justify-between rounded-lg border border-neutral-300
-                      bg-white px-3 h-10 text-sm text-neutral-700 hover:bg-neutral-50 shadow-sm">
-                    <span>{{ selectedIntegration ? selectedIntegration.label : "เลือกการเชื่อมต่อระบบ" }}</span>
-                    <i class="mdi mdi-chevron-down text-primary-500 text-lg"></i>
-                  </button>
-                </template>
-
-                <div class="py-1">
-                  <button v-for="option in integrationOptions" :key="option.value"
+            <!-- Integrate System Dropdown -->
+            <div class="space-y-1"> <label class="text-sm font-medium text-neutral-700">Integrate System *</label>
+              <BaseDropdown v-model="isIntegrationOpen" close-on-click class="w-full"> <template #trigger> <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 h-10 text-sm text-neutral-700 hover:bg-neutral-50 shadow-sm">
+                    <span>{{ selectedIntegration ? selectedIntegration.label : "เลือกการเชื่อมต่อระบบ" }}</span> <i
+                      class="mdi mdi-chevron-down text-primary-500 text-lg"></i> </button> </template>
+                <div class="py-1"> <button v-for="option in integrationOptions" :key="option.value"
                     class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100"
-                    @click="onSelectIntegration(option)">
-                    {{ option.label }}
-                  </button>
-                </div>
+                    @click="onSelectIntegration(option)"> {{
+                      option.label }} </button> </div>
               </BaseDropdown>
             </div>
           </div>
 
           <div class="space-y-4">
             <BaseInput v-model="form.org_address_1" label="ที่อยู่ 1" placeholder="กรอกที่อยู่ 1" input-class="h-11" />
-
             <BaseInput v-model="form.org_address_2" label="ที่อยู่ 2" placeholder="กรอกที่อยู่ 2" input-class="h-11" />
-
             <BaseInput v-model="form.org_address_3" label="ที่อยู่ 3" placeholder="กรอกที่อยู่ 3" input-class="h-11" />
           </div>
-
         </div>
-        <div class="flex items-center gap-4 mb-4">
-          <span
+
+        <div class="flex items-center gap-4 mb-4"> <span
             class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg">
-            <i class="mdi mdi-lan-connect" aria-hidden="true"></i>
-          </span>
+            <i class="mdi mdi-lan-connect" aria-hidden="true"></i> </span>
           <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบ</h2>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
           <BaseInput v-model="form.org_integrate_provider_id" label="Integration Provider"
             placeholder="กรอก Provider ID" />
-
           <BaseInput v-model="form.org_integrate_passcode" label="Integration Passcode" type="password"
             placeholder="กรอกรหัสจากระบบภายนอก" />
-
           <BaseInput v-model="form.org_integrate_url" label="Integration URL" type="url" placeholder="https://..." />
         </div>
+
       </section>
+
+      <!-- Mobile: ปุ่ม full-width ต่อจากฟอร์ม -->
+      <div class="sm:hidden mt-4">
+        <button type="submit" class="h-12 w-full flex items-center justify-center
+             rounded-lg
+             bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white font-medium shadow-md
+             transition-all duration-300 hover:brightness-110 active:scale-95 gap-2">
+          <i class="mdi mdi-domain-plus text-lg"></i>
+          <span>สร้างบริษัท</span>
+        </button>
+      </div>
+
     </form>
   </div>
 </template>
