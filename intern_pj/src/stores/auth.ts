@@ -38,6 +38,16 @@ export interface RegisterData {
   user_address_3?: string
 }
 
+export interface ChangeEmailData {
+  newEmail: string
+  password: string
+}
+
+export interface ChangePasswordData {
+  oldPassword: string
+  newPassword: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
@@ -228,6 +238,64 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
   }
+  // ********** Action: Change Email **********
+  const changeEmail = async (data: ChangeEmailData): Promise<{ success: boolean; error?: string }> => {
+  isLoading.value = true
+  error.value = null
+  if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
+
+  try {
+    const response = await axios.put(`${API_BASE_URL}/auth/change-email`, data, {
+      headers: {
+        Authorization: `Bearer ${accessToken.value}`,
+      },
+    })
+
+    if (response.data.success) {
+      // อัปเดตอีเมลใน Store และ LocalStorage
+      if (user.value) {
+        user.value.email = response.data.user.email
+        localStorage.setItem('user', JSON.stringify(user.value))
+      }
+      return { success: true }
+    }
+    
+    return { success: false, error: response.data.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
+  } catch (err: any) {
+    error.value = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
+    return { success: false, error: error.value ?? undefined }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// ********** Action: Change Password **********
+const changePassword = async (data: ChangePasswordData): Promise<{ success: boolean; error?: string }> => {
+  isLoading.value = true
+  error.value = null
+  if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
+
+  try {
+    const response = await axios.put(`${API_BASE_URL}/auth/change-password`, data, {
+      headers: {
+        Authorization: `Bearer ${accessToken.value}`,
+      },
+    })
+
+    if (response.data.success) {
+      // **สำคัญ:** การเปลี่ยนรหัสผ่านจะบังคับ logout ทุกอุปกรณ์
+      await logout()
+      return { success: true }
+    }
+    
+    return { success: false, error: response.data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
+  } catch (err: any) {
+    error.value = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+    return { success: false, error: error.value ?? undefined }
+  } finally {
+    isLoading.value = false
+  }
+}
 
   // Initialize on store creation
   initAuth()
@@ -249,5 +317,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchProfile,
     refreshAccessToken,
     initAuth,
+    changeEmail,
+    changePassword
   }
 })

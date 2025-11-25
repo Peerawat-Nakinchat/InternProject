@@ -164,6 +164,31 @@ const updatePassword = async (userId, hash) => {
     }
 };
 
+// เพิ่มฟังก์ชันสำหรับอัปเดตอีเมล
+const updateEmail = async (userId, newEmail) => {
+    try {
+        console.log('📧 Updating email for user:', userId, 'to:', newEmail);
+        
+        const result = await dbQuery(
+            `UPDATE sys_users
+             SET email = $1, updated_at = NOW()
+             WHERE user_id = $2
+             RETURNING user_id, email`,
+            [newEmail, userId]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('User not found for email update');
+        }
+
+        console.log('✅ Email updated successfully');
+        return result.rows[0];
+    } catch (error) {
+        console.error('❌ Error updating email:', error);
+        throw error;
+    }
+};
+
 export const UserModel = {
     findByEmail,
     findById,
@@ -171,4 +196,5 @@ export const UserModel = {
     setResetToken,
     findByResetToken,
     updatePassword,
+    updateEmail
 };
