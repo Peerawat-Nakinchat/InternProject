@@ -335,7 +335,7 @@ const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolea
   if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
 
   try {
-    const response = await axios.put(`${API_BASE_URL}/auth/profile`, data, {
+    const response = await axios.put(`${API_BASE_URL}/auth/update-profile`, data, {
       headers: {
         Authorization: `Bearer ${accessToken.value}`,
       },
