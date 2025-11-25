@@ -49,7 +49,28 @@
               </button>
             </div>
 
-            <!-- 4. Error State -->
+            <!-- 4. Warning State -->
+            <div
+              v-else-if="viewState === 'warning'"
+              key="warning"
+              class="bg-white rounded-2xl shadow-2xl w-full p-8 flex flex-col items-center text-center"
+            >
+              <div
+                class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4"
+              >
+                <i class="mdi mdi-alert text-4xl text-yellow-600"></i>
+              </div>
+              <h3 class="text-2xl font-bold text-gray-800 mb-2">แจ้งเตือน</h3>
+              <p class="text-gray-600 mb-6">{{ resultMessage }}</p>
+              <button
+                @click="close"
+                class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                ตกลง
+              </button>
+            </div>
+
+            <!-- 5. Error State -->
             <div
               v-else-if="viewState === 'error'"
               key="error"
@@ -303,8 +324,15 @@ const submitInvitation = async () => {
     emit('submit', form.value)
   } catch (error: any) {
     console.error('Send invite error:', error)
-    resultMessage.value = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ'
-    viewState.value = 'error'
+    const errorMsg = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ'
+    resultMessage.value = errorMsg
+
+    // Check if it's an "already a member" warning
+    if (errorMsg.includes('เป็นสมาชิกบริษัทของท่านอยู่แล้ว')) {
+      viewState.value = 'warning'
+    } else {
+      viewState.value = 'error'
+    }
   }
 }
 

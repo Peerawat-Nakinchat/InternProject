@@ -547,6 +547,167 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// ********** ฟังก์ชันสำหรับเปลี่ยนอีเมล **********
+export const changeEmail = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { newEmail, password } = req.body;
+    const userId = req.user.user_id; // ได้มาจาก protect middleware
+
+    console.log("📧 Change email request for:", userId, "New email:", newEmail);
+
+    if (!newEmail || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "กรุณากรอกอีเมลใหม่และรหัสผ่านเพื่อยืนยัน",
+      });
+    }
+
+    // 1. ดึงข้อมูลผู้ใช้และตรวจสอบรหัสผ่าน
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "ไม่พบข้อมูลผู้ใช้",
+      });
+    }
+
+    // ดึง password_hash จาก DB (findById ใน UserModel อาจจะไม่ได้ดึงมา)
+    // ดังนั้นต้องใช้ findByEmail หรือดึงตรง
+    const result = await client.query(
+        `SELECT password_hash FROM sys_users WHERE user_id = $1`,
+        [userId]
+    );
+
+    const passwordHash = result.rows[0]?.password_hash;
+    if (!passwordHash) {
+        return res.status(401).json({
+            success: false,
+            error: "บัญชีนี้ไม่สามารถเปลี่ยนอีเมลได้",
+        });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
+
+    if (!isPasswordValid) {
+      console.log("❌ Invalid password for email change");
+      return res.status(401).json({
+        success: false,
+        error: "รหัสผ่านไม่ถูกต้อง",
+      });
+    }
+
+    // 2. ตรวจสอบอีเมลใหม่ซ้ำ
+    const existingUser = await UserModel.findByEmail(newEmail);
+    if (existingUser && existingUser.user_id !== userId) {
+      console.log("⚠️ New email already in use:", newEmail);
+      return res.status(409).json({
+        success: false,
+        error: "อีเมลใหม่นี้ถูกใช้งานแล้ว",
+      });
+    }
+
+    // 3. อัปเดตอีเมล
+    const updatedUser = await UserModel.updateEmail(userId, newEmail);
+
+    res.json({
+      success: true,
+      message: "เปลี่ยนอีเมลสำเร็จ",
+      user: {
+          user_id: updatedUser.user_id,
+          email: updatedUser.email,
+      }
+    });
+
+  } catch (error) {
+    console.error("💥 Change email error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาดในการเปลี่ยนอีเมล",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+// ********** ฟังก์ชันสำหรับเปลี่ยนรหัสผ่าน **********
+export const changePassword = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user.user_id; // ได้มาจาก protect middleware
+
+    console.log("🔒 Change password request for:", userId);
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่",
+      });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({
+            success: false,
+            error: "รหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร",
+        });
+    }
+
+    // 1. ดึง password_hash จาก DB และตรวจสอบรหัสผ่านเดิม
+    const result = await client.query(
+        `SELECT password_hash FROM sys_users WHERE user_id = $1`,
+        [userId]
+    );
+
+    const passwordHash = result.rows[0]?.password_hash;
+    if (!passwordHash) {
+        return res.status(401).json({
+            success: false,
+            error: "บัญชีนี้ไม่สามารถเปลี่ยนรหัสผ่านได้",
+        });
+    }
+
+    const isPasswordValid = await bcrypt.compare(oldPassword, passwordHash);
+
+    if (!isPasswordValid) {
+      console.log("❌ Invalid old password for change password");
+      return res.status(401).json({
+        success: false,
+        error: "รหัสผ่านเดิมไม่ถูกต้อง",
+      });
+    }
+    
+    // 2. Hash รหัสผ่านใหม่
+    const salt = await bcrypt.genSalt(
+      parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10
+    );
+    const newHashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // 3. อัปเดตรหัสผ่าน
+    await UserModel.updatePassword(userId, newHashedPassword);
+    
+    // 4. ลบ refresh token ทั้งหมด (เพื่อบังคับ log out จากทุกอุปกรณ์)
+    await client.query("DELETE FROM sys_refresh_tokens WHERE user_id = $1", [
+      userId,
+    ]);
+
+    res.json({
+      success: true,
+      message: "เปลี่ยนรหัสผ่านสำเร็จ คุณต้องเข้าสู่ระบบใหม่",
+    });
+
+  } catch (error) {
+    console.error("💥 Change password error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน",
+    });
+  } finally {
+    client.release();
+  }
+};
+
 // Logout
 export const logoutUser = async (req, res) => {
   const client = await pool.connect();

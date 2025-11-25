@@ -9,7 +9,9 @@ import {
     googleAuthCallback,
     forgotPassword,
     verifyResetToken,
-    resetPassword
+    resetPassword,
+    changeEmail,
+    changePassword
 } from "../controllers/AuthController.js";
 import passport from "passport";
 
@@ -54,5 +56,7 @@ router.post("/token", refreshAccessToken, (req, res) => {
 // Protected
 router.post("/logout-all", protect, logoutAllUser);
 router.get("/profile", protect, getProfile);
+router.put("/change-email", protect, changeEmail);
+router.put("/change-password", protect, changePassword);
 
 export default router;
