@@ -23,7 +23,7 @@
                  transition-all duration-300 ease-in-out overflow-hidden"
         >
           <i class="mdi mdi-account-plus text-lg md:text-base lg:text-xl transform transition-transform duration-300"></i>
-          <span class="hidden md:inline ml-2 truncate text-md font-semibold">
+          <span class="hidden md:inline ml-2 truncate text-sm font-semibold tracking-wide uppercase">
             Invite Member
           </span>
         </button>
