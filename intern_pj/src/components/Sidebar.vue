@@ -7,7 +7,12 @@
         <img src="/img/logoMango.png" alt="MANGOISO Logo" class="w-12 h-12 mx-auto" />
       </template>
       <template v-else>
-        <div class="text-center font-bold text-md">ISO MANAGEMENT SYSTEM</div>
+        <div
+          class="text-center font-bold truncate
+                text-xs sm:text-sm md:text-sm lg:text-md xl:text-md"
+        >
+          ISO MANAGEMENT SYSTEM
+        </div>
       </template>
     </div>
     <hr class="border-gray-500" />
@@ -29,7 +34,7 @@
           class="flex items-center w-full p-2 hover:bg-purple-600 rounded"
         >
           <i :class="`${item.icon} text-xl mr-2`"></i>
-          <span>{{ item.title }}</span>
+          <span class="text-sm sm:text-sm md:text-sm lg:text-md xl:text-md">{{ item.title }}</span>
         </router-link>
       </template>
     </nav>

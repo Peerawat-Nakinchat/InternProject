@@ -26,16 +26,20 @@
         </div>
 
         <!-- Submit -->
-        <div class="flex justify-end">
-          <button type="submit" class="px-8 py-2 h-12 inline-flex items-center gap-2 rounded-lg 
-         text-white font-medium shadow-md 
-         bg-linear-to-br from-[#1C244B] to-[#682DB5]
-         hover:brightness-110 active:scale-95 transition-all">
-            <i class="mdi mdi-domain-plus text-lg"></i>
-            สร้างบริษัท
-          </button>
+<div class="flex justify-end">
+  <button
+    type="submit"
+    class="h-12 inline-flex items-center justify-center
+           rounded-full sm:rounded-lg
+           bg-linear-to-br from-[#1C244B] to-[#682DB5] text-white font-medium shadow-md
+           transition-all duration-300 hover:brightness-110 active:scale-95
+           px-4 sm:px-8 gap-0 sm:gap-2"
+  >
+    <i class="mdi mdi-domain-plus text-lg"></i>
+    <span class="hidden sm:inline">สร้างบริษัท</span>
+  </button>
+</div>
 
-        </div>
 
       </div>
       <p v-if="errorMessage" class="text-red-500 text-sm text-center mt-2">
@@ -123,7 +127,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 import BaseInput from '@/components/base/BaseInput.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import BaseDropdown from '@/components/base/BaseDropdown.vue'
 
 import type { CreateCompanyForm, IntegrationOption } from '@/types/company'
