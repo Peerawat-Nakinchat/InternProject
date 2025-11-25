@@ -3,45 +3,31 @@
     class="w-full h-[55px] overflow-visible bg-linear-to-tr from-[#1C244B] to-[#682DB5] backdrop-blur-md border-t-white border-t border-b border-[#4B1E89]/50 flex items-center px-4 justify-between shadow-b-md"
   >
     <!-- Left side -->
-    <!-- Company Selector -->
     <div class="relative">
       <CompanySelector />
     </div>
 
     <!-- Right side -->
     <div class="flex items-center gap-3">
-      <!-- Search Input -->
-      <div class="relative">
-        <input
-          type="text"
-          placeholder="Search..."
-          class="bg-[#682DB5]/30 text-white placeholder-purple-200 px-3 py-2 rounded-lg border border-[#682DB5]/50 focus:ring-2 focus:ring-[#A16CE0] focus:outline-none transition duration-300 backdrop-blur-sm"
-        />
-        <svg
-          class="w-5 h-5 text-purple-300 absolute right-2 top-1/2 -translate-y-1/2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-          />
-        </svg>
-      </div>
 
-      <button
-        v-if="
-          companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2
-        "
-        @click="isInviteModalOpen = true"
-        class="flex items-center gap-2 justify-center h-10 rounded-lg shadow-md font-medium text-white bg-linear-to-r from-[#682DB5] to-[#8F3ED0] hover:from-[#7F39D1] hover:to-[#9B5DE5] transition-all duration-300 /* Responsive spacing */ px-3 py-1.5 /* mobile */ sm:px-4 sm:py-2 /* tablet */ md:px-5 md:py-2.5 /* desktop */ /* Responsive font */ text-sm /* mobile */ sm:text-base /* tablet */ md:text-md /* desktop */"
-      >
-        <i class="mdi mdi-account-plus text-base sm:text-lg md:text-xl"></i>
-        <span>Invite Member</span>
-      </button>
+      <!-- Invite Button -->
+      <transition name="invite-button">
+        <button
+          v-if="companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2"
+          @click="isInviteModalOpen = true"
+          class="flex items-center justify-center
+                 h-9 w-9 md:w-auto md:px-4 md:py-2 lg:h-10 lg:px-4 lg:py-2
+                 rounded-full md:rounded-lg shadow-md font-medium text-white
+                 bg-linear-to-r from-[#682DB5] to-[#8F3ED0]
+                 hover:from-[#7F39D1] hover:to-[#9B5DE5]
+                 transition-all duration-300 ease-in-out overflow-hidden"
+        >
+          <i class="mdi mdi-account-plus text-lg md:text-base lg:text-xl transform transition-transform duration-300"></i>
+          <span class="hidden md:inline ml-2 truncate text-md font-semibold">
+            Invite Member
+          </span>
+        </button>
+      </transition>
 
       <InviteModal v-if="isInviteModalOpen" @close="isInviteModalOpen = false" />
     </div>
@@ -49,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import CompanySelector from './CompanySelector.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCompanyStore } from '@/stores/company'
@@ -62,26 +48,41 @@ const user = computed(() => authStore.user)
 </script>
 
 <style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+/* Invite button animation */
+.invite-button-enter-from {
+  width: 40px;             /* mobile */
+  opacity: 0;
 }
-.fade-enter-from,
-.fade-leave-to {
+.invite-button-enter-to {
+  width: auto;             /* iPad+ ปุ่มเต็ม */
+  opacity: 1;
+}
+.invite-button-leave-from {
+  width: auto;
+  opacity: 1;
+}
+.invite-button-leave-to {
+  width: 40px;
   opacity: 0;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.invite-button-enter-active,
+.invite-button-leave-active {
+  transition: all 0.3s ease-in-out;
 }
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
+
+/* Icon scale animation */
+button:hover i {
+  transform: scale(1.1);
+  transition: transform 0.3s ease-in-out;
+}
+
+/* Fade-in ข้อความ */
+button span {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+button span.md:inline {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>
