@@ -27,6 +27,14 @@ export const sendInvitation = async (req, res) => {
     // Generate stateless token
     const token = generateInviteToken({ email, org_id, role_id });
 
+    // Check if user is already a member of THIS company
+    const isAlreadyMember = await MemberModel.checkMembership(org_id, email);
+    if (isAlreadyMember) {
+      return res.status(400).json({
+        message: "ผู้ใช้คนนี้เป็นสมาชิกบริษัทของท่านอยู่แล้ว",
+      });
+    }
+
     // Check if user is already a member of another company (and not an owner)
     // If inviting as Owner (1), allow it regardless of other memberships
     if (parseInt(role_id) !== 1) {
