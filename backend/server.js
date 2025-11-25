@@ -88,6 +88,31 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ========================================
+// SECURITY MONITORING MIDDLEWARE
+// ========================================
+
+import {
+  extractClientInfo,
+  requestLogger,
+  detectSuspiciousPatterns,
+  bruteForceProtection,
+} from "./src/middleware/securityMonitoring.js";
+import logger from "./src/utils/logger.js";
+
+// Extract client information for all requests
+app.use(extractClientInfo);
+
+// Log all requests
+app.use(requestLogger);
+
+// Detect suspicious patterns
+app.use(detectSuspiciousPatterns);
+
+// Apply brute force protection to auth endpoints
+app.use("/api/auth/login", bruteForceProtection);
+app.use("/api/auth/register", bruteForceProtection);
+
+// ========================================
 // PASSPORT INITIALIZATION
 // ========================================
 
@@ -161,4 +186,8 @@ app.listen(PORT, () => {
   console.log(`🔒 Security: Helmet enabled`);
   console.log(`🔒 Security: CORS configured for ${allowedOrigins.join(", ")}`);
   console.log(`🔒 Security: Rate limiting enabled`);
+  console.log(`🔒 Security: Request logging enabled`);
+  console.log(`🔒 Security: Brute force protection enabled`);
+  console.log(`🔒 Security: Suspicious pattern detection enabled`);
+  logger.info(`Server started on port ${PORT}`);
 });

@@ -7,10 +7,6 @@ import { pool } from '../config/db.js';
  */
 const protect = async (req, res, next) => {
     const authHeader = req.headers.authorization;
-
-    // ✅ Debug: ตรวจสอบ Authorization Header
-    console.log('🔐 Auth Middleware Debug:');
-    console.log('  - Authorization Header:', authHeader ? 'มี' : 'ไม่มี');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.error('❌ ไม่มี Token หรือ format ผิด');
@@ -21,11 +17,9 @@ const protect = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    console.log('  - Token (first 20 chars):', token.substring(0, 20) + '...');
 
     try {
         const decoded = verifyAccessToken(token);
-        console.log('  - Decoded Token:', decoded);
 
         if (!decoded || !decoded.user_id) {
             console.error('❌ Token decode ไม่สำเร็จหรือไม่มี user_id');
@@ -52,8 +46,6 @@ const protect = async (req, res, next) => {
                 [decoded.user_id]
             );
 
-            console.log('  - Query Result:', result.rows.length > 0 ? 'พบ user' : 'ไม่พบ user');
-
             if (result.rows.length === 0) {
                 console.error('❌ ไม่พบ user ในฐานข้อมูล');
                 return res.status(401).json({ 
@@ -74,7 +66,6 @@ const protect = async (req, res, next) => {
             }
 
             req.user = user;
-            console.log('✅ Authentication สำเร็จ:', user.email);
             next();
         } finally {
             client.release();

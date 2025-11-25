@@ -10,6 +10,8 @@ import {
 import { UserModel } from "../models/UserModel.js";
 import { MemberModel } from "../models/MemberModel.js";
 import nodemailer from "nodemailer";
+import { securityLogger } from "../utils/logger.js";
+import { recordFailedLogin, clearFailedLogins } from "../middleware/securityMonitoring.js";
 
 // ลงทะเบียนผู้ใช้ใหม่
 export const registerUser = async (req, res) => {
@@ -53,9 +55,17 @@ export const registerUser = async (req, res) => {
 
     if (checkEmail.rows.length > 0) {
       console.log("⚠️ Email already exists:", email);
+      const clientInfo = req.clientInfo || {};
+      securityLogger.registrationFailed(
+        email,
+        clientInfo.ipAddress || req.ip,
+        clientInfo.userAgent || req.headers['user-agent'],
+        'Email already exists'
+      );
+      // Generic error to prevent enumeration
       return res.status(400).json({
         success: false,
-        error: "อีเมลนี้ถูกใช้งานแล้ว",
+        error: "ไม่สามารถลงทะเบียนได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง",
       });
     }
 
@@ -89,6 +99,15 @@ export const registerUser = async (req, res) => {
 
     const user = result.rows[0];
     console.log("✅ User created:", user.user_id);
+
+    // Log successful registration
+    const clientInfo = req.clientInfo || {};
+    securityLogger.registrationSuccess(
+      user.user_id,
+      user.email,
+      clientInfo.ipAddress || req.ip,
+      clientInfo.userAgent || req.headers['user-agent']
+    );
 
     // สร้าง tokens
     const accessToken = generateAccessToken(user.user_id);
@@ -178,6 +197,16 @@ export const loginUser = async (req, res) => {
 
     if (result.rows.length === 0) {
       console.log("⚠️ User not found:", email);
+      const clientInfo = req.clientInfo || {};
+      const ip = clientInfo.ipAddress || req.ip;
+      securityLogger.loginFailed(
+        email,
+        ip,
+        clientInfo.userAgent || req.headers['user-agent'],
+        'User not found'
+      );
+      recordFailedLogin(ip);
+      // Generic error message to prevent enumeration
       return res.status(401).json({
         success: false,
         error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
@@ -189,18 +218,38 @@ export const loginUser = async (req, res) => {
     // ตรวจสอบว่า account active หรือไม่
     if (user.is_active === false) {
       console.log("⚠️ Account inactive:", email);
+      const clientInfo = req.clientInfo || {};
+      const ip = clientInfo.ipAddress || req.ip;
+      securityLogger.loginFailed(
+        email,
+        ip,
+        clientInfo.userAgent || req.headers['user-agent'],
+        'Account inactive'
+      );
+      recordFailedLogin(ip);
+      // Generic error message to prevent enumeration
       return res.status(401).json({
         success: false,
-        error: "บัญชีนี้ถูกระงับการใช้งาน",
+        error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
       });
     }
 
     // ตรวจสอบว่ามี password_hash หรือไม่
     if (!user.password_hash) {
       console.error("❌ User has no password_hash:", email);
+      const clientInfo = req.clientInfo || {};
+      const ip = clientInfo.ipAddress || req.ip;
+      securityLogger.loginFailed(
+        email,
+        ip,
+        clientInfo.userAgent || req.headers['user-agent'],
+        'No password hash'
+      );
+      recordFailedLogin(ip);
+      // Generic error message to prevent enumeration
       return res.status(401).json({
         success: false,
-        error: "บัญชีนี้ไม่สามารถเข้าสู่ระบบได้",
+        error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
       });
     }
 
@@ -210,6 +259,15 @@ export const loginUser = async (req, res) => {
     console.log("🔑 Password check:", isPasswordValid ? "Valid" : "Invalid");
 
     if (!isPasswordValid) {
+      const clientInfo = req.clientInfo || {};
+      const ip = clientInfo.ipAddress || req.ip;
+      securityLogger.loginFailed(
+        email,
+        ip,
+        clientInfo.userAgent || req.headers['user-agent'],
+        'Invalid password'
+      );
+      recordFailedLogin(ip);
       return res.status(401).json({
         success: false,
         error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
@@ -230,6 +288,17 @@ export const loginUser = async (req, res) => {
     );
 
     console.log("✅ Login successful:", user.email);
+
+    // Log successful login and clear failed attempts
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    securityLogger.loginSuccess(
+      user.user_id,
+      user.email,
+      ip,
+      clientInfo.userAgent || req.headers['user-agent']
+    );
+    clearFailedLogins(ip);
 
     res.json({
       success: true,
@@ -371,6 +440,15 @@ export const forgotPassword = async (req, res) => {
     }
 
     const user = await UserModel.findByEmail(email);
+
+    // Log password reset request
+    const clientInfo = req.clientInfo || {};
+    securityLogger.passwordResetRequest(
+      email,
+      clientInfo.ipAddress || req.ip,
+      clientInfo.userAgent || req.headers['user-agent'],
+      !!user
+    );
 
     // ป้องกัน brute-force (ตอบแบบเดียวกันไม่ว่าจะมี user หรือไม่)
     if (!user) {
@@ -534,12 +612,28 @@ export const resetPassword = async (req, res) => {
 
     console.log("✅ Password reset successful");
 
+    // Log successful password reset
+    const clientInfo = req.clientInfo || {};
+    securityLogger.passwordResetSuccess(
+      user.user_id,
+      user.email,
+      clientInfo.ipAddress || req.ip,
+      clientInfo.userAgent || req.headers['user-agent']
+    );
+
     res.json({
       success: true,
       message: "เปลี่ยนรหัสผ่านสำเร็จ",
     });
   } catch (error) {
     console.error("💥 Reset password error:", error);
+    const clientInfo = req.clientInfo || {};
+    securityLogger.passwordResetFailed(
+      req.body?.email || 'unknown',
+      clientInfo.ipAddress || req.ip,
+      clientInfo.userAgent || req.headers['user-agent'],
+      error.message
+    );
     res.status(500).json({
       success: false,
       error: error.message || "เกิดข้อผิดพลาด",
@@ -726,6 +820,16 @@ export const logoutUser = async (req, res) => {
       "DELETE FROM sys_refresh_tokens WHERE refresh_token = $1",
       [refreshToken]
     );
+
+    // Log logout
+    const clientInfo = req.clientInfo || {};
+    if (req.user) {
+      securityLogger.logout(
+        req.user.user_id,
+        clientInfo.ipAddress || req.ip,
+        clientInfo.userAgent || req.headers['user-agent']
+      );
+    }
 
     res.json({
       success: true,
