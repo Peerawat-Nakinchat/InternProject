@@ -46,32 +46,38 @@ class ApiClient {
 
       console.log('Response Status:', response.status)
 
-      // ถ้าไม่ OK ให้ throw error
-      if (!response.ok) {
-        // พยายามอ่าน error message จาก response
-        const errorData = await response.json().catch(() => ({}))
-        
-        // ถ้า 401 = token หมดอายุ
-        if (response.status === 401) {
-          // ลอง refresh token
-          const refreshed = await auth.refreshAccessToken()
-          
-          if (refreshed) {
-            // ลองเรียก API อีกครั้งด้วย token ใหม่
-            return this.request<T>(endpoint, options)
-          } else {
-            // Refresh ไม่ได้ = ต้อง logout
-            await auth.logout()
-            window.location.href = '/login'
-          }
-        }
+          // ถ้าไม่ OK ให้ throw error
+          if (!response.ok) {
+            // พยายามอ่าน error message จาก response
+            const errorData = await response.json().catch(() => ({}))
+            // อ่านค่า Retry-After header (seconds)
+            const retryAfterHeader = response.headers.get('retry-after')
+            const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined
 
-        throw new Error(
-          errorData.message || 
-          errorData.error || 
-          `HTTP Error: ${response.status} ${response.statusText}`
-        )
-      }
+            // ถ้า 401 = token หมดอายุ
+            if (response.status === 401) {
+              // ลอง refresh token
+              const refreshed = await auth.refreshAccessToken()
+
+              if (refreshed) {
+                // ลองเรียก API อีกครั้งด้วย token ใหม่
+                return this.request<T>(endpoint, options)
+              } else {
+                // Refresh ไม่ได้ = ต้อง logout
+                await auth.logout()
+                window.location.href = '/login'
+              }
+            }
+
+            const error = new Error(
+              errorData.message ||
+              errorData.error ||
+              `HTTP Error: ${response.status} ${response.statusText}`
+            )
+            // เพิ่มข้อมูล retryAfter ถ้ามี
+            ;(error as any).retryAfter = retryAfter
+            throw error
+          }
 
       // ถ้าสำเร็จ return JSON
       return response.json()

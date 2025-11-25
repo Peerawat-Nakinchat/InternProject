@@ -97,6 +97,15 @@
               </div>
             </div>
 
+            <!-- Blocked State -->
+            <div
+              v-else-if="viewState === 'blocked'"
+              key="blocked"
+              class="bg-white rounded-2xl shadow-2xl w-full p-8 flex flex-col items-center text-center"
+            >
+              <RateLimitModal :minutes="blockedMinutes" @close="close" />
+            </div>
+
             <!-- 5. Form State -->
             <div
               v-else
@@ -216,6 +225,7 @@ import BaseLoadingSpinner from '@/components/base/BaseLoadingSpinner.vue'
 import BaseDropdown from '@/components/base/BaseDropdown.vue'
 import { useCompanyStore } from '@/stores/company'
 import { sendInvitation } from '@/services/useInvitation'
+import RateLimitModal from '@/components/base/RateLimitModal.vue'
 
 const emit = defineEmits(['close', 'submit'])
 
@@ -226,6 +236,7 @@ const showModal = ref(true)
 // viewState: 'initial-loading' | 'form' | 'sending' | 'success' | 'error'
 const viewState = ref('initial-loading')
 const resultMessage = ref('')
+const blockedMinutes = ref<number | undefined>(undefined)
 
 const companyStore = useCompanyStore()
 
@@ -324,11 +335,14 @@ const submitInvitation = async () => {
     emit('submit', form.value)
   } catch (error: any) {
     console.error('Send invite error:', error)
-    const errorMsg = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ'
+    const errorMsg =
+      error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ'
     resultMessage.value = errorMsg
 
-    // Check if it's an "already a member" warning
-    if (errorMsg.includes('เป็นสมาชิกบริษัทของท่านอยู่แล้ว')) {
+    if (error.retryAfter) {
+      blockedMinutes.value = error.retryAfter
+      viewState.value = 'blocked'
+    } else if (errorMsg.includes('เป็นสมาชิกบริษัทของท่านอยู่แล้ว')) {
       viewState.value = 'warning'
     } else {
       viewState.value = 'error'

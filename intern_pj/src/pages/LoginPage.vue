@@ -144,6 +144,13 @@
         @close="handleCloseReset"
         @reset-success="onResetSuccess"
       />
+
+      <!-- Rate Limit Modal -->
+      <RateLimitModal
+        v-if="showRateLimit"
+        :minutes="rateLimitMinutes"
+        @close="showRateLimit = false"
+      />
     </AuthLayout>
   </div>
 </template>
@@ -159,6 +166,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import LoadingMessage from '@/components/loading/LoadingMessage.vue'
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
 import ResetPasswordModal from '@/components/auth/ResetPasswordModal.vue'
+import RateLimitModal from '@/components/base/RateLimitModal.vue'
 
 interface LoginForm {
   email: string
@@ -184,6 +192,8 @@ const successMessage = ref('')
 const showForgot = ref(false)
 const showReset = ref(false)
 const resetToken = ref('')
+const showRateLimit = ref(false)
+const rateLimitMinutes = ref<number | undefined>(undefined)
 
 const openForgot = () => {
   showForgot.value = true
@@ -292,6 +302,13 @@ const handleLogin = async () => {
         router.push(redirectPath)
       }, 1000)
 
+      return
+    }
+
+    // Check for rate limit
+    if (result && 'rateLimited' in result && result.rateLimited) {
+      rateLimitMinutes.value = 'retryAfter' in result ? result.retryAfter : undefined
+      showRateLimit.value = true
       return
     }
 

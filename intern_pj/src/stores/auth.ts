@@ -74,7 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Login
-  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
+  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string; rateLimited?: boolean; retryAfter?: number }> => {
     isLoading.value = true
     error.value = null
 
@@ -113,8 +113,26 @@ export const useAuthStore = defineStore('auth', () => {
       }
       
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+    } catch (err: unknown) {
+      // Check for rate limit (429)
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } } }
+        
+        if (axiosErr.response?.status === 429) {
+          const retryAfter = axiosErr.response.headers?.['retry-after']
+          error.value = 'คุณพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่'
+          return { 
+            success: false, 
+            error: error.value ?? undefined,
+            rateLimited: true,
+            retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined
+          }
+        }
+        
+        error.value = axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+      } else {
+        error.value = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+      }
       return { success: false, error: error.value ?? undefined }
     } finally {
       isLoading.value = false
