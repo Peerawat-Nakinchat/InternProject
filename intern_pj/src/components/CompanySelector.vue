@@ -1,13 +1,20 @@
 <template>
-  <div class="relative w-60">
+  <div class="relative w-full">
     <!-- Dropdown Button -->
     <button
       @click="toggleDropdown"
-      class="w-full h-9 px-4 uppercase tracking-[0.125rem] bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-md font-semibold backdrop-blur-md shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
+      class="w-full h-6 sm:h-7 md:h-8 lg:h-10 px-3 sm:px-4 md:px-5 lg:px-6 uppercase tracking-[0.125rem] 
+             bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center 
+             rounded-md font-semibold backdrop-blur-md shadow-lg text-white 
+             hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 
+             focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300 text-sm sm:text-base md:text-base lg:text-lg"
     >
-      <span>{{ selectedCompanyName }}</span>
+      <span class="truncate text-xs sm:text-sm md:text-md lg:text-md">
+        {{ selectedCompanyName }}
+      </span>
+
       <svg
-        class="w-5 h-5 text-gray-200 active:text-blue-950 transition-transform duration-300 ml-2"
+        class="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-6 lg:w-6 lg:h-6 text-gray-200 transition-transform duration-300 ml-2"
         :class="{'rotate-180': dropdownOpen}"
         fill="none"
         stroke="currentColor"
@@ -20,18 +27,23 @@
     <!-- Dropdown List -->
     <ul
       v-if="dropdownOpen"
-      class="absolute w-full text-sm rounded-b-md border-b-2 border-b-purple-500 border-x-2 border-x-purple-500 bg-white backdrop-blur-md border border-white/30 shadow-xl z-50 max-h-60 overflow-auto transition-all duration-300"
+      class="absolute left-0 w-full sm:max-w-[280px] md:max-w-[320px] lg:max-w-[360px] 
+             text-xs sm:text-sm md:text-base lg:text-base rounded-b-md 
+             border border-white/30 shadow-xl bg-white backdrop-blur-md z-50 
+             max-h-[60vh] sm:max-h-[64vh] md:max-h-[70vh] lg:max-h-[75vh] overflow-auto transition-all duration-300"
     >
       <!-- Loop ตาม role group -->
       <template v-for="(items, role) in groupedCompanies" :key="role">
         <!-- Group Header (คลิกได้) -->
         <li
           @click="toggleRole(role)"
-          class="px-4 py-2 tracking-[0.125rem] bg-[#4A137A] text-white font-bold cursor-pointer hover:bg-[#5A1F8A] flex justify-between items-center sticky top-0 z-20 transition-colors"
+          class="px-4 sm:px-3 md:px-4 lg:px-5 py-2 sm:py-2.5 md:py-3 lg:py-3 tracking-[0.125rem] 
+                 bg-[#4A137A] text-white font-bold cursor-pointer hover:bg-[#5A1F8A] 
+                 flex justify-between items-center sticky top-0 z-20 transition-colors text-xs sm:text-sm md:text-base lg:text-base"
         >
-          <span>{{ role }} ({{ items.length }})</span>
+          <span class="text-xs sm:text-xs md:text-sm lg:text-sm">{{ role }} ({{ items.length }})</span>
           <svg
-            class="w-4 h-4 transition-transform duration-200"
+            class="w-2 h-2 sm:w-3 sm:h-3 md:w-3 md:h-4 lg:w-4 lg:h-4 transition-transform duration-200"
             :class="{ 'rotate-180': expandedRoles[role] }"
             fill="none"
             stroke="currentColor"
@@ -47,7 +59,10 @@
             v-for="company in items"
             :key="company.org_id"
             @click="selectCompany(company)"
-            class="px-4 py-3 pl-8 tracking-[0.125rem] font-medium uppercase  bg-linear-to-r from-[#682DB5] to-[#8F3ED0] cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 transition-colors text-white border-l-4 border-purple-300"
+            class="px-4 sm:px-5 md:px-6 lg:px-6 py-2 sm:py-2.5 md:py-3 lg:py-3 pl-4 tracking-[0.125rem] font-semibold
+                   uppercase bg-linear-to-r from-[#682DB5] to-[#8F3ED0] cursor-pointer 
+                   hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 
+                   transition-colors text-white border-l-4 border-purple-300 text-xs sm:text-xs md:text-sm lg:text-sm"
           >
             {{ company.org_name }}
           </li>
@@ -56,7 +71,7 @@
     </ul>
 
     <!-- Loading / Error -->
-    <p v-if="companyStore.error" class="text-red-400 text-sm mt-1">{{ companyStore.error }}</p>
+    <p v-if="companyStore.error" class="text-red-400 text-xs sm:text-sm mt-1">{{ companyStore.error }}</p>
   </div>
 </template>
 
