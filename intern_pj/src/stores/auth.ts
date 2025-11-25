@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { useCompanyStore } from './company'
 
 const API_BASE_URL = '/api'
 
@@ -169,6 +170,10 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       localStorage.removeItem('rememberMe')
+
+      // Reset Company Store
+      const companyStore = useCompanyStore()
+      companyStore.reset()
 
       isLoading.value = false
     }

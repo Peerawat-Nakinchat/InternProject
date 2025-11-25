@@ -63,4 +63,18 @@ export const MemberModel = {
     );
     return result.rows.length > 0;
   },
+  findMembershipsByEmail: async (email) => {
+    const result = await pool.query(
+      `SELECT org_id, role_id FROM sys_organization_members WHERE email = $1`,
+      [email]
+    );
+    return result.rows;
+  },
+  findMembershipsByUserId: async (userId) => {
+    const result = await pool.query(
+      `SELECT org_id, role_id FROM sys_organization_members WHERE user_id = $1`,
+      [userId]
+    );
+    return result.rows;
+  },
 };

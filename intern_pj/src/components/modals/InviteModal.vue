@@ -9,19 +9,77 @@
         <div class="w-full max-w-lg px-4 sm:px-0">
           <!-- Transition Content -->
           <transition name="fade-modal-up" mode="out-in">
-            <!-- Loading State -->
+            <!-- 1. Initial Loading -->
             <div
-              v-if="loading"
-              key="loading-state"
+              v-if="viewState === 'initial-loading'"
+              key="initial-loading"
               class="flex items-center justify-center w-full min-h-[300px]"
             >
               <BaseLoadingSpinner />
             </div>
 
-            <!-- Actual Modal Content -->
+            <!-- 2. Sending Loading -->
+            <div
+              v-else-if="viewState === 'sending'"
+              key="sending"
+              class="bg-white rounded-2xl shadow-2xl w-full p-8 flex flex-col items-center justify-center min-h-[300px]"
+            >
+              <BaseLoadingSpinner class="mb-4" />
+              <p class="text-lg text-gray-600 font-medium">กำลังส่งคำเชิญ...</p>
+            </div>
+
+            <!-- 3. Success State -->
+            <div
+              v-else-if="viewState === 'success'"
+              key="success"
+              class="bg-white rounded-2xl shadow-2xl w-full p-8 flex flex-col items-center text-center"
+            >
+              <div
+                class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4"
+              >
+                <i class="mdi mdi-check text-4xl text-green-600"></i>
+              </div>
+              <h3 class="text-2xl font-bold text-gray-800 mb-2">สำเร็จ!</h3>
+              <p class="text-gray-600 mb-6">{{ resultMessage }}</p>
+              <button
+                @click="close"
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                ตกลง
+              </button>
+            </div>
+
+            <!-- 4. Error State -->
+            <div
+              v-else-if="viewState === 'error'"
+              key="error"
+              class="bg-white rounded-2xl shadow-2xl w-full p-8 flex flex-col items-center text-center"
+            >
+              <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <i class="mdi mdi-alert-circle-outline text-4xl text-red-600"></i>
+              </div>
+              <h3 class="text-2xl font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
+              <p class="text-gray-600 mb-6">{{ resultMessage }}</p>
+              <div class="flex gap-3 w-full">
+                <button
+                  @click="close"
+                  class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  ปิด
+                </button>
+                <button
+                  @click="resetForm"
+                  class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  ลองใหม่
+                </button>
+              </div>
+            </div>
+
+            <!-- 5. Form State -->
             <div
               v-else
-              key="content-state"
+              key="form"
               class="bg-linear-to-r from-[#682DB5] to-[#8F3ED0] rounded-2xl shadow-2xl w-full p-6 sm:p-8"
             >
               <!-- Header -->
@@ -42,7 +100,6 @@
               <!-- BODY -->
               <div class="space-y-6">
                 <!-- Email Input -->
-                <!-- Email Input (Custom) -->
                 <div class="w-full">
                   <label class="block text-sm font-medium text-white mb-1"> อีเมลผู้รับเชิญ </label>
 
@@ -118,10 +175,10 @@
                 <button
                   type="submit"
                   @click="submitInvitation"
-                  :disabled="!isFormValid || sending"
+                  :disabled="!isFormValid"
                   class="w-full bg-linear-to-tr from-[#1C244B] to-[#682DB5] hover:from-[#2A3570] hover:to-[#8A4BE3] active:from-[#4354b7] active:to-[#7f23ff] text-white font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-0 outline-none focus:outline-none focus:ring-0 active:outline-none active:ring-0"
                 >
-                  {{ sending ? 'กำลังส่ง...' : 'ส่งคำเชิญ' }}
+                  ส่งคำเชิญ
                 </button>
               </div>
             </div>
@@ -145,8 +202,9 @@ const emit = defineEmits(['close', 'submit'])
    STATE
 ------------------------------ */
 const showModal = ref(true)
-const loading = ref(true)
-const sending = ref(false) // New state for API call
+// viewState: 'initial-loading' | 'form' | 'sending' | 'success' | 'error'
+const viewState = ref('initial-loading')
+const resultMessage = ref('')
 
 const companyStore = useCompanyStore()
 
@@ -231,22 +289,32 @@ const submitInvitation = async () => {
 
   const orgId = companyStore.selectedCompany?.org_id
   if (!orgId) {
-    alert('กรุณาเลือกบริษัทก่อนส่งคำเชิญ')
+    resultMessage.value = 'กรุณาเลือกบริษัทก่อนส่งคำเชิญ'
+    viewState.value = 'error'
     return
   }
 
-  sending.value = true
+  viewState.value = 'sending'
+
   try {
     await sendInvitation(form.value.email, orgId, selectedRole.roleId)
-    alert('ส่งคำเชิญเรียบร้อยแล้ว')
+    resultMessage.value = 'ส่งคำเชิญเรียบร้อยแล้ว'
+    viewState.value = 'success'
     emit('submit', form.value)
-    emit('close')
   } catch (error: any) {
     console.error('Send invite error:', error)
-    alert(error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ')
-  } finally {
-    sending.value = false
+    resultMessage.value = error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำเชิญ'
+    viewState.value = 'error'
   }
+}
+
+const close = () => {
+  emit('close')
+}
+
+const resetForm = () => {
+  viewState.value = 'form'
+  resultMessage.value = ''
 }
 
 /* ------------------------------
@@ -257,7 +325,7 @@ onMounted(() => {
   validateRole()
 
   setTimeout(() => {
-    loading.value = false
+    viewState.value = 'form'
   }, 900)
 })
 </script>

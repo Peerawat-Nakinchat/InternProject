@@ -27,6 +27,21 @@ export const sendInvitation = async (req, res) => {
     // Generate stateless token
     const token = generateInviteToken({ email, org_id, role_id });
 
+    // Check if user is already a member of another company (and not an owner)
+    // If inviting as Owner (1), allow it regardless of other memberships
+    if (parseInt(role_id) !== 1) {
+      const memberships = await MemberModel.findMembershipsByEmail(email);
+      const isEmployeeElsewhere = memberships.some(
+        (m) => m.org_id !== org_id && m.role_id !== 1
+      );
+
+      if (isEmployeeElsewhere) {
+        return res.status(400).json({
+          message: "ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น",
+        });
+      }
+    }
+
     // Fetch company name
     const { CompanyModel } = await import("../models/CompanyModel.js");
     const company = await CompanyModel.findOrganizationById(org_id);
@@ -105,6 +120,21 @@ export const acceptInvitation = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Invalid or expired invitation token" });
+    }
+
+    // Check if user is already a member of another company (and not an owner)
+    // If joining as Owner (1), allow it regardless of other memberships
+    if (parseInt(payload.role_id) !== 1) {
+      const memberships = await MemberModel.findMembershipsByUserId(userId);
+      const isEmployeeElsewhere = memberships.some(
+        (m) => m.org_id !== payload.org_id && m.role_id !== 1
+      );
+
+      if (isEmployeeElsewhere) {
+        return res.status(400).json({
+          message: "ผู้ใช้นี้เป็นสมาชิกอยู่แล้วในบริษัทอื่น",
+        });
+      }
     }
 
     // Add member

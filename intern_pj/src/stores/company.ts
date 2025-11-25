@@ -86,6 +86,16 @@ export const useCompanyStore = defineStore('company', () => {
     return res
   }
 
+  // ---------------------------
+  // Reset State
+  // ---------------------------
+  const reset = () => {
+    companies.value = []
+    selectedCompany.value = null
+    loading.value = false
+    error.value = null
+  }
+
   return {
     companies,
     selectedCompany,
@@ -96,6 +106,7 @@ export const useCompanyStore = defineStore('company', () => {
     setSelectedCompany,
     createNewCompany,
     updateCompanyById,
-    deleteCompanyById
+    deleteCompanyById,
+    reset
   }
 })
