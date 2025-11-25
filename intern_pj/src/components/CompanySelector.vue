@@ -3,7 +3,7 @@
     <!-- Dropdown Button -->
     <button
       @click="toggleDropdown"
-      class="w-full h-9 px-4 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-md font-semibold backdrop-blur-md shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
+      class="w-full h-9 px-4 uppercase tracking-[0.125rem] bg-linear-to-r from-[#682DB5] to-[#8F3ED0] flex justify-between items-center rounded-md font-semibold backdrop-blur-md shadow-lg text-white hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300"
     >
       <span>{{ selectedCompanyName }}</span>
       <svg
@@ -27,7 +27,7 @@
         <!-- Group Header (คลิกได้) -->
         <li
           @click="toggleRole(role)"
-          class="px-4 py-2 bg-[#4A137A] text-white font-bold cursor-pointer hover:bg-[#5A1F8A] flex justify-between items-center sticky top-0 z-20 transition-colors"
+          class="px-4 py-2 tracking-[0.125rem] bg-[#4A137A] text-white font-bold cursor-pointer hover:bg-[#5A1F8A] flex justify-between items-center sticky top-0 z-20 transition-colors"
         >
           <span>{{ role }} ({{ items.length }})</span>
           <svg
@@ -47,7 +47,7 @@
             v-for="company in items"
             :key="company.org_id"
             @click="selectCompany(company)"
-            class="px-4 py-3 pl-8 bg-linear-to-r from-[#682DB5] to-[#8F3ED0] cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 transition-colors text-white border-l-4 border-purple-300"
+            class="px-4 py-3 pl-8 tracking-[0.125rem] font-medium uppercase  bg-linear-to-r from-[#682DB5] to-[#8F3ED0] cursor-pointer hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 transition-colors text-white border-l-4 border-purple-300"
           >
             {{ company.org_name }}
           </li>

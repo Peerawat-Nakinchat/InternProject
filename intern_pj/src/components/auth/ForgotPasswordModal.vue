@@ -134,7 +134,7 @@ const submit = async () => {
         if (props.open) {
           close();
         }
-      }, 3000);
+      }, 1500);
     } else {
       error.value = data.error || "เกิดข้อผิดพลาด";
     }
