@@ -36,6 +36,7 @@
       </div>
 
       <button
+        v-if="user?.role_id === 1"
         @click="$emit('open-invite')"
         class="
           flex items-center gap-2 justify-center h-10
@@ -67,12 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref , computed } from 'vue'
 import CompanySelector from './CompanySelector.vue'
+import { useAuthStore } from '@/stores/auth'
 import InviteModal from "@/components/modals/InviteModal.vue";
 
 const isInviteModalOpen = ref(false);
-
+const authStore = useAuthStore()
+const user = computed(() => authStore.user)
 
 </script>
 
