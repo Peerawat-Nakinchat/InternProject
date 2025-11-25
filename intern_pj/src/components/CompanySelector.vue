@@ -10,7 +10,7 @@
              focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300 text-sm sm:text-base md:text-base lg:text-lg"
     >
       <span class="truncate text-xs sm:text-sm md:text-md lg:text-md">
-        {{ selectedCompanyName }}
+        บริษัท : {{ selectedCompanyName }}
       </span>
 
       <svg
@@ -64,7 +64,7 @@
                    hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 
                    transition-colors text-white border-l-4 border-purple-300 text-xs sm:text-xs md:text-sm lg:text-sm"
           >
-            {{ company.org_name }}
+            บริษัท : {{ company.org_name }}
           </li>
         </template>
       </template>

@@ -55,7 +55,9 @@ async function initializeDatabase() {
                 role_id INT DEFAULT 3 NOT NULL REFERENCES sys_role(role_id),
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                reset_token VARCHAR(255) NULL,
+                reset_token_expire TIMESTAMPTZ NULL
             );
         `);
         
