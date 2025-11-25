@@ -3,7 +3,7 @@
     <Transition name="dialog-fade">
       <div
         v-if="modelValue"
-        class="fixed inset-0 z-50 flex items-center justify-center 
+        class="fixed inset-0 z-9999 flex items-center justify-center 
                bg-black/40 backdrop-blur-sm"
       >
         <div
@@ -35,19 +35,15 @@
 
           <!-- Body -->
           <div class="px-6 py-6 text-center text-gray-700 leading-relaxed">
-            <!-- Icon -->
+            <!-- Icon (Dynamic MDI) -->
             <div
               class="mx-auto w-16 h-16 rounded-full 
                      bg-[#682DB5]/10 text-[#682DB5] flex items-center justify-center mb-4"
             >
-              <svg xmlns="http://www.w3.org/2000/svg"
-                class="w-9 h-9" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 
-                     01-2 2H6a2 2 0 01-2-2V7a2 2 0 
-                     012-2h5a2 2 0 012 2v1" />
-              </svg>
+              <i
+                :class="['mdi', icon]"
+                class="text-4xl"
+              ></i>
             </div>
 
             <p v-if="message">
@@ -96,6 +92,10 @@ defineProps({
   confirmText: String,
   cancelText: String,
   loading: Boolean,
+  icon: {
+    type: String,
+    default: "mdi-logout", // Default icon
+  },
 });
 
 const emit = defineEmits(["update:modelValue", "confirm", "cancel"]);

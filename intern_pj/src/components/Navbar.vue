@@ -84,6 +84,7 @@
 
   <ConfirmDialog
     v-model="showLogoutConfirm"
+    icon="mdi-logout"
     title="ยืนยันการออกจากระบบ"
     message="คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?"
     confirmText="ออกจากระบบ"
