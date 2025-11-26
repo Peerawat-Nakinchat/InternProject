@@ -1,4 +1,9 @@
 node_modules/
 .env
+secrets/
 
-.env
+# Vault Agent Configuration (contains sensitive tokens)
+vault-agent-config/token
+vault-agent-config/token-sink
+vault-agent-config/role-id
+vault-agent-config/secret-id

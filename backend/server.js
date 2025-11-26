@@ -1,12 +1,10 @@
+import "./src/config/loadEnv.js"; // Must be the first import
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swaggerConfig.js";
-
-dotenv.config();
 
 const app = express();
 

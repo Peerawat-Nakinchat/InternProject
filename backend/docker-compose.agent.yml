@@ -1,0 +1,18 @@
+services:
+  vault-agent:
+    image: hashicorp/vault:latest
+    container_name: vault-agent
+    restart: always
+    volumes:
+      - ./vault-agent-config:/vault/config
+      - ./secrets:/secrets
+    command: agent -config=/vault/config/agent.hcl
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - vault-network
+
+networks:
+  vault-network:
+    name: vault-network
+    external: true
