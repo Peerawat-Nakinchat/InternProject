@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./src/config/swaggerConfig.js";
 
 dotenv.config();
 
@@ -34,7 +36,12 @@ app.use(
 //  CORS - Configured with specific origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:5173"];
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+// Ensure Swagger UI origin is allowed
+if (!allowedOrigins.includes("http://localhost:3000")) {
+  allowedOrigins.push("http://localhost:3000");
+}
 
 app.use(
   cors({
@@ -136,6 +143,9 @@ app.use("/api/auth/reset-password", authLimiter);
 
 // Apply general API rate limiter
 app.use("/api", apiLimiter);
+
+// Swagger Documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Mount routes
 app.use("/api/users", userRoutes);
