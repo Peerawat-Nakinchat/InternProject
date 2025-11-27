@@ -34,16 +34,24 @@
     >
       <!-- Loop ตาม role group -->
       <template v-for="(items, role) in groupedCompanies" :key="role">
-        <!-- Group Header (คลิกได้) -->
+        
         <li
           @click="toggleRole(role)"
+          :class="getRoleClass(role)"
           class="px-4 sm:px-3 md:px-4 lg:px-5 py-2 sm:py-2.5 md:py-3 lg:py-3 tracking-widest
-                 bg-[#4A137A] text-white font-bold cursor-pointer hover:bg-[#5A1F8A] 
-                 flex justify-between items-center sticky top-0 z-20 transition-colors text-xs sm:text-sm md:text-base lg:text-base"
+                 font-bold cursor-pointer flex justify-between items-center sticky top-0 z-20 h-10
+                 transition-colors text-xs sm:text-xs md:text-sm lg:text-sm border-b border-white/10 shadow-sm"
         >
-          <span class="text-xs sm:text-xs md:text-sm lg:text-sm">{{ role }} ({{ items.length }})</span>
+          <span class="flex items-center gap-2 truncate">
+            <i v-if="role.includes('OWNER')" class="mdi mdi-crown text-amber-500 text-base sm:text-lg"></i>
+            <i v-else-if="role.includes('ADMIN')" class="mdi mdi-shield-account text-base sm:text-lg"></i>
+            <i v-else class="mdi mdi-account text-base sm:text-lg"></i>
+            
+            {{ role }} ({{ items.length }})
+          </span>
+
           <svg
-            class="w-2 h-2 sm:w-3 sm:h-3 md:w-3 md:h-4 lg:w-4 lg:h-4 transition-transform duration-200"
+            class="w-3 h-3 sm:w-3 sm:h-3 md:w-3 md:h-4 lg:w-4 lg:h-4 transition-transform duration-200 shrink-0"
             :class="{ 'rotate-180': expandedRoles[role] }"
             fill="none"
             stroke="currentColor"
@@ -53,20 +61,35 @@
           </svg>
         </li>
 
-        <!-- Items under each group (แสดงเมื่อ expand) -->
         <template v-if="expandedRoles[role]">
           <li
-            v-for="company in items"
-            :key="company.org_id"
-            @click="selectCompany(company)"
-            class="px-4 sm:px-5 md:px-6 lg:px-6 py-2 sm:py-2.5 md:py-3 lg:py-3 pl-4 tracking-widest font-semibold
-                   uppercase bg-linear-to-r from-[#682DB5] to-[#8F3ED0] cursor-pointer 
-                   hover:from-[#7F39D1] hover:to-[#9B5DE5] hover:text-yellow-400 
-                   transition-colors text-white border-l-4 border-purple-300 text-xs sm:text-xs md:text-sm lg:text-sm"
-          >
-            บริษัท : {{ company.org_name }}
-          </li>
+  v-for="company in items"
+  :key="company.org_id"
+  @click="selectCompany(company)"
+  class="px-4 sm:px-5 md:px-6 lg:px-6 py-2 pl-8 border-l-4 cursor-pointer transition-all duration-500
+         text-xs sm:text-sm text-gray-700 hover:text-purple-900 hover:bg-purple-50 bg-white border-b border-gray-100"
+  :class="{
+    'border-amber-500': role.includes('OWNER'),
+    'border-indigo-500': role.includes('ADMIN'),
+    'border-blue-500': role.includes('USER') || role.includes('VIEWER')
+  }"
+>
+  <div class="flex flex-col">
+     <span class="font-semibold truncate">{{ company.org_name }}</span>
+
+     <span class="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">
+       CODE: {{ company.org_code || '-' }}
+     </span>
+
+     <!-- ✅ แสดงจำนวนสมาชิก -->
+     <span class="text-[10px] sm:text-xs text-gray-500">
+       สมาชิก: {{ company.member_count ?? 0 }} คน
+     </span>
+  </div>
+</li>
+
         </template>
+
       </template>
     </ul>
 
@@ -83,6 +106,22 @@ const companyStore = useCompanyStore()
 const dropdownOpen = ref(false)
 const expandedRoles = ref<Record<string, boolean>>({})
 
+const getRoleName = (company: any) => {
+  if (company.role_name && company.role_name !== 'UNKNOWN') {
+    return company.role_name.toUpperCase()
+  }
+  
+  // ถ้าไม่มี ให้แปลงจาก role_id
+  const roleId = Number(company.role_id)
+  switch (roleId) {
+    case 1: return 'OWNER'
+    case 2: return 'ADMIN'
+    case 3: return 'USER'
+    case 4: return 'VIEWER'
+    case 5: return 'AUDITOR'
+    default: return 'UNKNOWN'
+  }
+}
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
   
@@ -102,13 +141,38 @@ const selectCompany = (company: any) => {
   dropdownOpen.value = false
 }
 
+const getRoleClass = (roleName: string) => {
+  // แปลงเป็นตัวพิมพ์ใหญ่เผื่อไว้
+  const role = roleName.toUpperCase()
+
+  if (role.includes('OWNER')) {
+    return 'bg-[#eddb88] hover:bg-[#D5C472] text-white border-amber-700' // สีทอง/ส้ม
+  }
+  if (role.includes('ADMIN')) {
+    return 'bg-[#1565C0] hover:bg-[#0E54A3] text-white border-indigo-800' // สีม่วงเข้ม
+  }
+  if (role.includes('USER') || role.includes('พนักงาน')) {
+    return 'bg-[#4CAF50] hover:bg-[#3E8F42] text-white border-blue-700' // สีฟ้า
+  }
+  if (role.includes('VIEWER')) {
+    return 'bg-[#78909C] hover:bg-[#607480] text-white border-slate-700' // สีเทา
+  }
+  if (role.includes('AUDITOR')) {
+    return 'bg-[#F9A825] hover:bg-[#D18F20] text-white border-teal-800' // สีเขียวอมฟ้า
+  }
+  
+  // สี Default (กรณี Unknown)
+  return 'bg-[#4A137A] hover:bg-[#5A1F8A] text-white'
+}
+
 const groupedCompanies = computed(() => {
   const groups: Record<string, any[]> = {}
 
   companyStore.companies.forEach(c => {
-    const role = c.role_name ?? 'Unknown'
-    if (!groups[role]) groups[role] = []
-    groups[role].push(c)
+    const roleLabel = c.role_name?.toUpperCase() || 'UNKNOWN'
+
+    if (!groups[roleLabel]) groups[roleLabel] = []
+    groups[roleLabel].push(c)
   })
 
   return groups

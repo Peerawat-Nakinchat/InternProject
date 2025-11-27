@@ -136,7 +136,7 @@ watch(
 
       console.log('✅ Token verification response:', response);
 
-      tokenValid.value = response.valid === true;
+      tokenValid.value = response.success === true && response.valid === true;
 
       if (!tokenValid.value) {
         console.warn('⚠️ Token is invalid');
@@ -144,7 +144,7 @@ watch(
     } catch (err) {
       console.error('❌ Token verification failed:', err);
       tokenValid.value = false;
-      error.value = "ไม่สามารถตรวจสอบ Token ได้";
+      error.value = err.message || "ไม่สามารถตรวจสอบ Token ได้";
     } finally {
       loading.value = false;
     }

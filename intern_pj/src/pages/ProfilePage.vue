@@ -799,9 +799,6 @@ const saveProfileChanges = async () => {
         user_address_2: form.user_address_2,
         user_address_3: form.user_address_3,
         profile_image_url: form.profile_image_url,
-        user_integrate: form.user_integrate, 
-        user_integrate_provider_id: form.user_integrate_provider_id, 
-        user_integrate_url: form.user_integrate_url, 
     })
 
     if (result.success) {
@@ -825,7 +822,21 @@ const goBack = () => {
   router.back()
 }
 
-onMounted(() => {
-  resetForm()
-})
+onMounted(async () => {
+  // 1. เริ่มสถานะโหลด (เพื่อให้ UI รู้ว่ากำลังดึงข้อมูล)
+  isLoading.value = true;
+
+  try {
+    console.log("🔄 Fetching fresh profile data...");
+    await authStore.fetchProfile();
+    console.log("✅ Profile updated from API");
+  } catch (error) {
+    console.error("❌ Failed to fetch profile:", error);
+  } finally {
+    resetForm();
+    
+    // 4. จบสถานะโหลด
+    isLoading.value = false;
+  }
+});
 </script>
