@@ -1,8 +1,8 @@
 pid_file = "/tmp/pidfile"
 
 vault {
-  # ใช้ชื่อ container เมื่ออยู่ใน network เดียวกัน
-  address = "http://vault-server:8200"
+  # แทนที่ด้วย IP
+  address = "http://172.16.12.63:8200"
 }
 
 # ให้ agent ทำงานต่อเนื่องไม่หยุด

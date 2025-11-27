@@ -116,7 +116,7 @@ const getRoleName = (company: any) => {
   switch (roleId) {
     case 1: return 'OWNER'
     case 2: return 'ADMIN'
-    case 3: return 'USER'
+    case 3: return 'MEMBER'
     case 4: return 'VIEWER'
     case 5: return 'AUDITOR'
     default: return 'UNKNOWN'
@@ -151,8 +151,8 @@ const getRoleClass = (roleName: string) => {
   if (role.includes('ADMIN')) {
     return 'bg-[#1565C0] hover:bg-[#0E54A3] text-white border-indigo-800' // สีม่วงเข้ม
   }
-  if (role.includes('USER') || role.includes('พนักงาน')) {
-    return 'bg-[#4CAF50] hover:bg-[#3E8F42] text-white border-blue-700' // สีฟ้า
+  if (role.includes('MEMBER') || role.includes('พนักงาน')) {
+    return 'bg-[#33CC99] hover:bg-[#33CC66] text-white border-blue-700' // สีฟ้า
   }
   if (role.includes('VIEWER')) {
     return 'bg-[#78909C] hover:bg-[#607480] text-white border-slate-700' // สีเทา

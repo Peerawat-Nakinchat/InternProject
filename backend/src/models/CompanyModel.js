@@ -55,7 +55,7 @@ const getRoleNameMap = (roleId) => {
   switch (id) {
     case 1: return 'OWNER';
     case 2: return 'ADMIN';
-    case 3: return 'USER';
+    case 3: return 'MEMBER';
     case 4: return 'VIEWER';
     case 5: return 'AUDITOR';
     default: return 'UNKNOWN';
