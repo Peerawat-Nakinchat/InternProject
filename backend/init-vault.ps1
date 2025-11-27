@@ -42,9 +42,18 @@ Write-Host "7. Enabling AppRole..." -ForegroundColor Green
 docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault auth enable approle 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "   AppRole already enabled" -ForegroundColor Yellow }
 
-# 8. Create Role
-Write-Host "8. Creating AppRole..." -ForegroundColor Green
-docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault write auth/approle/role/backend-dev token_policies="backend-dev-policy" token_ttl=1h token_max_ttl=4h | Out-Null
+# 8. Create Role (ไม่หมดอายุ, ใช้ซ้ำได้ไม่จำกัด)
+Write-Host "8. Creating AppRole (shared, no expiry)..." -ForegroundColor Green
+docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault write auth/approle/role/backend-dev `
+    token_policies="backend-dev-policy" `
+    token_ttl=24h `
+    token_max_ttl=168h `
+    secret_id_ttl=0 `
+    secret_id_num_uses=0 | Out-Null
+# secret_id_ttl=0      = Secret ID ไม่หมดอายุ
+# secret_id_num_uses=0 = ใช้ซ้ำได้ไม่จำกัดครั้ง
+# token_ttl=24h        = Token ใช้ได้ 24 ชั่วโมง (แต่ Agent จะ renew อัตโนมัติ)
+# token_max_ttl=168h   = Token max 7 วัน
 
 # 9. Get credentials
 Write-Host "9. Getting Role ID and Secret ID..." -ForegroundColor Green

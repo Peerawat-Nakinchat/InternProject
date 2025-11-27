@@ -203,6 +203,43 @@ DB_PORT=5432
 
 ---
 
+### ❌ ปัญหา: `No such container: vault-agent`
+
+**สาเหตุ:** Container ยังไม่ถูกสร้าง หรือถูกลบไปแล้ว
+
+**วิธีแก้:**
+
+1. ตรวจสอบว่ามี container อยู่หรือไม่:
+   ```powershell
+   docker ps -a | Select-String vault
+   ```
+
+2. ถ้าไม่มี ให้สร้างใหม่:
+   ```powershell
+   cd backend
+   docker compose -f docker-compose.agent.yml up -d
+   ```
+
+3. ถ้ายังไม่ได้ ลองลบ network เก่าแล้วสร้างใหม่:
+   ```powershell
+   docker network rm vault-network 2>$null
+   docker compose -f docker-compose.agent.yml up -d
+   ```
+
+4. ตรวจสอบว่าสร้างสำเร็จ:
+   ```powershell
+   docker ps
+   ```
+   
+   **ควรเห็น:**
+   ```
+   NAMES          STATUS
+   vault-agent    Up X minutes
+   vault-server   Up X minutes (healthy)
+   ```
+
+---
+
 ## 🔄 การหยุดและเริ่มใหม่
 
 **หยุด Vault Agent:**
