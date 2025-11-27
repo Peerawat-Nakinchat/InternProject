@@ -24,11 +24,15 @@ export const useCompanyStore = defineStore('company', () => {
       error.value = null
 
       const res = await getCompanies()
-      companies.value = res.data
+
+      companies.value = res.data.map((c: any) => ({
+        ...c,
+        member_count: c.member_count ?? 0  
+      }))
 
       // set default company
-      if (!selectedCompany.value && res.data.length > 0) {
-        selectedCompany.value = res.data[0]
+      if (!selectedCompany.value && companies.value.length > 0) {
+        selectedCompany.value = companies.value[0]
       }
     } catch (err: any) {
       error.value = err?.message || 'Failed to load companies'
@@ -36,6 +40,7 @@ export const useCompanyStore = defineStore('company', () => {
       loading.value = false
     }
   }
+
 
   // ---------------------------
   // Fetch single company by ID
@@ -58,6 +63,8 @@ export const useCompanyStore = defineStore('company', () => {
   const setSelectedCompany = (company: any) => {
     selectedCompany.value = company
   }
+
+
 
   // ---------------------------
   // Create new company

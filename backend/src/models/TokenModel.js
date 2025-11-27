@@ -1,60 +1,205 @@
-import { query as dbQuery } from '../config/db.js';
+import { RefreshToken, User } from './dbModels.js';
 import crypto from 'crypto';
 
-const hashToken = (token) =>
-  crypto.createHash('sha256').update(token).digest('hex');
+/**
+ * RefreshTokenModel with Sequelize
+ * เพิ่มความปลอดภัย: Hash tokens, Token rotation, Expiration
+ */
 
-const saveRefreshToken = async (userId, refreshToken) => {
-  const hashed = hashToken(refreshToken);
+// Hash token for storage (security best practice)
+const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
-  const sql = `
-      INSERT INTO sys_refresh_tokens (user_id, refresh_token_hash)
-      VALUES ($1, $2)
-      RETURNING token_id;
-  `;
+const saveRefreshToken = async (userId, refreshToken, expiresAt = null) => {
+  try {
+    // Hash token before storing
+    const hashedToken = hashToken(refreshToken);
 
-  const result = await dbQuery(sql, [userId, hashed]);
-  return result.rows[0];
+    // Calculate expiration (default 7 days)
+    const expiration = expiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const token = await RefreshToken.create({
+      user_id: userId,
+      refresh_token: hashedToken,
+      expires_at: expiration,
+      created_at: new Date()
+    });
+
+    return token;
+  } catch (error) {
+    console.error('❌ Error saving refresh token:', error);
+    throw error;
+  }
 };
 
 const findRefreshToken = async (refreshToken) => {
-  const hashed = hashToken(refreshToken);
+  try {
+    const hashedToken = hashToken(refreshToken);
+    
+    // ✅ ดึง Op มาจาก Model โดยตรง (แก้ปัญหา Invalid value)
+    const Op = RefreshToken.sequelize.Sequelize.Op; 
 
-  const sql = `
-      SELECT *
-      FROM sys_refresh_tokens
-      WHERE refresh_token_hash = $1
-      LIMIT 1;
-  `;
-  const result = await dbQuery(sql, [hashed]);
-  return result.rows[0] || null;
+    const token = await RefreshToken.findOne({
+      where: {
+        refresh_token: hashedToken,
+        expires_at: {
+          [Op.gte]: new Date() 
+        }
+      },
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['user_id', 'email', 'is_active', 'role_id']
+      }]
+    });
+
+    return token;
+  } catch (error) {
+    console.error('❌ Error finding refresh token:', error);
+    throw error;
+  }
 };
 
 const deleteRefreshToken = async (refreshToken) => {
-  const hashed = hashToken(refreshToken);
-
-  const sql = `
-      DELETE FROM sys_refresh_tokens
-      WHERE refresh_token_hash = $1
-      RETURNING token_id;
-  `;
-  const result = await dbQuery(sql, [hashed]);
-  return result.rows[0] || null;
+  try {
+    const hashedToken = hashToken(refreshToken);
+    const deleted = await RefreshToken.destroy({
+      where: { refresh_token: hashedToken }
+    });
+    return deleted > 0;
+  } catch (error) {
+    console.error('❌ Error deleting refresh token:', error);
+    throw error;
+  }
 };
-
 const deleteAllTokensForUser = async (userId) => {
-  const sql = `
-      DELETE FROM sys_refresh_tokens
-      WHERE user_id = $1
-      RETURNING token_id;
-  `;
-  const result = await dbQuery(sql, [userId]);
-  return result.rowCount;
+  try {
+    console.log("🗑️ Deleting all tokens for user:", userId);
+    
+    // คำสั่งนี้จะทำงานได้ปกติเมื่อไม่มี Op ที่ import ผิดมาตีกัน
+    const deleted = await RefreshToken.destroy({
+      where: { user_id: userId }
+    });
+
+    return deleted;
+  } catch (error) {
+    console.error('❌ Error deleting all tokens for user:', error);
+    throw error;
+  }
+};
+const cleanupExpiredTokens = async () => {
+  try {
+    // ✅ ดึง Op มาจาก Model โดยตรง
+    const Op = RefreshToken.sequelize.Sequelize.Op;
+
+    const deleted = await RefreshToken.destroy({
+      where: {
+        expires_at: {
+          [Op.lt]: new Date()
+        }
+      }
+    });
+
+    console.log(`🧹 Cleaned up ${deleted} expired tokens`);
+    return deleted;
+  } catch (error) {
+    console.error('❌ Error cleaning up expired tokens:', error);
+    throw error;
+  }
 };
 
-export const TokenModel = {
+const getUserActiveTokens = async (userId) => {
+  try {
+    // ✅ ดึง Op มาจาก Model โดยตรง
+    const Op = RefreshToken.sequelize.Sequelize.Op;
+
+    const tokens = await RefreshToken.findAll({
+      where: {
+        user_id: userId,
+        expires_at: {
+          [Op.gte]: new Date()
+        }
+      },
+      attributes: ['token_id', 'created_at', 'expires_at'],
+      order: [['created_at', 'DESC']]
+    });
+
+    return tokens;
+  } catch (error) {
+    console.error('❌ Error getting user active tokens:', error);
+    throw error;
+  }
+};
+
+// Revoke specific token by ID (for user to logout specific device)
+const revokeTokenById = async (tokenId, userId) => {
+  try {
+    const deleted = await RefreshToken.destroy({
+      where: {
+        token_id: tokenId,
+        user_id: userId // Ensure user owns the token
+      }
+    });
+
+    return deleted > 0;
+  } catch (error) {
+    console.error('❌ Error revoking token:', error);
+    throw error;
+  }
+};
+
+// Token rotation: Delete old token and create new one
+const rotateToken = async (oldRefreshToken, userId, newRefreshToken) => {
+  try {
+    // Use transaction for atomic operation
+    const result = await RefreshToken.sequelize.transaction(async (t) => {
+      // Delete old token
+      await deleteRefreshToken(oldRefreshToken);
+
+      // Create new token
+      const newToken = await saveRefreshToken(userId, newRefreshToken);
+
+      return newToken;
+    });
+
+    return result;
+  } catch (error) {
+    console.error('❌ Error rotating token:', error);
+    throw error;
+  }
+};
+
+// Get token statistics
+const getTokenStats = async () => {
+  try {
+    const Op = OrganizationMember.sequelize.Sequelize.Op;
+    const total = await RefreshToken.count();
+    const active = await RefreshToken.count({
+      where: {
+        expires_at: {
+          [Op.gte]: new Date()
+        }
+      }
+    });
+    const expired = total - active;
+
+    return { total, active, expired };
+  } catch (error) {
+    console.error('❌ Error getting token stats:', error);
+    throw error;
+  }
+};
+
+export const RefreshTokenModel = {
   saveRefreshToken,
   findRefreshToken,
   deleteRefreshToken,
-  deleteAllTokensForUser
+  deleteAllTokensForUser,
+  cleanupExpiredTokens,
+  getUserActiveTokens,
+  revokeTokenById,
+  rotateToken,
+  getTokenStats,
+  hashToken // Export for testing
 };

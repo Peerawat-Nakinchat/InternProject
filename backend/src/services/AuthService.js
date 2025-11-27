@@ -1,5 +1,5 @@
 import { UserModel } from '../models/UserModel.js';
-import { TokenModel } from '../models/TokenModel.js';
+import { RefreshTokenModel } from '../models/TokenModel.js';
 import { hashPassword, comparePassword } from '../utils/crypto.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/token.js';
 
@@ -67,7 +67,7 @@ const login = async (email, password) => {
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken({ user_id: user.user_id, role_id: user.role_id });
 
-  await TokenModel.saveRefreshToken(user.user_id, refreshToken);
+  await RefreshTokenModel.saveRefreshToken(user.user_id, refreshToken);
 
   const safeUser = {
     user_id: user.user_id,
@@ -80,11 +80,11 @@ const login = async (email, password) => {
 };
 
 const logout = async (refreshToken) => {
-  await TokenModel.deleteRefreshToken(refreshToken);
+  await RefreshTokenModel.deleteRefreshToken(refreshToken);
 };
 
 const logoutAll = async (userId) => {
-  await TokenModel.deleteAllTokensForUser(userId);
+  await RefreshTokenModel.deleteAllTokensForUser(userId);
 };
 
 export {

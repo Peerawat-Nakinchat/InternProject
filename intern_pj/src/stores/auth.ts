@@ -57,9 +57,6 @@ export interface ProfileUpdateData {
     user_address_2: string
     user_address_3: string
     profile_image_url: string
-    user_integrate?: 'Y' | 'N' | string
-    user_integrate_provider_id?: string
-    user_integrate_url?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {

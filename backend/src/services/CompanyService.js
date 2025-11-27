@@ -1,88 +1,59 @@
 // src/services/CompanyService.js
-import { pool } from '../config/db.js';
-import { CompanyModel } from '../models/CompanyModel.js';
-import { MemberModel } from '../models/MemberModel.js';
+import { sequelize, Organization, OrganizationMember } from '../models/dbModels.js';
+import { OrganizationModel } from '../models/CompanyModel.js';
 
-/**
- * Create company + Assign owner as role=1
- */const createCompanyAndAssignOwner = async (data) => {
-  const { org_name, org_code, owner_user_id, org_address_1, org_address_2, org_address_3 } = data;
-
-  // ตรวจสอบ org_code ซ้ำ
-  const exists = await CompanyModel.isOrgCodeExists(org_code);
+const createCompanyAndAssignOwner = async (data) => {
+  const { org_code, owner_user_id } = data;
+  const exists = await OrganizationModel.isOrgCodeExists(org_code);
   if (exists) {
     const error = new Error('รหัสบริษัทซ้ำ');
     error.code = '23505';
     throw error;
   }
 
-  const client = await pool.connect();
+  const transaction = await sequelize.transaction();
+
   try {
-    await client.query('BEGIN');
+    const organization = await OrganizationModel.createOrganization(data, transaction);
+    await OrganizationMember.create(
+      {
+        org_id: organization.org_id,
+        user_id: owner_user_id,
+        role_id: 1, // Owner Role
+        joined_date: new Date()
+      },
+      { transaction }
+    );
 
-    const organization = await CompanyModel.createOrganization(client, data);
-
-    // assign owner (role=1)
-    await MemberModel.addMemberToOrganization(client, organization.org_id, owner_user_id, 1);
-
-    await client.query('COMMIT');
+    await transaction.commit();
     return organization;
+
   } catch (err) {
-    await client.query('ROLLBACK');
+    await transaction.rollback();
     throw err;
-  } finally {
-    client.release();
   }
 };
 
-/**
- * Get all companies of a user
- */
 const getCompaniesForUser = async (userId) => {
-    return CompanyModel.findOrganizationsByUser(userId);
+  return OrganizationModel.findOrganizationsByUser(userId);
 };
 
-/**
- * Get single company by ID
- */
 const getCompanyById = async (orgId) => {
-    return CompanyModel.findOrganizationById(orgId);
+  return OrganizationModel.findOrganizationById(orgId);
 };
 
-/**
- * Update company
- */
 const updateCompany = async (orgId, updates) => {
-    return CompanyModel.updateOrganization(orgId, updates);
+  return OrganizationModel.updateOrganization(orgId, updates);
 };
 
-/**
- * Delete company
- */
 const deleteCompany = async (orgId) => {
-    const client = await pool.connect();
-
-    try {
-        await client.query("BEGIN");
-
-        // อาจต้องลบ member ด้วย (ถ้าไม่มี cascade)
-        const deleted = await CompanyModel.deleteOrganization(client, orgId);
-
-        await client.query("COMMIT");
-        return deleted;
-
-    } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-    } finally {
-        client.release();
-    }
+  return OrganizationModel.deleteOrganization(orgId);
 };
 
 export const CompanyService = {
-    createCompanyAndAssignOwner,
-    getCompaniesForUser,
-    getCompanyById,
-    updateCompany,
-    deleteCompany,
+  createCompanyAndAssignOwner,
+  getCompaniesForUser,
+  getCompanyById,
+  updateCompany,
+  deleteCompany,
 };

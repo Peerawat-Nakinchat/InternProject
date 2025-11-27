@@ -204,7 +204,7 @@ const onForgotSent = () => {
   successMessage.value = 'ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว'
   setTimeout(() => {
     successMessage.value = ''
-  }, 5000)
+  }, 3000)
 }
 
 const onResetSuccess = () => {
@@ -214,7 +214,7 @@ const onResetSuccess = () => {
 
   setTimeout(() => {
     successMessage.value = ''
-  }, 5000)
+  }, 3000)
 }
 
 const handleCloseReset = () => {
