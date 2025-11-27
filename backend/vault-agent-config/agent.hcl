@@ -5,6 +5,9 @@ vault {
   address = "http://vault-server:8200"
 }
 
+# ให้ agent ทำงานต่อเนื่องไม่หยุด
+exit_after_auth = false
+
 auto_auth {
   method "approle" {
     mount_path = "auth/approle"
@@ -22,7 +25,17 @@ auto_auth {
   }
 }
 
+template_config {
+  # ตรวจสอบ secret ทุก 5 วินาที
+  static_secret_render_interval = "5s"
+  exit_on_retry_failure = false
+}
+
 template {
   source      = "/vault/config/env.ctmpl"
   destination = "/secrets/.env"
+  # รอจน secret พร้อมก่อน render
+  error_on_missing_key = false
+  # ไม่ต้องเปลี่ยน permission (Windows compatible)
+  perms = 0644
 }
