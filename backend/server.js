@@ -1,10 +1,20 @@
-import "./src/config/loadEnv.js"; // Must be the first import
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swaggerConfig.js";
+import cron from "node-cron";
+import "./src/config/loadEnv.js";
+
+// Import Sequelize and Audit Log
+import { syncDatabase } from "./src/models/dbModels.js";
+import { RefreshTokenModel } from "./src/models/TokenModel.js";
+import { syncAuditLogTable, cleanupOldAuditLogs } from "./src/middleware/auditLog.js";
+import sequelize from "./src/config/dbConnection.js";
+
+dotenv.config();
 
 const app = express();
 
@@ -12,7 +22,6 @@ const app = express();
 // 🔒 SECURITY MIDDLEWARE
 // ========================================
 
-//  Helmet - Security Headers
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -31,12 +40,11 @@ app.use(
   })
 );
 
-//  CORS - Configured with specific origins
+// CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : ["http://localhost:5173", "http://localhost:3000"];
 
-// Ensure Swagger UI origin is allowed
 if (!allowedOrigins.includes("http://localhost:3000")) {
   allowedOrigins.push("http://localhost:3000");
 }
@@ -44,12 +52,9 @@ if (!allowedOrigins.includes("http://localhost:3000")) {
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.indexOf(origin) === -1) {
-        const msg =
-          "The CORS policy for this site does not allow access from the specified Origin.";
+        const msg = "CORS policy does not allow access from this origin.";
         return callback(new Error(msg), false);
       }
       return callback(null, true);
@@ -60,29 +65,28 @@ app.use(
   })
 );
 
-//  Rate Limiting - General API limiter
+// Rate Limiting
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // จำกัด 100 requests ต่อ IP ต่อ 15 นาที
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     success: false,
-    error: "Too many requests from this IP, please try again later.",
+    error: "Too many requests, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-//  Rate Limiting - Strict limiter for authentication endpoints
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // จำกัด 5 attempts ต่อ IP ต่อ 15 นาที
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   message: {
     success: false,
-    error: "Too many login attempts, please try again after 15 minutes.",
+    error: "Too many login attempts, try again after 15 minutes.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // ไม่นับ requests ที่สำเร็จ
+  skipSuccessfulRequests: true,
 });
 
 // ========================================
@@ -93,7 +97,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ========================================
-// SECURITY MONITORING MIDDLEWARE
+// SECURITY MONITORING
 // ========================================
 
 import {
@@ -104,21 +108,14 @@ import {
 } from "./src/middleware/securityMonitoring.js";
 import logger from "./src/utils/logger.js";
 
-// Extract client information for all requests
 app.use(extractClientInfo);
-
-// Log all requests
 app.use(requestLogger);
-
-// Detect suspicious patterns
 app.use(detectSuspiciousPatterns);
-
-// Apply brute force protection to auth endpoints
 app.use("/api/auth/login", bruteForceProtection);
 app.use("/api/auth/register", bruteForceProtection);
 
 // ========================================
-// PASSPORT INITIALIZATION
+// PASSPORT
 // ========================================
 
 import passport from "./src/config/passport.js";
@@ -133,13 +130,11 @@ import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
 
-// Apply rate limiters
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
 app.use("/api/auth/reset-password", authLimiter);
 
-// Apply general API rate limiter
 app.use("/api", apiLimiter);
 
 // Swagger Documentation
@@ -151,37 +146,50 @@ app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
 
-// Health check endpoint
+// Health check
 app.get("/", (req, res) => {
-  res.send("API server is running");
+  res.json({
+    status: "ok",
+    message: "API server is running",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // ========================================
 // ERROR HANDLING
 // ========================================
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Route not found",
-  });
+import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.js";
+
+// 404 handler (must be after all routes)
+app.use(notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
+// ========================================
+// SCHEDULED TASKS (CRON JOBS)
+// ========================================
+
+// Cleanup expired tokens every day at 2 AM
+cron.schedule('0 2 * * *', async () => {
+  try {
+    console.log('🧹 Running scheduled token cleanup...');
+    await RefreshTokenModel.cleanupExpiredTokens();
+  } catch (error) {
+    console.error('❌ Error in scheduled token cleanup:', error);
+  }
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error("Error:", {
-    message: err.message,
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
-    path: req.path,
-    method: req.method,
-  });
-
-  res.status(err.status || 500).json({
-    success: false,
-    error:
-      process.env.NODE_ENV === "production" ? "An error occurred" : err.message,
-  });
+// Cleanup old audit logs every week (Sunday at 3 AM)
+cron.schedule('0 3 * * 0', async () => {
+  try {
+    console.log('🧹 Running scheduled audit log cleanup...');
+    const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90;
+    await cleanupOldAuditLogs(retentionDays);
+  } catch (error) {
+    console.error('❌ Error in scheduled audit log cleanup:', error);
+  }
 });
 
 // ========================================
@@ -189,13 +197,56 @@ app.use((err, req, res, next) => {
 // ========================================
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🔒 Security: Helmet enabled`);
-  console.log(`🔒 Security: CORS configured for ${allowedOrigins.join(", ")}`);
-  console.log(`🔒 Security: Rate limiting enabled`);
-  console.log(`🔒 Security: Request logging enabled`);
-  console.log(`🔒 Security: Brute force protection enabled`);
-  console.log(`🔒 Security: Suspicious pattern detection enabled`);
-  logger.info(`Server started on port ${PORT}`);
+
+// Initialize database and start server
+const startServer = async () => {
+  try {
+    // Sync database
+    await syncDatabase();
+    console.log('✅ Database synced successfully');
+
+    // Sync audit log table
+    await syncAuditLogTable();
+    console.log('✅ Audit log table synced');
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Server running on port ${PORT}`);
+      console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
+      console.log(`\n🔒 Security Features Enabled:`);
+      console.log(`   ✓ Helmet (Security Headers)`);
+      console.log(`   ✓ CORS: ${allowedOrigins.join(", ")}`);
+      console.log(`   ✓ Rate Limiting (IP & User)`);
+      console.log(`   ✓ Request Logging`);
+      console.log(`   ✓ Brute Force Protection`);
+      console.log(`   ✓ Suspicious Pattern Detection`);
+      console.log(`   ✓ SQL Injection Prevention (Sequelize)`);
+      console.log(`   ✓ XSS Protection`);
+      console.log(`   ✓ Input Validation & Sanitization`);
+      console.log(`   ✓ Audit Logging`);
+      console.log(`   ✓ Token Hashing`);
+      console.log(`   ✓ Scheduled Cleanup Tasks`);
+      console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+      
+      logger.info(`Server started on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  try {
+    await sequelize.close();
+    console.log('✅ Database connections closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
 });
