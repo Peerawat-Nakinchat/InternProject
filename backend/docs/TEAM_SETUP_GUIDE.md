@@ -1,5 +1,88 @@
 # 📘 คู่มือสำหรับทีมงาน - ตั้งค่า Vault Agent
 
+## ⚠️ ข้อกำหนดเบื้องต้น - ติดตั้ง Docker
+
+### 🐳 สำหรับผู้ที่ไม่มี Docker Desktop
+
+ถ้าคุณไม่สามารถใช้ Docker Desktop ได้ สามารถใช้ Docker Engine ผ่าน WSL2 แทน:
+
+#### วิธีที่ 1: ติดตั้ง Docker ผ่าน WSL2 (แนะนำ)
+
+1. **เปิดใช้งาน WSL2** (รัน PowerShell ในฐานะ Administrator):
+   ```powershell
+   wsl --install
+   ```
+
+2. **รีสตาร์ทเครื่อง** หลังติดตั้ง WSL
+
+3. **เปิด Ubuntu (WSL) แล้วติดตั้ง Docker**:
+   ```bash
+   # อัปเดต package
+   sudo apt update && sudo apt upgrade -y
+
+   # ติดตั้ง dependencies
+   sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+
+   # เพิ่ม Docker GPG key
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+   # เพิ่ม Docker repository
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+   # ติดตั้ง Docker
+   sudo apt update
+   sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+   # เพิ่ม user เข้ากลุ่ม docker (ไม่ต้องใช้ sudo)
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+4. **เริ่มต้น Docker service**:
+   ```bash
+   sudo service docker start
+   ```
+
+5. **ตรวจสอบว่า Docker ทำงาน**:
+   ```bash
+   docker --version
+   docker compose version
+   ```
+
+#### วิธีที่ 2: ใช้ Docker CLI ผ่าน WSL จาก PowerShell
+
+หลังติดตั้ง Docker ใน WSL แล้ว สามารถรันคำสั่งจาก PowerShell ได้โดย:
+
+```powershell
+# รัน docker command ผ่าน WSL
+wsl docker ps
+wsl docker compose -f docker-compose.agent.yml up -d
+```
+
+หรือสร้าง alias ใน PowerShell profile:
+```powershell
+# เพิ่มใน $PROFILE
+Set-Alias -Name docker -Value { wsl docker $args }
+```
+
+#### วิธีที่ 3: รันคำสั่งใน WSL terminal โดยตรง
+
+```bash
+# เปิด WSL และไปยังโฟลเดอร์โปรเจค
+cd /mnt/c/Users/<your-username>/path/to/InternProject/backend
+
+# รัน docker compose
+docker compose -f docker-compose.agent.yml up -d
+```
+
+---
+
+### 🖥️ สำหรับผู้ที่ใช้ Docker Desktop
+
+ถ้าคุณมี Docker Desktop ให้เปิดใช้งานและข้ามไปที่ขั้นตอนถัดไปได้เลย
+
+---
+
 ## ข้อมูลที่ต้องได้รับจาก Admin
 
 คุณจะได้รับไฟล์และข้อมูลจาก Admin ดังนี้:
@@ -83,19 +166,35 @@ vault {
 
 เปิด Terminal/PowerShell ที่โฟลเดอร์ `backend/` แล้วรันคำสั่ง:
 
+**สำหรับ Docker Desktop หรือ Docker CLI (Windows):**
 ```powershell
 # ไปที่โฟลเดอร์ backend
 cd backend
 
 # รัน Vault Agent ด้วย Docker Compose
-docker-compose -f docker-compose.agent.yml up -d
+docker compose -f docker-compose.agent.yml up -d
+```
+
+**สำหรับ WSL (Ubuntu):**
+```bash
+# ไปที่โฟลเดอร์ backend
+cd /mnt/c/Users/<username>/path/to/InternProject/backend
+
+# รัน Vault Agent
+docker compose -f docker-compose.agent.yml up -d
+```
+
+**หรือรันจาก PowerShell ผ่าน WSL:**
+```powershell
+wsl -e bash -c "cd /mnt/c/Users/<username>/path/to/InternProject/backend && docker compose -f docker-compose.agent.yml up -d"
 ```
 
 **ควรเห็น:**
 
 ```
-[+] Running 1/1
- ✔ Container vault-agent  Started
+[+] Running 2/2
+ ✔ Container vault-server  Healthy
+ ✔ Container vault-agent   Started
 ```
 
 ---
@@ -168,7 +267,7 @@ DB_PORT=5432
 2. ตรวจสอบว่าวางไฟล์ถูกที่
 3. Restart Vault Agent:
    ```powershell
-   docker-compose -f docker-compose.agent.yml restart
+   docker compose -f docker-compose.agent.yml restart
    ```
 
 ---
@@ -184,15 +283,15 @@ DB_PORT=5432
 2. ตรวจสอบว่า `authentication successful`
 3. Restart Agent:
    ```powershell
-   docker-compose -f docker-compose.agent.yml down
-   docker-compose -f docker-compose.agent.yml up -d
+   docker compose -f docker-compose.agent.yml down
+   docker compose -f docker-compose.agent.yml up -d
    ```
 
 ---
 
 ### ❌ ปัญหา: Docker ไม่ทำงาน
 
-**วิธีแก้:**
+**วิธีแก้ (Docker Desktop):**
 
 1. เปิด Docker Desktop
 2. รอให้ Docker พร้อม (ประมาณ 30 วินาที)
@@ -200,6 +299,41 @@ DB_PORT=5432
    ```powershell
    docker ps
    ```
+
+**วิธีแก้ (WSL/Docker Engine):**
+
+1. เปิด WSL terminal และเริ่ม Docker service:
+   ```bash
+   sudo service docker start
+   ```
+
+2. ตรวจสอบว่า Docker ทำงาน:
+   ```bash
+   docker ps
+   ```
+
+3. ถ้ายังไม่ได้ ให้ตรวจสอบ status:
+   ```bash
+   sudo service docker status
+   ```
+
+---
+
+### ❌ ปัญหา: `docker-compose: command not found`
+
+**สาเหตุ:** Docker Compose ไม่ได้ติดตั้งแบบ standalone
+
+**วิธีแก้:**
+
+Docker Compose V2 มาพร้อมกับ Docker Engine ใช้คำสั่ง `docker compose` (มีช่องว่าง) แทน `docker-compose`:
+
+```bash
+# ใช้คำสั่งนี้แทน
+docker compose -f docker-compose.agent.yml up -d
+
+# แทนที่จะเป็น
+docker-compose -f docker-compose.agent.yml up -d
+```
 
 ---
 
@@ -244,19 +378,20 @@ DB_PORT=5432
 
 **หยุด Vault Agent:**
 
-```powershell
-docker-compose -f docker-compose.agent.yml down
+```bash
+# Docker Desktop / Docker Engine
+docker compose -f docker-compose.agent.yml down
 ```
 
 **เริ่มใหม่:**
 
-```powershell
-docker-compose -f docker-compose.agent.yml up -d
+```bash
+docker compose -f docker-compose.agent.yml up -d
 ```
 
 **ดู logs แบบ real-time:**
 
-```powershell
+```bash
 docker logs -f vault-agent
 ```
 
@@ -322,18 +457,32 @@ secrets/*
 
 เมื่อมีการอัปเดตข้อมูลใหม่ใน vault ให้รัน 2 คำสั่งนี้เพื่อให้ข้อมูลใหม่ถูกอัปเดตในไฟล์ .env
 
-1. docker-compose -f docker-compose.agent.yml restart vault-agent
+1. `docker compose -f docker-compose.agent.yml restart vault-agent`
 
-2. docker-compose restart backend
+2. `docker compose restart backend`
 
 รันคำสั่งนี้เพื่อให้ server ของ vault agent ทำงาน พร้อมกับหลังบ้าน
 
-```powershell
+```bash
 npm run dev:full
 ```
 
 วิธีสั่งปิด container เดิม
 
-```powershell
-docker-compose down
+```bash
+docker compose down
 ```
+
+---
+
+## 🐧 Quick Reference สำหรับ WSL Users
+
+| การใช้งาน | คำสั่ง |
+|----------|--------|
+| เริ่ม Docker service | `sudo service docker start` |
+| ตรวจสอบ Docker status | `sudo service docker status` |
+| รัน compose | `docker compose -f <file> up -d` |
+| หยุด compose | `docker compose -f <file> down` |
+| ดู containers ที่รัน | `docker ps` |
+| ดู logs | `docker logs <container-name>` |
+| เข้าไปใน container | `docker exec -it <container-name> sh` |

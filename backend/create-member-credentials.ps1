@@ -47,7 +47,7 @@ Created: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 ## Next Steps:
 1. Copy both files to: backend/vault-agent-config/
 2. Follow TEAM_SETUP_GUIDE.md
-3. Run: docker-compose -f docker-compose.agent.yml up -d
+3. Run: docker compose -f docker-compose.agent.yml up -d
 
 ## Security:
 - Keep these files private

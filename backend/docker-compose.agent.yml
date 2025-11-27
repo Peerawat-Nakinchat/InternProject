@@ -1,8 +1,10 @@
+version: '3.8'
+
 services:
   vault-agent:
     image: hashicorp/vault:latest
     container_name: vault-agent
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./vault-agent-config:/vault/config
       - ./secrets:/secrets
@@ -15,7 +17,6 @@ services:
       vault-server:
         condition: service_healthy
 
-  # Reference to vault-server (defined in docker-compose.vault-server.yml)
   vault-server:
     image: hashicorp/vault:latest
     container_name: vault-server

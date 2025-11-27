@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   vault:
     image: hashicorp/vault:latest
@@ -10,7 +12,12 @@ services:
     cap_add:
       - IPC_LOCK
     networks:
-      - vault
+      - vault-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8200/v1/sys/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   backend:
     build: .
@@ -20,10 +27,13 @@ services:
     volumes:
       - ./secrets/.env:/usr/src/app/.env
     depends_on:
-      - vault
+      vault:
+        condition: service_healthy
     networks:
-      - vault
+      - vault-network
+    restart: unless-stopped
 
 networks:
-  vault:
-    external: true
+  vault-network:
+    name: vault-network
+    driver: bridge
