@@ -4,8 +4,11 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "dev:full": "docker-compose -f docker-compose.yml -f docker-compose.agent.yml up -d vault vault-agent && nodemon server.js"
+    "dev": "npx nodemon server.js",
+    "dev:full": "docker-compose -f docker-compose.agent.yml up -d && npx nodemon server.js",
+    "vault:up": "docker-compose -f docker-compose.agent.yml up -d",
+    "vault:down": "docker-compose -f docker-compose.agent.yml down",
+    "vault:logs": "docker logs vault-agent --tail 20"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.17",
