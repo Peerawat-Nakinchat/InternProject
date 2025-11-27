@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "dev:full": "docker-compose -f docker-compose.yml -f docker-compose.agent.yml up -d vault vault-agent && nodemon server.js"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.17",

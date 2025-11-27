@@ -246,3 +246,15 @@ docker logs -f vault-agent
 1. docker-compose -f docker-compose.agent.yml restart vault-agent
 
 2. docker-compose restart backend
+
+รันคำสั่งนี้เพื่อให้ server ของ vault agent ทำงาน พร้อมกับหลังบ้าน
+
+```powershell
+npm run dev:full
+```
+
+วิธีสั่งปิด container เดิม
+
+```powershell
+docker-compose down
+```
