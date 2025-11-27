@@ -48,12 +48,41 @@ docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token
 
 # 9. Get credentials
 Write-Host "9. Getting Role ID and Secret ID..." -ForegroundColor Green
-$ROLE_ID = docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault read -field=role_id auth/approle/role/backend-dev/role-id
-$SECRET_ID = docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault write -field=secret_id -f auth/approle/role/backend-dev/secret-id
 
-# บันทึกลงไฟล์
-$ROLE_ID | Out-File -FilePath vault-agent-config/role-id -Encoding utf8 -NoNewline
-$SECRET_ID | Out-File -FilePath vault-agent-config/secret-id -Encoding utf8 -NoNewline
+# ดึง Role ID
+$ROLE_ID = docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault read -field=role_id auth/approle/role/backend-dev/role-id 2>$null
+if ($ROLE_ID) {
+    $ROLE_ID = $ROLE_ID.Trim()
+}
+
+# ดึง Secret ID
+$SECRET_ID = docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault write -field=secret_id -f auth/approle/role/backend-dev/secret-id 2>$null
+if ($SECRET_ID) {
+    $SECRET_ID = $SECRET_ID.Trim()
+}
+
+# ตรวจสอบว่าได้ค่ามาจริง
+if ([string]::IsNullOrWhiteSpace($ROLE_ID)) {
+    Write-Host ""
+    Write-Host "ERROR: Failed to retrieve Role ID!" -ForegroundColor Red
+    Write-Host "Please ensure:" -ForegroundColor Yellow
+    Write-Host "  1. Vault Server container 'vault-server' is running" -ForegroundColor Yellow
+    Write-Host "  2. AppRole auth method was enabled successfully" -ForegroundColor Yellow
+    Write-Host "  3. Run: docker ps | Select-String vault-server" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+if ([string]::IsNullOrWhiteSpace($SECRET_ID)) {
+    Write-Host ""
+    Write-Host "ERROR: Failed to retrieve Secret ID!" -ForegroundColor Red
+    Write-Host "The role may not be created properly. Check Vault logs." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
+# บันทึกลงไฟล์ (UTF-8 without BOM)
+[System.IO.File]::WriteAllText("$PSScriptRoot\vault-agent-config\role-id", $ROLE_ID, (New-Object System.Text.UTF8Encoding $false))
+[System.IO.File]::WriteAllText("$PSScriptRoot\vault-agent-config\secret-id", $SECRET_ID, (New-Object System.Text.UTF8Encoding $false))
 
 Write-Host ""
 Write-Host "=== Setup Complete! ===" -ForegroundColor Green

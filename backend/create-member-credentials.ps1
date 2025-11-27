@@ -1,7 +1,7 @@
 # สคริปต์สร้าง Secret ID ใหม่สำหรับสมาชิกในทีม
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$MemberName
 )
 
@@ -15,8 +15,16 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+if ($SECRET_ID) {
+    $SECRET_ID = $SECRET_ID.Trim()
+}
+
 # ดึง Role ID (ใช้ร่วมกันทั้งทีม)
 $ROLE_ID = docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault read -field=role_id auth/approle/role/backend-dev/role-id
+
+if ($ROLE_ID) {
+    $ROLE_ID = $ROLE_ID.Trim()
+}
 
 # สร้างโฟลเดอร์สำหรับสมาชิกคนนี้
 $outputDir = "vault-credentials\$MemberName"
