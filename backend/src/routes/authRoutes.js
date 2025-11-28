@@ -1,3 +1,4 @@
+// src/routes/authRoutes.js
 import express from "express";
 import {
   registerUser,
@@ -15,7 +16,6 @@ import {
   updateProfile,
 } from "../controllers/AuthController.js";
 import passport from "passport";
-
 import { refreshAccessToken } from "../middleware/refreshTokenMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
 import {
@@ -25,11 +25,14 @@ import {
   validateResetPassword,
   validateChangeEmail,
   validateChangePassword,
+  validateUpdateProfile,
 } from "../middleware/validation.js";
+import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 
 const router = express.Router();
 
-// Public Routes with Validation
+// ==================== PUBLIC ROUTES ====================
+
 /**
  * @swagger
  * /auth/register:
@@ -45,8 +48,9 @@ const router = express.Router();
  *             required:
  *               - email
  *               - password
- *               - firstName
- *               - lastName
+ *               - name
+ *               - surname
+ *               - sex
  *             properties:
  *               email:
  *                 type: string
@@ -54,17 +58,37 @@ const router = express.Router();
  *               password:
  *                 type: string
  *                 minLength: 6
- *               firstName:
+ *               name:
  *                 type: string
- *               lastName:
+ *               surname:
  *                 type: string
+ *               sex:
+ *                 type: string
+ *                 enum: [M, F, O]
+ *               user_address_1:
+ *                 type: string
+ *               user_address_2:
+ *                 type: string
+ *               user_address_3:
+ *                 type: string
+ *               inviteToken:
+ *                 type: string
+ *                 description: Optional invite token to join organization
  *     responses:
  *       201:
  *         description: User registered successfully
  *       400:
- *         description: Validation error
+ *         description: Validation error or email already exists
+ *       500:
+ *         description: Internal server error
  */
-router.post("/register", validateRegister, registerUser);
+router.post(
+  "/register",
+  validateRegister,
+  auditLog("USER_REGISTER", "USER", { severity: "INFO", category: "AUTH" }),
+  registerUser
+);
+
 /**
  * @swagger
  * /auth/login:
@@ -89,21 +113,60 @@ router.post("/register", validateRegister, registerUser);
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   type: object
  *       401:
  *         description: Invalid credentials
  */
-router.post("/login", validateLogin, loginUser);
+router.post(
+  "/login",
+  validateLogin,
+  auditLog("USER_LOGIN", "USER", { severity: "INFO", category: "AUTH" }),
+  loginUser
+);
+
 /**
  * @swagger
  * /auth/logout:
  *   post:
  *     summary: Logout user
  *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Logout successful
+ *       400:
+ *         description: Missing refresh token
  */
-router.post("/logout", logoutUser);
+router.post(
+  "/logout",
+  auditLog("USER_LOGOUT", "USER", { severity: "INFO", category: "AUTH" }),
+  logoutUser
+);
+
 /**
  * @swagger
  * /auth/forgot-password:
@@ -124,9 +187,17 @@ router.post("/logout", logoutUser);
  *                 format: email
  *     responses:
  *       200:
- *         description: Reset email sent
+ *         description: Reset email sent (always returns success for security)
+ *       500:
+ *         description: Internal server error
  */
-router.post("/forgot-password", validateForgotPassword, forgotPassword);
+router.post(
+  "/forgot-password",
+  validateForgotPassword,
+  auditLog("FORGOT_PASSWORD", "USER", { severity: "MEDIUM", category: "SECURITY" }),
+  forgotPassword
+);
+
 /**
  * @swagger
  * /auth/verify-reset-token:
@@ -139,16 +210,24 @@ router.post("/forgot-password", validateForgotPassword, forgotPassword);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Password reset token
  *     responses:
  *       200:
  *         description: Token is valid
+ *       400:
+ *         description: Invalid or expired token
  */
-router.get("/verify-reset-token", verifyResetToken);
+router.get(
+  "/verify-reset-token",
+  auditLog("VERIFY_RESET_TOKEN", "USER", { severity: "MEDIUM", category: "SECURITY" }),
+  verifyResetToken
+);
+
 /**
  * @swagger
  * /auth/reset-password:
  *   post:
- *     summary: Reset password
+ *     summary: Reset password with token
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -168,10 +247,18 @@ router.get("/verify-reset-token", verifyResetToken);
  *     responses:
  *       200:
  *         description: Password reset successful
+ *       400:
+ *         description: Invalid token or validation error
  */
-router.post("/reset-password", validateResetPassword, resetPassword);
+router.post(
+  "/reset-password",
+  validateResetPassword,
+  auditLog("RESET_PASSWORD", "USER", { severity: "HIGH", category: "SECURITY" }),
+  resetPassword
+);
 
-// Google OAuth
+// ==================== OAUTH ROUTES ====================
+
 /**
  * @swagger
  * /auth/google:
@@ -180,10 +267,11 @@ router.post("/reset-password", validateResetPassword, resetPassword);
  *     tags: [Auth]
  *     responses:
  *       302:
- *         description: Redirect to Google
+ *         description: Redirect to Google authentication
  */
 router.get(
   "/google",
+  auditLog("GOOGLE_OAUTH_START", "USER"),
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
@@ -194,8 +282,8 @@ router.get(
  *     summary: Google OAuth callback
  *     tags: [Auth]
  *     responses:
- *       200:
- *         description: Login successful
+ *       302:
+ *         description: Redirect to frontend with tokens
  */
 router.get(
   "/google/callback",
@@ -203,70 +291,99 @@ router.get(
     session: false,
     failureRedirect: "/login",
   }),
+  auditLog("GOOGLE_OAUTH_CALLBACK", "USER"),
   googleAuthCallback
 );
 
-// Refresh Token Route
+// ==================== TOKEN MANAGEMENT ====================
+
 /**
  * @swagger
  * /auth/refresh:
  *   post:
- *     summary: Refresh access token
+ *     summary: Refresh access token using refresh token
  *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Token refreshed
+ *         description: Token refreshed successfully
+ *       401:
+ *         description: Invalid or expired refresh token
  */
-router.post("/refresh", refreshToken);
+router.post(
+  "/refresh",
+  auditLog("REFRESH_TOKEN", "USER", { category: "AUTH" }),
+  refreshToken
+);
+
 /**
  * @swagger
  * /auth/token:
  *   post:
- *     summary: Get new access token
+ *     summary: Alternative endpoint for token refresh
  *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
  *     responses:
  *       200:
- *         description: New token generated
+ *         description: New access token generated
  */
-router.post("/token", refreshAccessToken, (req, res) => {
-  return res.json({
-    success: true,
-    accessToken: res.locals.newAccessToken,
-  });
-});
+router.post(
+  "/token",
+  auditLog("REFRESH_TOKEN_ALT", "USER", { category: "AUTH" }),
+  refreshAccessToken
+);
 
-// Protected Routes with Validation
-/**
- * @swagger
- * /auth/logout-all:
- *   post:
- *     summary: Logout from all devices
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logged out from all devices
- */
-router.post("/logout-all", protect, logoutAllUser);
+// ==================== PROTECTED ROUTES ====================
+// All routes below require authentication
+
 /**
  * @swagger
  * /auth/profile:
  *   get:
- *     summary: Get user profile
+ *     summary: Get current user profile
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User profile
+ *         description: User profile retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
  */
-router.get("/profile", protect, getProfile);
+router.get(
+  "/profile",
+  protect,
+  auditLog("GET_PROFILE", "USER"),
+  getProfile
+);
+
 /**
  * @swagger
- * /auth/change-email:
+ * /auth/update-profile:
  *   put:
- *     summary: Change user email
+ *     summary: Update user profile
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
@@ -277,16 +394,76 @@ router.get("/profile", protect, getProfile);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - name
+ *               - surname
  *             properties:
- *               email:
+ *               name:
+ *                 type: string
+ *               surname:
+ *                 type: string
+ *               sex:
+ *                 type: string
+ *                 enum: [M, F, O]
+ *               user_address_1:
+ *                 type: string
+ *               user_address_2:
+ *                 type: string
+ *               user_address_3:
+ *                 type: string
+ *               profile_image_url:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.put(
+  "/update-profile",
+  protect,
+  validateUpdateProfile,
+  auditChange("USER", (req) => req.user.user_id),
+  auditLog("UPDATE_PROFILE", "USER", { severity: "LOW", category: "PROFILE" }),
+  updateProfile
+);
+
+/**
+ * @swagger
+ * /auth/change-email:
+ *   put:
+ *     summary: Change user email address
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newEmail
+ *               - password
+ *             properties:
+ *               newEmail:
  *                 type: string
  *                 format: email
+ *               password:
+ *                 type: string
+ *                 description: Current password for verification
  *     responses:
  *       200:
  *         description: Email changed successfully
+ *       401:
+ *         description: Invalid password
+ *       409:
+ *         description: Email already in use
  */
-router.put("/change-email", protect, validateChangeEmail, changeEmail);
+router.put("/change-email", protect, auditChange("USER", (req) => req.user.user_id), auditLog("CHANGE_EMAIL", "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
+
 /**
  * @swagger
  * /auth/change-password:
@@ -312,32 +489,27 @@ router.put("/change-email", protect, validateChangeEmail, changeEmail);
  *                 minLength: 6
  *     responses:
  *       200:
- *         description: Password changed successfully
+ *         description: Password changed successfully (all sessions invalidated)
+ *       401:
+ *         description: Invalid old password
  */
-router.put("/change-password", protect, validateChangePassword, changePassword);
+router.put("/change-password", protect, auditLog("CHANGE_PASSWORD", "USER", { severity: "MEDIUM", category: "AUTH" }), validateChangePassword, changePassword);
+
 /**
  * @swagger
- * /auth/update-profile:
- *   put:
- *     summary: Update user profile
+ * /auth/logout-all:
+ *   post:
+ *     summary: Logout from all devices
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
+ *     description: Invalidates all refresh tokens for the user
  *     responses:
  *       200:
- *         description: Profile updated successfully
+ *         description: Logged out from all devices successfully
+ *       401:
+ *         description: Unauthorized
  */
-router.put("/update-profile", protect, updateProfile);
+router.post("/logout-all", protect, auditLog("LOGOUT_ALL", "USER", { severity: "MEDIUM", category: "AUTH" }), logoutAllUser);
 
 export default router;

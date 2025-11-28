@@ -51,6 +51,15 @@ const router = createRouter({
       name: 'registerPage',
       component: () => import('@/pages/RegisterPage.vue'),
       meta: { requiresGuest: true }
+    },
+    {
+      path: '/reset-password',
+      redirect: (to) => {
+        return {
+          path: '/login',
+          query: { token: to.query.token }
+        }
+      }
     }
   ]
 })
