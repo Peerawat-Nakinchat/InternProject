@@ -1,5 +1,4 @@
 export interface CreateCompanyForm {
-  org_id?: string
   org_name: string
   org_code: string
   owner_user_id: string

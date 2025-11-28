@@ -16,7 +16,7 @@
           disabled
         />
 
-        <BaseInput
+        <!-- <BaseInput
           v-model="form.membership_id"
           label="รหัสรายการสมาชิก"
           type="text"
@@ -34,7 +34,7 @@
           placeholder=""
           required
           disabled
-        />
+        /> -->
 
         <div class="space-y-5">
           <div class="flex flex-row gap-4">
@@ -137,7 +137,7 @@
           type="email"
           autocomplete="email"
           placeholder="example@email.com"
-          required
+          disabled
           :error="formErrors.email"
           :disabled="!!form.inviteToken"
           @blur="validateField('email')"

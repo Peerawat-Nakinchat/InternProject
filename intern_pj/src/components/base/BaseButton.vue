@@ -24,7 +24,7 @@ const variantClass = computed(() => {
     case 'link':
       return 'text-sky-600 hover:text-sky-700 bg-transparent focus:ring-sky-500'
     case 'ghost':
-      return 'border border-neutral-300 text-neutral-700 bg-white hover:bg-slate-50 focus:ring-slate-400'
+      return 'block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-neutral-300 border border-transparent rounded-lg active:bg-neutral-300 hover:bg-neutral-400 focus:outline-none focus:shadow-outline-primary'
     case 'Submit':
     default:
       return 'block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-primary-600 border border-transparent rounded-lg active:bg-primary-600 hover:bg-primary-700 focus:outline-none focus:shadow-outline-primary'
