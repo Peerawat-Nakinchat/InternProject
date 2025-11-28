@@ -113,7 +113,7 @@ watch(
   async ([isOpen, token]) => {
     if (!isOpen) return;
 
-    // Reset state
+    // 1. Reset ค่าทุกอย่างก่อนเริ่ม
     password.value = "";
     confirmPassword.value = "";
     message.value = "";
@@ -121,31 +121,40 @@ watch(
     tokenValid.value = false;
 
     if (!token) {
-      console.error('❌ No token provided');
+      error.value = "ไม่พบ Token ในลิงก์ (ลิงก์ไม่สมบูรณ์)";
       return;
     }
 
-    loading.value = true;
+    loading.value = true; 
 
     try {
-      console.log('🔍 Verifying token:', token);
+      console.log('🔍 กำลังตรวจสอบ Token:', token);
 
+      // 2. ⭐ เติม _t: new Date().getTime() เพื่อแก้ปัญหา 304 (บังคับไม่ให้ใช้ Cache)
       const response = await axios.get("/auth/verify-reset-token", {
-        params: { token }
+        params: { 
+          token: token,
+          _t: new Date().getTime() 
+        }
       });
 
-      console.log('✅ Token verification response:', response);
+      console.log('✅ ผลลัพธ์จาก Server:', response);
 
-      tokenValid.value = response.success === true && response.valid === true;
+      // 3. ⭐ ดักจับข้อมูลให้ชัวร์ (เผื่อ axios ของคุณ return มาคนละแบบ)
+      const resData = response.data || response; 
 
-      if (!tokenValid.value) {
-        console.warn('⚠️ Token is invalid');
+      if (resData.success === true && resData.valid === true) {
+        tokenValid.value = true;
+      } else {
+        throw new Error(resData.error || "Token ไม่ถูกต้อง หรือหมดอายุ");
       }
+
     } catch (err) {
-      console.error('❌ Token verification failed:', err);
+      console.error('❌ เกิดข้อผิดพลาด:', err);
       tokenValid.value = false;
-      error.value = err.message || "ไม่สามารถตรวจสอบ Token ได้";
+      error.value = err.response?.data?.error || err.message || "ลิงก์นี้ใช้งานไม่ได้";
     } finally {
+      // 4. ⭐ บรรทัดนี้สำคัญที่สุด! ต้องสั่งหยุดหมุนไม่ว่าจะเกิดอะไรขึ้น
       loading.value = false;
     }
   },

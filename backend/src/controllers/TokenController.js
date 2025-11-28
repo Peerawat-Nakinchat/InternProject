@@ -1,11 +1,10 @@
-import { User } from './dbModels.js'; // Model ของ User
+import { User } from './dbModels.js'; 
 import { generateAccessToken } from './AuthController.js';
 
 export const createNewAccessToken = async (req, res) => {
   try {
     const userId = req.refreshUserId;
 
-    // ดึงข้อมูล user จากฐานข้อมูล
     const user = await User.findByPk(userId);
 
     if (!user) {
@@ -15,8 +14,7 @@ export const createNewAccessToken = async (req, res) => {
       });
     }
 
-    // สร้าง access token จากข้อมูล user
-    const newAccessToken = generateAccessToken(user.id); // หรือใช้ user object ขึ้นอยู่กับฟังก์ชัน
+    const newAccessToken = generateAccessToken(user.id); 
 
     res.json({
       success: true,

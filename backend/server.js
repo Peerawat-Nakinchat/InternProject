@@ -11,7 +11,8 @@ import "./src/config/loadEnv.js";
 // Import Sequelize and Audit Log
 import { syncDatabase } from "./src/models/dbModels.js";
 import { RefreshTokenModel } from "./src/models/TokenModel.js";
-import { syncAuditLogTable, cleanupOldAuditLogs } from "./src/middleware/auditLog.js";
+import { addCorrelationId, addSessionId, clientInfoMiddleware } from "./src/middleware/auditLogMiddleware.js";
+import { AuditLogModel } from "./src/models/AuditLogModel.js";
 import sequelize from "./src/config/dbConnection.js";
 
 dotenv.config();
@@ -95,6 +96,9 @@ const authLimiter = rateLimit({
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(addCorrelationId);
+app.use(addSessionId);
+app.use(clientInfoMiddleware);
 
 // ========================================
 // SECURITY MONITORING
@@ -120,6 +124,8 @@ app.use("/api/auth/register", bruteForceProtection);
 
 import passport from "./src/config/passport.js";
 app.use(passport.initialize());
+app.use(addCorrelationId);
+app.use(addSessionId);
 
 // ========================================
 // ROUTES
@@ -186,7 +192,7 @@ cron.schedule('0 3 * * 0', async () => {
   try {
     console.log('🧹 Running scheduled audit log cleanup...');
     const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90;
-    await cleanupOldAuditLogs(retentionDays);
+    await AuditLogModel.deleteOldLogs(retentionDays);
   } catch (error) {
     console.error('❌ Error in scheduled audit log cleanup:', error);
   }
@@ -206,7 +212,6 @@ const startServer = async () => {
     console.log('✅ Database synced successfully');
 
     // Sync audit log table
-    await syncAuditLogTable();
     console.log('✅ Audit log table synced');
 
     // Start server

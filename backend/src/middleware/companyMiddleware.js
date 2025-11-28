@@ -1,8 +1,8 @@
+// src/middleware/companyMiddleware.js
 import { MemberModel } from '../models/MemberModel.js';
 import { OrganizationModel } from '../models/CompanyModel.js';
 import { securityLogger } from '../utils/logger.js';
 
-/** Validate UUID v4 */
 const isUUID = (v) => {
   if (!v || typeof v !== 'string') return false;
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
@@ -50,8 +50,8 @@ export const requireOrganization = async (req, res, next) => {
       });
     }
 
-    // ORM: Check organization exists
-    const organization = await OrganizationModel.findByPk(orgId);
+    // Check organization exists
+    const organization = await OrganizationModel.findOrganizationById(orgId);
 
     if (!organization) {
       securityLogger.suspiciousActivity('Access to non-existent org', req.ip, req.headers['user-agent'], {
@@ -65,7 +65,7 @@ export const requireOrganization = async (req, res, next) => {
       });
     }
 
-    // ORM: Check membership
+    // Check membership
     const member = await MemberModel.findOne({
       where: {
         org_id: orgId,
@@ -85,7 +85,6 @@ export const requireOrganization = async (req, res, next) => {
       });
     }
 
-    // Attach org context to req
     req.user.current_org_id = orgId;
     req.user.org_role_id = member.role_id;
     req.organization = organization;
@@ -122,7 +121,7 @@ export const requireOwnership = async (req, res, next) => {
       });
     }
 
-    const organization = await OrganizationModel.findByPk(orgId);
+    const organization = await OrganizationModel.findOrganizationById(orgId);
 
     if (!organization || organization.owner_user_id !== userId) {
       securityLogger.suspiciousActivity('Non-owner attempting owner-only action', req.ip, req.headers['user-agent'], {
@@ -150,6 +149,7 @@ export const requireOwnership = async (req, res, next) => {
 
 /**
  * Require specific org role(s)
+ * Use this instead of checkRole for organization-specific permissions
  */
 export const requireOrgRole = (allowedRoles = []) => {
   return (req, res, next) => {
@@ -192,7 +192,7 @@ export const preventOwnerModification = async (req, res, next) => {
 
     if (!targetUserId || !orgId) return next();
 
-    const org = await OrganizationModel.findByPk(orgId);
+    const org = await OrganizationModel.findOrganizationById(orgId);
 
     if (org && org.owner_user_id === targetUserId) {
       return res.status(403).json({

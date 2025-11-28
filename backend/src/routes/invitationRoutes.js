@@ -1,19 +1,26 @@
+// src/routes/invitationRoutes.js
 import express from "express";
-import { protect as authenticateToken } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   sendInvitation,
   getInvitationInfo,
   acceptInvitation,
+  cancelInvitation,
+  resendInvitation,
 } from "../controllers/InvitationController.js";
+import { validateEmail } from "../middleware/validation.js";
+import { auditLog } from "../middleware/auditLogMiddleware.js";
 
 const router = express.Router();
 
-// Send invitation (Requires auth)
+// ==================== INVITATION MANAGEMENT ROUTES ====================
+
 /**
  * @swagger
  * /invitations/send:
  *   post:
- *     summary: Send an invitation
+ *     summary: Send an invitation to join organization
+ *     description: Sends email invitation with token. Only authenticated users can send invitations.
  *     tags: [Invitation]
  *     security:
  *       - bearerAuth: []
@@ -25,25 +32,108 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - email
- *               - roleId
+ *               - org_id
+ *               - role_id
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *               roleId:
+ *                 description: Email address to send invitation to
+ *                 example: "user@example.com"
+ *               org_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Organization ID
+ *               role_id:
  *                 type: integer
+ *                 description: Role to assign (1=OWNER, 2=ADMIN, 3=MEMBER, 4=VIEWER, 5=AUDITOR)
+ *                 enum: [1, 2, 3, 4, 5]
  *     responses:
  *       200:
  *         description: Invitation sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error or user already member
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
-router.post("/send", authenticateToken, sendInvitation);
+router.post(
+  "/send",
+  protect,
+  validateEmail,
+  auditLog("SEND_INVITATION", "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+  sendInvitation
+);
 
-// Get invitation info (Public, but requires token)
+/**
+ * @swagger
+ * /invitations/resend:
+ *   post:
+ *     summary: Resend invitation email
+ *     description: Generates and sends a new invitation token
+ *     tags: [Invitation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - org_id
+ *               - role_id
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               org_id:
+ *                 type: string
+ *                 format: uuid
+ *               role_id:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Invitation resent successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  "/resend",
+  protect,
+  validateEmail,
+  auditLog("RESEND_INVITATION", "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+  resendInvitation
+);
+
 /**
  * @swagger
  * /invitations/{token}:
  *   get:
  *     summary: Get invitation information
+ *     description: Public endpoint to verify and get details of an invitation token
  *     tags: [Invitation]
  *     parameters:
  *       - in: path
@@ -51,18 +141,91 @@ router.post("/send", authenticateToken, sendInvitation);
  *         required: true
  *         schema:
  *           type: string
+ *         description: JWT invitation token
  *     responses:
  *       200:
- *         description: Invitation details
+ *         description: Invitation details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 email:
+ *                   type: string
+ *                 org_id:
+ *                   type: string
+ *                 role_id:
+ *                   type: integer
+ *                 org_name:
+ *                   type: string
+ *                 isExistingUser:
+ *                   type: boolean
+ *                   description: Whether the invited email is already a registered user
+ *                 isAlreadyMember:
+ *                   type: boolean
+ *                   description: Whether the user is already a member of this organization
+ *       400:
+ *         description: Invalid or expired token
+ *       500:
+ *         description: Internal server error
  */
 router.get("/:token", getInvitationInfo);
 
-// Accept invitation (Requires auth - user must be logged in to accept)
 /**
  * @swagger
  * /invitations/accept:
  *   post:
  *     summary: Accept an invitation
+ *     description: User must be authenticated to accept invitation. Adds user to organization.
+ *     tags: [Invitation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: JWT invitation token
+ *     responses:
+ *       200:
+ *         description: Invitation accepted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 org_id:
+ *                   type: string
+ *       400:
+ *         description: Invalid token or user already member elsewhere
+ *       401:
+ *         description: Unauthorized - user must be logged in
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  "/accept",
+  protect,
+  auditLog("ACCEPT_INVITATION", "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+  acceptInvitation
+);
+
+/**
+ * @swagger
+ * /invitations/cancel:
+ *   post:
+ *     summary: Cancel/revoke an invitation (Future implementation)
+ *     description: Currently, invitations expire after 7 days automatically
  *     tags: [Invitation]
  *     security:
  *       - bearerAuth: []
@@ -79,8 +242,15 @@ router.get("/:token", getInvitationInfo);
  *                 type: string
  *     responses:
  *       200:
- *         description: Invitation accepted successfully
+ *         description: Note about automatic expiration
+ *       401:
+ *         description: Unauthorized
  */
-router.post("/accept", authenticateToken, acceptInvitation);
+router.post(
+  "/cancel",
+  protect,
+  auditLog("CANCEL_INVITATION", "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+  cancelInvitation
+);
 
 export default router;

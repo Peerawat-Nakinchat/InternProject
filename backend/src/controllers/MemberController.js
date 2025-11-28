@@ -1,6 +1,5 @@
 // src/controllers/MemberController.js
-import { MemberModel } from '../models/MemberModel.js';
-import { sequelize } from '../models/dbModels.js';
+import MemberService from "../services/MemberService.js";
 
 /**
  * GET /api/members/:orgId
@@ -8,19 +7,30 @@ import { sequelize } from '../models/dbModels.js';
 const listMembers = async (req, res) => {
   try {
     const orgId = req.params.orgId || req.user?.current_org_id;
-    if (!orgId) return res.status(400).json({ success: false, message: 'orgId required' });
 
-    // ตรวจสอบสิทธิ์ role (OWNER, ADMIN, MANAGER)
-    const roleId = req.user?.org_role_id;
-    if (!roleId || roleId > 3) {
-      return res.status(403).json({ success: false, message: 'สิทธิ์ไม่เพียงพอในการดูสมาชิก' });
+    if (!orgId) {
+      return res.status(400).json({
+        success: false,
+        message: "orgId required",
+      });
     }
 
-    const members = await MemberModel.getMembers(orgId);
-    res.json({ success: true, data: members });
+    const roleId = req.user?.org_role_id;
+    const members = await MemberService.getMembers(orgId, roleId);
+
+    res.json({
+      success: true,
+      data: members,
+    });
   } catch (error) {
-    console.error('List members error:', error);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงสมาชิก' });
+    console.error("List members error:", error);
+
+    const statusCode = error.message.includes("สิทธิ์") ? 403 : 500;
+
+    res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -31,19 +41,35 @@ const inviteMemberToCompany = async (req, res) => {
   try {
     const orgId = req.params.orgId || req.user?.current_org_id;
     const { invitedUserId, roleId } = req.body;
-    if (!invitedUserId || !roleId) return res.status(400).json({ success: false, message: 'invitedUserId and roleId required' });
 
-    const inviterRole = await MemberModel.findMemberRole(orgId, req.user.user_id);
-    if (!inviterRole || inviterRole > 2) return res.status(403).json({ success: false, message: 'สิทธิ์ไม่เพียงพอ (ต้องเป็น OWNER หรือ ADMIN)' });
+    const newMember = await MemberService.inviteMember(
+      orgId,
+      req.user.user_id,
+      req.user.org_role_id,
+      invitedUserId,
+      roleId
+    );
 
-    const isMember = await MemberModel.checkMembership(orgId, invitedUserId);
-    if (isMember) return res.status(409).json({ success: false, message: 'ผู้ใช้นี้เป็นสมาชิกอยู่แล้ว' });
-
-    const newMember = await MemberModel.addMemberToOrganization(orgId, invitedUserId, roleId);
-    res.status(201).json({ success: true, message: 'เชิญสมาชิกสำเร็จ', member: newMember });
+    res.status(201).json({
+      success: true,
+      message: "เชิญสมาชิกสำเร็จ",
+      member: newMember,
+    });
   } catch (error) {
-    console.error('Invite member error:', error);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเชิญสมาชิก' });
+    console.error("Invite member error:", error);
+
+    const statusCode = error.message.includes("สิทธิ์")
+      ? 403
+      : error.message.includes("อยู่แล้ว")
+      ? 409
+      : error.message.includes("required")
+      ? 400
+      : 500;
+
+    res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -56,18 +82,32 @@ const changeMemberRole = async (req, res) => {
     const memberId = req.params.memberId;
     const { newRoleId } = req.body;
 
-    const actorRole = await MemberModel.findMemberRole(orgId, req.user.user_id);
-    if (!actorRole || actorRole > 2) return res.status(403).json({ success: false, message: 'สิทธิ์ไม่เพียงพอ' });
+    const updatedMember = await MemberService.changeMemberRole(
+      orgId,
+      req.user.user_id,
+      req.user.org_role_id,
+      memberId,
+      newRoleId
+    );
 
-    const targetRole = await MemberModel.findMemberRole(orgId, memberId);
-    if (!targetRole) return res.status(404).json({ success: false, message: 'ไม่พบสมาชิก' });
-    if (targetRole === 1) return res.status(403).json({ success: false, message: 'ไม่สามารถเปลี่ยน role ของ OWNER ได้' });
-
-    const updatedMember = await MemberModel.updateMemberRole(orgId, memberId, newRoleId);
-    res.json({ success: true, message: 'เปลี่ยนสิทธิ์สำเร็จ', member: updatedMember });
+    res.json({
+      success: true,
+      message: "เปลี่ยนสิทธิ์สำเร็จ",
+      member: updatedMember,
+    });
   } catch (error) {
-    console.error('Change role error:', error);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเปลี่ยนสิทธิ์' });
+    console.error("Change role error:", error);
+
+    const statusCode = error.message.includes("สิทธิ์")
+      ? 403
+      : error.message.includes("ไม่พบ")
+      ? 404
+      : 500;
+
+    res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -79,19 +119,30 @@ const removeMember = async (req, res) => {
     const orgId = req.params.orgId || req.user?.current_org_id;
     const memberId = req.params.memberId;
 
-    const actorRole = await MemberModel.findMemberRole(orgId, req.user.user_id);
-    if (!actorRole || actorRole > 2) return res.status(403).json({ success: false, message: 'สิทธิ์ไม่เพียงพอ' });
+    await MemberService.removeMember(
+      orgId,
+      req.user.user_id,
+      req.user.org_role_id,
+      memberId
+    );
 
-    const targetRole = await MemberModel.findMemberRole(orgId, memberId);
-    if (targetRole === 1) return res.status(403).json({ success: false, message: 'ไม่สามารถลบ OWNER ได้' });
-
-    const deleted = await MemberModel.removeMember(orgId, memberId);
-    if (!deleted) return res.status(404).json({ success: false, message: 'ไม่พบสมาชิก' });
-
-    res.json({ success: true, message: 'ลบสมาชิกสำเร็จ' });
+    res.json({
+      success: true,
+      message: "ลบสมาชิกสำเร็จ",
+    });
   } catch (error) {
-    console.error('Remove member error:', error);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบสมาชิก' });
+    console.error("Remove member error:", error);
+
+    const statusCode = error.message.includes("สิทธิ์")
+      ? 403
+      : error.message.includes("ไม่พบ")
+      ? 404
+      : 500;
+
+    res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -99,27 +150,33 @@ const removeMember = async (req, res) => {
  * POST /api/members/:orgId/transfer-owner
  */
 const transferOwner = async (req, res) => {
-  const t = await sequelize.transaction();
   try {
     const orgId = req.params.orgId || req.user?.current_org_id;
     const { newOwnerUserId } = req.body;
 
-    const currentOwnerRole = await MemberModel.findMemberRole(orgId, req.user.user_id);
-    if (currentOwnerRole !== 1) return res.status(403).json({ success: false, message: 'ต้องเป็น OWNER เท่านั้นในการโอนสิทธิ์' });
+    await MemberService.transferOwner(
+      orgId,
+      req.user.user_id,
+      req.user.org_role_id,
+      newOwnerUserId
+    );
 
-    // Update organization owner
-    await MemberModel.updateOrganizationOwner(orgId, newOwnerUserId, t);
-
-    // Update roles
-    await MemberModel.updateMemberRole(orgId, newOwnerUserId, 1, t); // new owner
-    await MemberModel.updateMemberRole(orgId, req.user.user_id, 2, t); // downgrade current owner
-
-    await t.commit();
-    res.json({ success: true, message: 'โอนสิทธิ์เจ้าของสำเร็จ' });
+    res.json({
+      success: true,
+      message: "โอนสิทธิ์เจ้าของสำเร็จ",
+    });
   } catch (error) {
-    await t.rollback();
-    console.error('Transfer owner error:', error);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการโอนเจ้าของ' });
+    console.error("Transfer owner error:", error);
+
+    const statusCode = error.message.includes("สิทธิ์") ||
+      error.message.includes("OWNER")
+      ? 403
+      : 500;
+
+    res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -128,5 +185,5 @@ export const MemberController = {
   inviteMemberToCompany,
   changeMemberRole,
   removeMember,
-  transferOwner
+  transferOwner,
 };

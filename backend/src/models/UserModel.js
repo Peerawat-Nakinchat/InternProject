@@ -1,400 +1,496 @@
-import { User, Role } from './dbModels.js';
-// import Sequelize from 'sequelize';
-// const { Op } = Sequelize;
+// src/models/UserModel.js
+import { DataTypes, Op } from 'sequelize';
+import sequelize from "../config/dbConnection.js";
 
+
+// ==================== USER MODEL ====================
+export const User = sequelize.define('sys_users', {
+  user_id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true,
+      notEmpty: true
+    }
+  },
+  password_hash: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    validate: {
+      len: [6, 255]
+    }
+  },
+  name: {
+    type: DataTypes.STRING(200),
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [1, 200]
+    }
+  },
+  surname: {
+    type: DataTypes.STRING(200),
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [1, 200]
+    }
+  },
+  full_name: {
+    type: DataTypes.STRING(500),
+    allowNull: true
+  },
+  sex: {
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    validate: {
+    isValidSex(value) {
+        if (value === null || value === "") return;
+        const allowed = ['M', 'F', 'O'];
+        if (!allowed.includes(value)) {
+        throw new Error("ค่าเพศไม่ถูกต้อง");
+        }
+    }   
+    }
+  },
+  user_address_1: {
+    type: DataTypes.STRING(1000),
+    allowNull: true
+  },
+  user_address_2: {
+    type: DataTypes.STRING(1000),
+    allowNull: true
+  },
+  user_address_3: {
+    type: DataTypes.STRING(1000),
+    allowNull: true
+  },
+  profile_image_url: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    validate: {
+      isUrlOrEmpty(value) {
+      if (!value || value.trim() === '') {
+        return;
+      }
+      const urlPattern = /^https?:\/\/.+/;
+      if (!urlPattern.test(value)) {
+        throw new Error('กรุณากรอก URL ที่ถูกต้อง');
+      }
+    }
+    }
+  },
+  auth_provider: {
+    type: DataTypes.STRING(50),
+    defaultValue: 'local',
+    validate: {
+      isIn: [['local', 'google', 'facebook']]
+    }
+  },
+  provider_id: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  role_id: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  references: {
+    model: 'sys_role', // table ที่อ้างอิง
+    key: 'role_id'
+  },
+  onUpdate: 'CASCADE',
+  onDelete: 'NO ACTION'
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  reset_token: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  reset_token_expire: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    field: 'created_at'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    field: 'updated_at'
+  }
+}, {
+  timestamps: true,
+  tableName: 'sys_users',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  hooks: {
+    beforeCreate: (user) => {
+      if (user.name && user.surname) {
+        user.full_name = `${user.name} ${user.surname}`;
+      }
+    },
+    beforeUpdate: (user) => {
+      if (user.changed('name') || user.changed('surname')) {
+        user.full_name = `${user.name} ${user.surname}`;
+      }
+    }
+  }
+});
+
+/**
+ * Find user by ID
+ */
 const findById = async (userId) => {
-    try {
-        console.log('🔍 Finding user by ID:', userId);
-
-        const user = await User.findByPk(userId, {
-            attributes: {
-                exclude: ['password_hash', 'reset_token', 'reset_token_expire'],
-                // ✅ เพิ่ม include ฟิลด์ที่ต้องการ
-                include: [
-                    'sex',
-                    'user_address_1',
-                    'user_address_2',
-                    'user_address_3',
-                    'profile_image_url',
-                    'auth_provider',
-                    'provider_id'
-                ]
-            },
-            include: [{
-                model: Role,
-                as: 'role',
-                attributes: ['role_id', 'role_name']
-            }]
-        });
-
-        if (user) {
-            console.log('✅ User found:', user.user_id);
-        } else {
-            console.log('⚠️ User not found');
-        }
-
-        return user;
-    } catch (error) {
-        console.error('❌ Error finding user by ID:', error);
-        throw error;
-    }
+  return await User.findByPk(userId, {
+    attributes: {
+      exclude: ['password_hash', 'reset_token', 'reset_token_expire']
+    },
+    include: [{
+      model: sequelize.models.sys_role,
+      as: 'role',
+      attributes: ['role_id', 'role_name']
+    }]
+  });
 };
 
-const findByEmail = async (emailInput) => {
-    try {
-        console.log('🔍 Finding user by email:', emailInput);
-
-        // รองรับทั้ง string และ object
-        const email =
-            typeof emailInput === "string"
-                ? emailInput
-                : emailInput?.where?.email;
-
-        if (!email || typeof email !== "string") {
-            throw new Error("Invalid email format received");
-        }
-
-        const user = await User.findOne({
-            where: { email: email.toLowerCase().trim() },
-            include: [{
-                model: Role,
-                as: 'role',
-                attributes: ['role_id', 'role_name']
-            }]
-        });
-
-        return user;
-
-    } catch (error) {
-        console.error('❌ Error finding user by email:', error);
-        throw error;
-    }
+/**
+ * Find user by email
+ */
+const findByEmail = async (email) => {
+  return await User.findOne({
+    where: { email: email.toLowerCase().trim() },
+    include: [{
+      model: sequelize.models.sys_role,
+      as: 'role',
+      attributes: ['role_id', 'role_name']
+    }]
+  });
 };
 
-
-const createUser = async ({
-    email,
-    passwordHash,
-    name,
-    surname,
-    sex,
-    user_address_1,
-    user_address_2,
-    user_address_3
-}) => {
-    try {
-        // Sequelize validations จะทำงานอัตโนมัติ
-        const user = await User.create({
-            email: email.toLowerCase().trim(),
-            password_hash: passwordHash,
-            name: name.trim(),
-            surname: surname.trim(),
-            sex: sex || 'O',
-            user_address_1: user_address_1 || '',
-            user_address_2: user_address_2 || '',
-            user_address_3: user_address_3 || '',
-            role_id: 3, // Default USER role
-            is_active: true
-        });
-
-        // Return without sensitive data
-        const userJson = user.toJSON();
-        delete userJson.password_hash;
-        delete userJson.reset_token;
-        delete userJson.reset_token_expire;
-
-        return userJson;
-    } catch (error) {
-        if (error.name === 'SequelizeUniqueConstraintError') {
-            const customError = new Error('Email already exists');
-            customError.code = 'USER_EXISTS';
-            throw customError;
-        }
-        throw error;
-    }
+/**
+ * Find user by email with password (for authentication)
+ */
+const findByEmailWithPassword = async (email) => {
+  return await User.findOne({
+    where: { email: email.toLowerCase().trim() },
+    include: [{
+      model: sequelize.models.sys_role,
+      as: 'role',
+      attributes: ['role_id', 'role_name']
+    }]
+  });
 };
 
-const setResetToken = async (userId, token, expire) => {
-    try {
-        console.log('💾 Setting reset token:', {
-            userId,
-            expire: expire.toISOString()
-        });
-
-        const [rowsUpdated, [updatedUser]] = await User.update(
-            {
-                reset_token: token,
-                reset_token_expire: expire
-            },
-            {
-                where: { user_id: userId },
-                returning: true
-            }
-        );
-
-        if (rowsUpdated === 0) {
-            throw new Error(`User not found: ${userId}`);
-        }
-
-        console.log('✅ Reset token saved successfully');
-        return updatedUser;
-    } catch (error) {
-        console.error('❌ Error setting reset token:', error);
-        throw error;
-    }
+/**
+ * Create new user
+ */
+const create = async (userData, transaction = null) => {
+  return await User.create({
+    email: userData.email.toLowerCase().trim(),
+    password_hash: userData.passwordHash,
+    name: userData.name.trim(),
+    surname: userData.surname.trim(),
+    sex: userData.sex || 'O',
+    user_address_1: userData.user_address_1 || '',
+    user_address_2: userData.user_address_2 || '',
+    user_address_3: userData.user_address_3 || '',
+    role_id: userData.role_id || 3, // Default USER role
+    is_active: true
+  }, { transaction });
 };
 
+/**
+ * Update user password
+ */
+const updatePassword = async (userId, passwordHash, transaction = null) => {
+  const [rowsUpdated, [updatedUser]] = await User.update(
+    {
+      password_hash: passwordHash,
+      reset_token: null,
+      reset_token_expire: null
+    },
+    {
+      where: { user_id: userId },
+      returning: true,
+      transaction
+    }
+  );
+
+  return updatedUser;
+};
+
+/**
+ * Set reset token
+ */
+const setResetToken = async (userId, token, expireDate, transaction = null) => {
+  const [rowsUpdated, [updatedUser]] = await User.update(
+    {
+      reset_token: token,
+      reset_token_expire: expireDate
+    },
+    {
+      where: { user_id: userId },
+      returning: true,
+      transaction
+    }
+  );
+
+  return updatedUser;
+};
+
+/**
+ * Find user by reset token
+ */
 const findByResetToken = async (token) => {
-    try {
-        console.log('🔍 Finding user by reset token:', token);
-
-        // 1. ค้นหา User ด้วย Token อย่างเดียวก่อน (ไม่ต้องใช้ Op)
-        const user = await User.findOne({
-            where: {
-                reset_token: token
-            },
-            attributes: ['user_id', 'email', 'reset_token', 'reset_token_expire']
-        });
-
-        if (!user) {
-            console.log('⚠️ Token not found in DB');
-            return null;
-        }
-        const now = new Date();
-        const expireDate = new Date(user.reset_token_expire);
-
-        if (now > expireDate) {
-            console.log('⏳ Token expired at:', expireDate);
-            return null; // ถือว่าหาไม่เจอเพราะหมดอายุ
-        }
-
-        console.log('✅ Valid token found for user:', user.user_id);
-        return user;
-
-    } catch (error) {
-        console.error('❌ Error finding user by reset token:', error);
-        throw error;
-    }
+  return await User.findOne({
+    where: {
+      reset_token: token,
+      reset_token_expire: {
+        [Op.gt]: new Date()
+      }
+    },
+    attributes: ['user_id', 'email', 'reset_token', 'reset_token_expire']
+  });
 };
 
-const updatePassword = async (userId, hash) => {
-    try {
-        console.log('🔑 Updating password for user:', userId);
-
-        const [rowsUpdated, [updatedUser]] = await User.update(
-            {
-                password_hash: hash,
-                reset_token: null,
-                reset_token_expire: null
-            },
-            {
-                where: { user_id: userId },
-                returning: true
-            }
-        );
-
-        if (rowsUpdated === 0) {
-            throw new Error('User not found for password update');
-        }
-
-        console.log('✅ Password updated successfully');
-        return updatedUser;
-    } catch (error) {
-        console.error('❌ Error updating password:', error);
-        throw error;
+/**
+ * Update user email
+ */
+const updateEmail = async (userId, newEmail, transaction = null) => {
+  const [rowsUpdated, [updatedUser]] = await User.update(
+    {
+      email: newEmail.toLowerCase().trim()
+    },
+    {
+      where: { user_id: userId },
+      returning: true,
+      transaction
     }
+  );
+
+  return updatedUser;
 };
 
-const updateEmail = async (userId, newEmail) => {
-    try {
-        console.log('📧 Updating email for user:', userId, 'to:', newEmail);
+/**
+ * Update user profile
+ */
+const updateProfile = async (userId, data, transaction = null) => {
+  // Only update fields that are provided
+  const updateData = {};
+  
+  const allowedFields = [
+    'name',
+    'surname',
+    'full_name',
+    'sex',
+    'user_address_1',
+    'user_address_2',
+    'user_address_3',
+    'profile_image_url'
+  ];
 
-        const [rowsUpdated, [updatedUser]] = await User.update(
-            {
-                email: newEmail.toLowerCase().trim()
-            },
-            {
-                where: { user_id: userId },
-                returning: true
-            }
-        );
-
-        if (rowsUpdated === 0) {
-            throw new Error('User not found for email update');
-        }
-
-        console.log('✅ Email updated successfully');
-
-        // Return without sensitive data
-        const userJson = updatedUser.toJSON();
-        delete userJson.password_hash;
-        delete userJson.reset_token;
-        delete userJson.reset_token_expire;
-        
-        return userJson;
-    } catch (error) {
-        if (error.name === 'SequelizeUniqueConstraintError') {
-            throw new Error('Email already in use');
-        }
-        console.error('❌ Error updating email:', error);
-        throw error;
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      if (data[field] === '') {
+         if (field === 'sex' || field === 'profile_image_url') {
+            updateData[field] = null; 
+         } else {
+            // สำหรับ name/surname ถ้าส่งมาว่าง ให้คงไว้เพื่อให้ Sequelize ด่า (Validate) ว่าห้ามว่าง
+            updateData[field] = data[field];
+         }
+      } else {
+         // กรณีมีข้อมูลปกติ
+         updateData[field] = data[field];
+      }
     }
+  }
+
+  const [rowsUpdated, [updatedUser]] = await User.update(
+    updateData,
+    {
+      where: { user_id: userId },
+      returning: true,
+      validate: true,
+      transaction
+    }
+  );
+
+  return updatedUser;
 };
 
-const updateProfile = async (userId, data) => {
-    try {
-        console.log('✏️ Updating profile for user:', userId);
-
-        // Whitelist allowed fields
-        const allowedFields = [
-            'name',
-            'surname',
-            'full_name',
-            'sex',
-            'user_address_1',
-            'user_address_2',
-            'user_address_3',
-            'profile_image_url'
-        ];
-
-        // Filter data to only include allowed fields
-        const updateData = {};
-        for (const field of allowedFields) {
-            if (data[field] !== undefined) {
-                // ✅ เพิ่ม: ถ้าเป็น profile_image_url และเป็นค่าว่าง ให้ใส่ null แทน
-                if (field === 'profile_image_url' && data[field] === '') {
-                    updateData[field] = null;
-                } else {
-                    updateData[field] = data[field];
-                }
-            }
-        }
-
-        const [rowsUpdated, [updatedUser]] = await User.update(
-            updateData,
-            {
-                where: { user_id: userId },
-                returning: true,
-                validate: true
-            }
-        );
-
-        if (rowsUpdated === 0) {
-            throw new Error('User not found for profile update');
-        }
-
-        console.log('✅ Profile updated successfully');
-
-        // Return without sensitive data
-        const userJson = updatedUser.toJSON();
-        delete userJson.password_hash;
-        delete userJson.reset_token;
-        delete userJson.reset_token_expire;
-
-        return userJson;
-    } catch (error) {
-        console.error('❌ Error updating profile:', error);
-        throw error;
+/**
+ * Deactivate user (soft delete)
+ */
+const deactivate = async (userId, transaction = null) => {
+  const [rowsUpdated] = await User.update(
+    { is_active: false },
+    { 
+      where: { user_id: userId },
+      transaction 
     }
+  );
+
+  return rowsUpdated > 0;
 };
 
-// Soft delete (deactivate) user
-const deactivateUser = async (userId) => {
-    try {
-        const [rowsUpdated] = await User.update(
-            { is_active: false },
-            { where: { user_id: userId } }
-        );
-
-        return rowsUpdated > 0;
-    } catch (error) {
-        console.error('❌ Error deactivating user:', error);
-        throw error;
+/**
+ * Activate user
+ */
+const activate = async (userId, transaction = null) => {
+  const [rowsUpdated] = await User.update(
+    { is_active: true },
+    { 
+      where: { user_id: userId },
+      transaction 
     }
+  );
+
+  return rowsUpdated > 0;
 };
 
-// Reactivate user
-const activateUser = async (userId) => {
-    try {
-        const [rowsUpdated] = await User.update(
-            { is_active: true },
-            { where: { user_id: userId } }
-        );
+/**
+ * Delete user (hard delete)
+ */
+const deleteUser = async (userId, transaction = null) => {
+  const deleted = await User.destroy({
+    where: { user_id: userId },
+    transaction
+  });
 
-        return rowsUpdated > 0;
-    } catch (error) {
-        console.error('❌ Error activating user:', error);
-        throw error;
-    }
+  return deleted > 0;
 };
 
-// Search users with pagination and filters
-const searchUsers = async (filters = {}, options = {}) => {
-    try {
-        const {
-            page = 1,
-            limit = 10,
-            sortBy = 'created_at',
-            sortOrder = 'DESC'
-        } = options;
+/**
+ * Search users with filters
+ */
+const search = async (filters = {}, options = {}) => {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = 'created_at',
+    sortOrder = 'DESC'
+  } = options;
 
-        const where = {};
+  const where = {};
 
-        if (filters.email) {
-            where.email = { [Op.iLike]: `%${filters.email}%` };
-        }
+  if (filters.email) {
+    where.email = { [Op.iLike]: `%${filters.email}%` };
+  }
 
-        if (filters.name) {
-            where[Op.or] = [
-                { name: { [Op.iLike]: `%${filters.name}%` } },
-                { surname: { [Op.iLike]: `%${filters.name}%` } },
-                { full_name: { [Op.iLike]: `%${filters.name}%` } }
-            ];
-        }
+  if (filters.name) {
+    where[Op.or] = [
+      { name: { [Op.iLike]: `%${filters.name}%` } },
+      { surname: { [Op.iLike]: `%${filters.name}%` } },
+      { full_name: { [Op.iLike]: `%${filters.name}%` } }
+    ];
+  }
 
-        if (filters.role_id) {
-            where.role_id = filters.role_id;
-        }
+  if (filters.role_id !== undefined) {
+    where.role_id = filters.role_id;
+  }
 
-        if (filters.is_active !== undefined) {
-            where.is_active = filters.is_active;
-        }
+  if (filters.is_active !== undefined) {
+    where.is_active = filters.is_active;
+  }
 
-        const { count, rows } = await User.findAndCountAll({
-            where,
-            attributes: { exclude: ['password_hash', 'reset_token', 'reset_token_expire'] },
-            include: [{
-                model: Role,
-                as: 'role',
-                attributes: ['role_id', 'role_name']
-            }],
-            limit,
-            offset: (page - 1) * limit,
-            order: [[sortBy, sortOrder]]
-        });
+  const { count, rows } = await User.findAndCountAll({
+    where,
+    attributes: { 
+      exclude: ['password_hash', 'reset_token', 'reset_token_expire'] 
+    },
+    include: [{
+      model: sequelize.models.sys_role,
+      as: 'role',
+      attributes: ['role_id', 'role_name']
+    }],
+    limit,
+    offset: (page - 1) * limit,
+    order: [[sortBy, sortOrder]]
+  });
 
-        return {
-            users: rows,
-            total: count,
-            page,
-            totalPages: Math.ceil(count / limit)
-        };
-    } catch (error) {
-        console.error('❌ Error searching users:', error);
-        throw error;
+  return {
+    users: rows,
+    total: count,
+    page,
+    totalPages: Math.ceil(count / limit)
+  };
+};
+
+/**
+ * Count users by criteria
+ */
+const count = async (where = {}) => {
+  return await User.count({ where });
+};
+
+/**
+ * Check if email exists
+ */
+const emailExists = async (email, excludeUserId = null) => {
+  const where = { email: email.toLowerCase().trim() };
+  
+  if (excludeUserId) {
+    where.user_id = { [Op.ne]: excludeUserId };
+  }
+
+  const count = await User.count({ where });
+  return count > 0;
+};
+
+/**
+ * Bulk create users
+ */
+const bulkCreate = async (usersData, transaction = null) => {
+  return await User.bulkCreate(usersData, { 
+    transaction,
+    validate: true 
+  });
+};
+
+/**
+ * Update user role
+ */
+const updateRole = async (userId, roleId, transaction = null) => {
+  const [rowsUpdated] = await User.update(
+    { role_id: roleId },
+    { 
+      where: { user_id: userId },
+      transaction 
     }
+  );
+
+  return rowsUpdated > 0;
 };
 
 export const UserModel = {
-    findByEmail,
-    findById,
-    createUser,
-    setResetToken,
-    findByResetToken,
-    updatePassword,
-    updateEmail,
-    updateProfile,
-    deactivateUser,
-    activateUser,
-    searchUsers
+  findById,
+  findByEmail,
+  findByEmailWithPassword,
+  create,
+  updatePassword,
+  setResetToken,
+  findByResetToken,
+  updateEmail,
+  updateProfile,
+  deactivate,
+  activate,
+  deleteUser,
+  search,
+  count,
+  emailExists,
+  bulkCreate,
+  updateRole
 };
+
+export default UserModel;
