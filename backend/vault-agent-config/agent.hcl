@@ -1,8 +1,8 @@
 pid_file = "/tmp/pidfile"
 
 vault {
-  # แทนที่ด้วย IP
-  address = "http://172.16.12.63:8200"
+  # Use Docker service name for container-to-container communication
+  address = "http://vault-server:8200"
 }
 
 # ให้ agent ทำงานต่อเนื่องไม่หยุด

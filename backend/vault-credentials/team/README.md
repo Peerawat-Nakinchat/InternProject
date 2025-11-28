@@ -1,41 +1,90 @@
-# Vault Credentials สำหรับทีม
+# Vault Setup สำหรับทีม
 
-## ข้อมูล Credentials
-ไฟล์ในโฟลเดอร์นี้ใช้สำหรับ Vault Agent authentication:
+## 🔄 เลือกวิธี Setup (เลือกอย่างใดอย่างหนึ่ง)
 
-- `role-id` - Role ID (ไม่เปลี่ยนแปลง)
-- `secret-id` - Secret ID (ใช้ร่วมกันได้, ไม่หมดอายุ)
+### วิธีที่ 1: ใช้ Vault Server กลาง (แนะนำ)
+> เมื่อมีคนเพิ่ม/แก้ secret ทุกคนจะได้รับอัตโนมัติ
 
-## วิธีใช้งาน
+### วิธีที่ 2: รัน Vault Server เอง
+> ต้องเพิ่ม secret เองทุกครั้งที่มีการเปลี่ยนแปลง
 
-### 1. คัดลอกไปยัง vault-agent-config
+---
+
+## วิธีที่ 1: ใช้ Vault Server กลาง (แนะนำ ✅)
+
+### ขั้นตอน:
+
+**1. รับไฟล์ credentials จากทีม:**
+- `role-id` 
+- `secret-id`
+
+วางไฟล์ทั้ง 2 ลงใน `vault-agent-config/`
+
+**2. แก้ไข `vault-agent-config/agent.hcl`:**
+```hcl
+vault {
+  # ใช้ IP ของ Vault Server กลาง
+  address = "http://172.16.12.63:8200"
+}
+```
+
+**3. รัน Vault Agent:**
 ```powershell
-# Windows PowerShell
-Copy-Item "vault-credentials\team\role-id" "vault-agent-config\role-id" -Force
-Copy-Item "vault-credentials\team\secret-id" "vault-agent-config\secret-id" -Force
+docker compose -f docker-compose.agent.yml up -d
 ```
 
-```bash
-# Linux/Mac
-cp vault-credentials/team/role-id vault-agent-config/role-id
-cp vault-credentials/team/secret-id vault-agent-config/secret-id
-```
-
-### 2. รัน Docker Compose
+**4. ตรวจสอบ:**
 ```powershell
-docker compose up -d
+docker logs vault-agent --tail 10
+# ต้องเห็น "authentication successful"
 ```
+
+---
+
+## วิธีที่ 2: รัน Vault Server เอง
+
+### ขั้นตอน:
+
+**1. รัน Vault Server:**
+```powershell
+docker compose -f docker-compose.vault-server.yml up -d
+```
+
+**2. รอ Vault พร้อม แล้วรัน init script:**
+```powershell
+Start-Sleep -Seconds 5
+.\init-vault.ps1
+```
+
+**3. แก้ไข `vault-agent-config/agent.hcl`:**
+```hcl
+vault {
+  # ชี้ไป localhost
+  address = "http://host.docker.internal:8200"
+}
+```
+
+**4. รัน Vault Agent:**
+```powershell
+docker compose -f docker-compose.agent.yml up -d
+```
+
+---
+
+## 📋 Credentials สำหรับ Server กลาง
+
+| File | Value |
+|------|-------|
+| role-id | `f200602c-9d34-99d0-2999-dcf8ccb32072` |
+| secret-id | ขอจากทีม (ไม่เก็บใน Git) |
 
 ## ⚠️ ข้อควรระวัง
 
-1. **อย่า commit ไฟล์เหล่านี้ไปยัง Git** (ถูก ignore แล้วใน .gitignore)
-2. **แชร์ credentials ผ่านช่องทางที่ปลอดภัย** เช่น:
-   - Direct message (Slack, Discord, etc.)
-   - Password manager ของทีม
-   - Encrypted file sharing
-3. **ถ้า credentials หลุด** ให้รัน `init-vault.ps1` ใหม่เพื่อสร้าง Secret ID ใหม่
+1. **อย่า commit ไฟล์ credentials ไปยัง Git** (ถูก ignore แล้ว)
+2. **แชร์ credentials ผ่านช่องทางที่ปลอดภัย** (Slack DM, etc.)
+3. **ถ้า credentials หลุด** ให้แจ้ง admin รัน `init-vault.ps1` ใหม่
 
-## การตั้งค่าปัจจุบัน
+## 🔧 การตั้งค่า
 
 | Setting | Value | คำอธิบาย |
 |---------|-------|----------|
@@ -44,8 +93,20 @@ docker compose up -d
 | token_ttl | 24h | Token อายุ 24 ชม. (auto-renew) |
 | token_max_ttl | 168h | Token max 7 วัน |
 
-## Vault Server
+## 🌐 Vault Server กลาง
 
 - **URL**: http://172.16.12.63:8200
 - **UI**: http://172.16.12.63:8200/ui
 - **Root Token**: `dev-root-token-123` (สำหรับ admin เท่านั้น)
+
+## ❓ Troubleshooting
+
+### Error: "invalid role or secret ID"
+1. ตรวจสอบว่า `role-id` และ `secret-id` ถูกต้อง
+2. ตรวจสอบว่า `agent.hcl` มี `role = "backend-dev"`
+3. ตรวจสอบว่าเชื่อมต่อ Vault Server ได้: `curl http://172.16.12.63:8200/v1/sys/health`
+
+### Error: Connection refused
+1. ตรวจสอบว่า Vault Server รันอยู่
+2. ตรวจสอบ IP address ใน `agent.hcl`
+3. ถ้าใช้ Server กลาง ตรวจสอบว่า firewall เปิด port 8200
