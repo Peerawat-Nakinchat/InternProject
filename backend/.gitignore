@@ -7,3 +7,7 @@ vault-agent-config/token
 vault-agent-config/token-sink
 vault-agent-config/role-id
 vault-agent-config/secret-id
+
+# Vault credentials
+vault-credentials/team/role-id
+vault-credentials/team/secret-id
