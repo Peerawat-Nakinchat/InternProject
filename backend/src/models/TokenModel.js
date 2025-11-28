@@ -43,9 +43,10 @@ const findRefreshToken = async (refreshToken) => {
     const token = await RefreshToken.findOne({
       where: {
         refresh_token: hashedToken,
-        expires_at: {
-          [Op.gte]: new Date() 
-        }
+        [Op.or]: [
+          { expires_at: { [Op.gte]: new Date() } },
+          { expires_at: null } // รองรับ tokens เก่าที่ไม่มี expires_at
+        ]
       },
       include: [{
         model: User,
@@ -117,9 +118,10 @@ const getUserActiveTokens = async (userId) => {
     const tokens = await RefreshToken.findAll({
       where: {
         user_id: userId,
-        expires_at: {
-          [Op.gte]: new Date()
-        }
+        [Op.or]: [
+          { expires_at: { [Op.gte]: new Date() } },
+          { expires_at: null } // รองรับ tokens เก่าที่ไม่มี expires_at
+        ]
       },
       attributes: ['token_id', 'created_at', 'expires_at'],
       order: [['created_at', 'DESC']]
@@ -173,13 +175,14 @@ const rotateToken = async (oldRefreshToken, userId, newRefreshToken) => {
 // Get token statistics
 const getTokenStats = async () => {
   try {
-    const Op = OrganizationMember.sequelize.Sequelize.Op;
+    const Op = RefreshToken.sequelize.Sequelize.Op;
     const total = await RefreshToken.count();
     const active = await RefreshToken.count({
       where: {
-        expires_at: {
-          [Op.gte]: new Date()
-        }
+        [Op.or]: [
+          { expires_at: { [Op.gte]: new Date() } },
+          { expires_at: null } // รองรับ tokens เก่าที่ไม่มี expires_at
+        ]
       }
     });
     const expired = total - active;

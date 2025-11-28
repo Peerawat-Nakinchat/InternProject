@@ -1,2 +1,26 @@
 
+# Environment files
 backend/.env
+backend/.env.bak
+backend/secrets/.env
+
+# Log files
+*.log
+logs/
+
+# Test/temp files
+test_tokens.json
+login_result.json
+new_refresh_token.txt
+server.log
+
+# Node modules
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

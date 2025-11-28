@@ -147,20 +147,74 @@ export const loginUser = async (req, res) => {
 };
 
 
-// ---------------- Refresh Token ----------------
+// ---------------- Refresh Token (with Token Rotation) ----------------
 export const refreshToken = async (req, res) => {
   try {
     const { refreshToken: token } = req.body;
-    if (!token) return res.status(401).json({ success: false, message: "ไม่พบ Refresh Token" });
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    const userAgent = clientInfo.userAgent || req.headers['user-agent'];
 
+    if (!token) {
+      securityLogger.suspiciousActivity('Refresh token request without token', ip, userAgent, {});
+      return res.status(401).json({ success: false, message: "ไม่พบ Refresh Token" });
+    }
+
+    // 1. Verify JWT signature
     const decoded = verifyRefreshToken(token);
-    if (!decoded) return res.status(401).json({ success: false, message: "Refresh Token ไม่ถูกต้อง" });
+    if (!decoded) {
+      securityLogger.suspiciousActivity('Invalid refresh token signature', ip, userAgent, { userId: 'unknown' });
+      return res.status(401).json({ success: false, message: "Refresh Token ไม่ถูกต้อง" });
+    }
 
-    const stored = await RefreshTokenModel.findRefreshToken({ where: { refresh_token: token, user_id: decoded.user_id } });
-    if (!stored) return res.status(401).json({ success: false, message: "Refresh Token ไม่ถูกต้อง" });
+    // 2. Check if token exists in DB (not revoked)
+    const stored = await RefreshTokenModel.findRefreshToken(token);
+    if (!stored) {
+      // ⚠️ Token reuse detected! This could be an attack
+      securityLogger.suspiciousActivity(
+        'Refresh token reuse detected - possible token theft',
+        ip,
+        userAgent,
+        { userId: decoded.user_id }
+      );
+      
+      // Revoke all tokens for this user as a precaution
+      await RefreshTokenModel.deleteAllTokensForUser(decoded.user_id);
+      
+      return res.status(401).json({ 
+        success: false, 
+        message: "Refresh Token ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบใหม่",
+        tokenReused: true
+      });
+    }
 
+    // 3. Check if user is still active
+    if (stored.user && !stored.user.is_active) {
+      securityLogger.suspiciousActivity('Refresh token for inactive user', ip, userAgent, { userId: decoded.user_id });
+      await RefreshTokenModel.deleteAllTokensForUser(decoded.user_id);
+      return res.status(401).json({ success: false, message: "บัญชีถูกระงับ" });
+    }
+
+    // 4. 🔄 Token Rotation: Delete old token FIRST, then create new one
     const newAccessToken = generateAccessToken(decoded.user_id);
-    res.json({ success: true, accessToken: newAccessToken });
+    const newRefreshToken = generateRefreshToken(decoded.user_id);
+
+    // Delete old token (ฉีกบัตรเก่าทิ้ง)
+    await RefreshTokenModel.deleteRefreshToken(token);
+    
+    // Save new token (ออกบัตรใหม่)
+    await RefreshTokenModel.saveRefreshToken(decoded.user_id, newRefreshToken);
+
+    // Log successful token refresh
+    securityLogger.tokenRefresh(decoded.user_id, ip, userAgent);
+
+    console.log('🔄 Token rotated successfully for user:', decoded.user_id);
+
+    res.json({ 
+      success: true, 
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken  // ส่ง refresh token ใหม่กลับไปด้วย
+    });
   } catch (error) {
     console.error("💥 Refresh token error:", error);
     res.status(401).json({ success: false, message: error.message });

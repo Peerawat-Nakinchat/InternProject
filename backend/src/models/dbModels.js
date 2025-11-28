@@ -300,6 +300,11 @@ const RefreshToken = sequelize.define('sys_refresh_tokens', {
     allowNull: false,
     unique: true
   },
+  expires_at: {
+    type: DataTypes.DATE,
+    allowNull: true, // Allow null for existing records, will be set on new tokens
+    field: 'expires_at'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -372,8 +377,10 @@ const syncDatabase = async () => {
   try {
     // สำหรับ production ใช้ migrations แทน
     if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: true });
-      console.log('✅ Database synced successfully');
+      // Skip sync - tables already exist
+      // หากต้องการ sync ให้ใช้ migrations หรือ alter: true ด้วยความระวัง
+      // await sequelize.sync({ force: false });
+      console.log('✅ Database sync skipped (tables already exist)');
       
       // Seed roles if not exist
       await seedRoles();

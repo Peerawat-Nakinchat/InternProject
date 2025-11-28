@@ -105,6 +105,7 @@ import {
   requestLogger,
   detectSuspiciousPatterns,
   bruteForceProtection,
+  detectSessionHijacking,
 } from "./src/middleware/securityMonitoring.js";
 import logger from "./src/utils/logger.js";
 
@@ -129,6 +130,7 @@ import userRoutes from "./src/routes/memberRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
+import securityRoutes from "./src/routes/securityRoutes.js";
 
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
@@ -145,6 +147,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/security", securityRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -220,12 +223,15 @@ const startServer = async () => {
       console.log(`   ✓ Request Logging`);
       console.log(`   ✓ Brute Force Protection`);
       console.log(`   ✓ Suspicious Pattern Detection`);
+      console.log(`   ✓ Session Hijacking Detection`);
+      console.log(`   ✓ Token Rotation (Refresh Token)`);
       console.log(`   ✓ SQL Injection Prevention (Sequelize)`);
       console.log(`   ✓ XSS Protection`);
       console.log(`   ✓ Input Validation & Sanitization`);
       console.log(`   ✓ Audit Logging`);
       console.log(`   ✓ Token Hashing`);
       console.log(`   ✓ Scheduled Cleanup Tasks`);
+      console.log(`   ✓ Security Monitoring Dashboard (/api/security/metrics)`);
       console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
       
       logger.info(`Server started on port ${PORT}`);

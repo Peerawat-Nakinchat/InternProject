@@ -1,10 +1,11 @@
 // stores/auth.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axiosInstance from '@/utils/axios'
 import axios from 'axios'
 import { useCompanyStore } from './company'
 
-const API_BASE_URL = '/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 export interface User {
   user_id: string
@@ -90,6 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
+      // ใช้ axios ตรงๆ สำหรับ login (ไม่ต้องผ่าน interceptor เพราะยังไม่มี token)
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email: credentials.email,
         password: credentials.password,
@@ -122,24 +124,24 @@ export const useAuthStore = defineStore('auth', () => {
 
         return { success: true }
       }
-      
+
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
     } catch (err: unknown) {
       // Check for rate limit (429)
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } } }
-        
+
         if (axiosErr.response?.status === 429) {
           const retryAfter = axiosErr.response.headers?.['retry-after']
           error.value = 'คุณพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่'
-          return { 
-            success: false, 
+          return {
+            success: false,
             error: error.value ?? undefined,
             rateLimited: true,
             retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined
           }
         }
-        
+
         error.value = axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
       } else {
         error.value = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
@@ -156,6 +158,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
+      // ใช้ axios ตรงๆ สำหรับ register (ไม่ต้องผ่าน interceptor)
       const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         email: data.email,
         password: data.password,
@@ -170,7 +173,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.data.success) {
         return { success: true, message: 'ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ' }
       }
-      
+
       return { success: false, error: 'ลงทะเบียนไม่สำเร็จ' }
     } catch (err: any) {
       error.value = err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
@@ -186,15 +189,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       if (refreshToken.value) {
-        await axios.post(
-          `${API_BASE_URL}/auth/logout`,
-          { refreshToken: refreshToken.value },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken.value}`,
-            },
-          }
-        )
+        // ใช้ axiosInstance ที่มี interceptor
+        await axiosInstance.post('/auth/logout', { refreshToken: refreshToken.value })
       }
     } catch (err) {
       console.error('Logout error:', err)
@@ -223,27 +219,27 @@ export const useAuthStore = defineStore('auth', () => {
   if (!accessToken.value) return
 
   try {
-    const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
-      headers: { Authorization: `Bearer ${accessToken.value}` }
-    })
+    // ใช้ axiosInstance - จะ auto refresh token ถ้าหมดอายุ
+    const response = await axiosInstance.get('/auth/profile')
 
-    console.log("🔍 Fetch profile result:", response.data.user)
+    console.log("🔍 Fetch profile result:", response.user)
 
-    if (response.data.success) {
-      user.value = response.data.user
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+    if (response.success) {
+      user.value = response.user
+      localStorage.setItem('user', JSON.stringify(response.user))
     }
   } catch (err: any) {
     console.error('Fetch profile error:', err)
-    if (err.response?.status === 401) await logout()
+    // axiosInstance จะจัดการ 401 ให้แล้ว ไม่ต้อง logout ที่นี่
   }
 }
 
-  // Refresh Access Token
+  // Refresh Access Token (เรียกตรงๆ ไม่ผ่าน interceptor)
   const refreshAccessToken = async (): Promise<boolean> => {
     if (!refreshToken.value) return false
 
     try {
+      // ใช้ axios ตรงๆ เพื่อหลีกเลี่ยง infinite loop
       const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
         refreshToken: refreshToken.value,
       })
@@ -251,18 +247,25 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.data.success && response.data.accessToken) {
         accessToken.value = response.data.accessToken
         localStorage.setItem('accessToken', response.data.accessToken)
-        
-        // อัปเดต refresh token ใหม่ถ้ามี
+
+        // 🔄 Token Rotation: รับ refresh token ใหม่ด้วย
         if (response.data.refreshToken) {
           refreshToken.value = response.data.refreshToken
           localStorage.setItem('refreshToken', response.data.refreshToken)
+          console.log('🔐 Refresh token rotated successfully')
         }
-        
+
         return true
       }
       return false
-    } catch (err) {
+    } catch (err: any) {
       console.error('Refresh token error:', err)
+
+      // Check for token reuse attack
+      if (err.response?.data?.tokenReused) {
+        console.error('🚨 Token reuse detected! All sessions invalidated.')
+      }
+
       await logout()
       return false
     }
@@ -274,24 +277,21 @@ export const useAuthStore = defineStore('auth', () => {
   if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
 
   try {
-    const response = await axios.put(`${API_BASE_URL}/auth/change-email`, data, {
-      headers: {
-        Authorization: `Bearer ${accessToken.value}`,
-      },
-    })
+    // ใช้ axiosInstance - จะ auto refresh token ถ้าหมดอายุ
+    const response = await axiosInstance.put('/auth/change-email', data)
 
-    if (response.data.success) {
+    if (response.success) {
       // อัปเดตอีเมลใน Store และ LocalStorage
       if (user.value) {
-        user.value.email = response.data.user.email
+        user.value.email = response.user.email
         localStorage.setItem('user', JSON.stringify(user.value))
       }
       return { success: true }
     }
-    
-    return { success: false, error: response.data.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
+
+    return { success: false, error: response.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
+    error.value = err.message || 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
     return { success: false, error: error.value ?? undefined }
   } finally {
     isLoading.value = false
@@ -305,21 +305,18 @@ const changePassword = async (data: ChangePasswordData): Promise<{ success: bool
   if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
 
   try {
-    const response = await axios.put(`${API_BASE_URL}/auth/change-password`, data, {
-      headers: {
-        Authorization: `Bearer ${accessToken.value}`,
-      },
-    })
+    // ใช้ axiosInstance - จะ auto refresh token ถ้าหมดอายุ
+    const response = await axiosInstance.put('/auth/change-password', data)
 
-    if (response.data.success) {
+    if (response.success) {
       // **สำคัญ:** การเปลี่ยนรหัสผ่านจะบังคับ logout ทุกอุปกรณ์
       await logout()
       return { success: true }
     }
-    
-    return { success: false, error: response.data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
+
+    return { success: false, error: response.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+    error.value = err.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
     return { success: false, error: error.value ?? undefined }
   } finally {
     isLoading.value = false
@@ -332,23 +329,20 @@ const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolea
   if (!accessToken.value) return { success: false, error: 'ไม่ได้รับอนุญาต' }
 
   try {
-    const response = await axios.put(`${API_BASE_URL}/auth/update-profile`, data, {
-      headers: {
-        Authorization: `Bearer ${accessToken.value}`,
-      },
-    })
+    // ใช้ axiosInstance - จะ auto refresh token ถ้าหมดอายุ
+    const response = await axiosInstance.put('/auth/update-profile', data)
 
-    if (response.data.success) {
+    if (response.success) {
       // อัปเดตข้อมูลผู้ใช้ใน Store และ LocalStorage ด้วยข้อมูลใหม่ที่ได้รับจาก Backend
-      user.value = { ...user.value, ...response.data.user }
+      user.value = { ...user.value, ...response.user }
       localStorage.setItem('user', JSON.stringify(user.value))
 
       return { success: true }
     }
-    
-    return { success: false, error: response.data.error || 'บันทึกข้อมูลไม่สำเร็จ' }
+
+    return { success: false, error: response.error || 'บันทึกข้อมูลไม่สำเร็จ' }
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+    error.value = err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
     return { success: false, error: error.value ?? undefined }
   } finally {
     isLoading.value = false

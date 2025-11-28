@@ -2,6 +2,98 @@
 import { securityLogger } from '../utils/logger.js';
 
 /**
+ * Security Event Types for monitoring
+ */
+export const SecurityEventTypes = {
+  TOKEN_REUSE: 'TOKEN_REUSE_DETECTED',
+  BRUTE_FORCE: 'BRUTE_FORCE_ATTEMPT',
+  SQL_INJECTION: 'SQL_INJECTION_ATTEMPT',
+  XSS_ATTEMPT: 'XSS_ATTEMPT',
+  SUSPICIOUS_AGENT: 'SUSPICIOUS_USER_AGENT',
+  RATE_LIMIT: 'RATE_LIMIT_EXCEEDED',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  SESSION_HIJACK: 'POSSIBLE_SESSION_HIJACK',
+};
+
+/**
+ * In-memory security metrics (could be replaced with Redis for production)
+ */
+const securityMetrics = {
+  totalRequests: 0,
+  blockedRequests: 0,
+  suspiciousActivities: [],
+  tokenRefreshes: 0,
+  tokenReuses: 0,
+  failedLogins: new Map(), // IP -> count
+  activeAlerts: [],
+};
+
+/**
+ * Get security metrics for dashboard
+ */
+export const getSecurityMetrics = () => {
+  const now = Date.now();
+  const oneHourAgo = now - 60 * 60 * 1000;
+  
+  // Clean old suspicious activities (keep last hour)
+  securityMetrics.suspiciousActivities = securityMetrics.suspiciousActivities.filter(
+    a => a.timestamp > oneHourAgo
+  );
+
+  return {
+    totalRequests: securityMetrics.totalRequests,
+    blockedRequests: securityMetrics.blockedRequests,
+    recentSuspiciousActivities: securityMetrics.suspiciousActivities.slice(-50),
+    tokenRefreshes: securityMetrics.tokenRefreshes,
+    tokenReuses: securityMetrics.tokenReuses,
+    activeAlerts: securityMetrics.activeAlerts,
+    failedLoginsByIP: Array.from(securityMetrics.failedLogins.entries()).map(([ip, data]) => ({
+      ip,
+      count: data.count,
+      lastAttempt: new Date(data.lastAttempt).toISOString(),
+    })),
+  };
+};
+
+/**
+ * Add suspicious activity to metrics
+ */
+export const addSuspiciousActivity = (type, ip, details = {}) => {
+  const activity = {
+    type,
+    ip,
+    timestamp: Date.now(),
+    details,
+  };
+  
+  securityMetrics.suspiciousActivities.push(activity);
+  
+  // Create alert for critical events
+  if ([SecurityEventTypes.TOKEN_REUSE, SecurityEventTypes.BRUTE_FORCE, SecurityEventTypes.SESSION_HIJACK].includes(type)) {
+    securityMetrics.activeAlerts.push({
+      ...activity,
+      severity: 'HIGH',
+      acknowledged: false,
+    });
+  }
+};
+
+/**
+ * Increment token refresh count
+ */
+export const recordTokenRefresh = () => {
+  securityMetrics.tokenRefreshes++;
+};
+
+/**
+ * Increment token reuse count (security incident)
+ */
+export const recordTokenReuse = (ip, userId) => {
+  securityMetrics.tokenReuses++;
+  addSuspiciousActivity(SecurityEventTypes.TOKEN_REUSE, ip, { userId });
+};
+
+/**
  * Middleware to extract client information
  */
 export const extractClientInfo = (req, res, next) => {
@@ -9,6 +101,7 @@ export const extractClientInfo = (req, res, next) => {
     ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
     userAgent: req.headers['user-agent'] || 'unknown',
   };
+  securityMetrics.totalRequests++;
   next();
 };
 
@@ -37,6 +130,11 @@ export const requestLogger = (req, res, next) => {
         logData.userAgent,
         { statusCode: res.statusCode, duration }
       );
+      
+      if (res.statusCode === 429) {
+        securityMetrics.blockedRequests++;
+        addSuspiciousActivity(SecurityEventTypes.RATE_LIMIT, logData.ipAddress, { url: req.url });
+      }
     }
   });
 
@@ -70,9 +168,13 @@ export const bruteForceProtection = (req, res, next) => {
           { attempts: attempts.count }
         );
         
+        addSuspiciousActivity(SecurityEventTypes.BRUTE_FORCE, ip, { attempts: attempts.count });
+        securityMetrics.blockedRequests++;
+        
         return res.status(429).json({
           success: false,
           error: 'Too many login attempts. Please try again later.',
+          retryAfter: Math.ceil((LOCKOUT_DURATION - timeSinceLastAttempt) / 1000),
         });
       } else {
         // Reset counter after lockout duration
@@ -98,6 +200,9 @@ export const recordFailedLogin = (ip) => {
       lastAttempt: Date.now(),
     });
   }
+  
+  // Update security metrics
+  securityMetrics.failedLogins.set(ip, failedLoginAttempts.get(ip));
 };
 
 /**
@@ -105,6 +210,7 @@ export const recordFailedLogin = (ip) => {
  */
 export const clearFailedLogins = (ip) => {
   failedLoginAttempts.delete(ip);
+  securityMetrics.failedLogins.delete(ip);
 };
 
 /**
@@ -126,6 +232,7 @@ export const detectSuspiciousPatterns = (req, res, next) => {
       userAgent,
       { endpoint: req.url, body: bodyStr.substring(0, 200) }
     );
+    addSuspiciousActivity(SecurityEventTypes.SQL_INJECTION, ip, { endpoint: req.url });
   }
   
   // Check for XSS patterns
@@ -138,6 +245,7 @@ export const detectSuspiciousPatterns = (req, res, next) => {
       userAgent,
       { endpoint: req.url, body: bodyStr.substring(0, 200) }
     );
+    addSuspiciousActivity(SecurityEventTypes.XSS_ATTEMPT, ip, { endpoint: req.url });
   }
   
   // Check for missing or suspicious user agent
@@ -148,6 +256,53 @@ export const detectSuspiciousPatterns = (req, res, next) => {
       userAgent,
       { endpoint: req.url }
     );
+    addSuspiciousActivity(SecurityEventTypes.SUSPICIOUS_AGENT, ip, { userAgent });
+  }
+  
+  next();
+};
+
+/**
+ * Middleware to detect potential session hijacking
+ * (checks for sudden user agent changes)
+ */
+const sessionFingerprints = new Map();
+
+export const detectSessionHijacking = (req, res, next) => {
+  if (req.user && req.user.user_id) {
+    const userId = req.user.user_id;
+    const currentUserAgent = req.clientInfo?.userAgent || req.headers['user-agent'];
+    const currentIP = req.clientInfo?.ipAddress || req.ip;
+    
+    const fingerprint = sessionFingerprints.get(userId);
+    
+    if (fingerprint) {
+      // Check for significant user agent change (potential hijack)
+      if (fingerprint.userAgent !== currentUserAgent) {
+        securityLogger.suspiciousActivity(
+          'Possible session hijacking - User agent changed',
+          currentIP,
+          currentUserAgent,
+          { 
+            userId, 
+            previousUserAgent: fingerprint.userAgent,
+            previousIP: fingerprint.ip 
+          }
+        );
+        addSuspiciousActivity(SecurityEventTypes.SESSION_HIJACK, currentIP, { 
+          userId,
+          previousUserAgent: fingerprint.userAgent,
+          currentUserAgent,
+        });
+      }
+    }
+    
+    // Update fingerprint
+    sessionFingerprints.set(userId, {
+      userAgent: currentUserAgent,
+      ip: currentIP,
+      lastSeen: Date.now(),
+    });
   }
   
   next();
@@ -158,9 +313,32 @@ export const detectSuspiciousPatterns = (req, res, next) => {
  */
 setInterval(() => {
   const now = Date.now();
+  
+  // Clean failed login attempts
   for (const [ip, attempts] of failedLoginAttempts.entries()) {
     if (now - attempts.lastAttempt > LOCKOUT_DURATION) {
       failedLoginAttempts.delete(ip);
+      securityMetrics.failedLogins.delete(ip);
     }
   }
+  
+  // Clean session fingerprints (older than 24 hours)
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
+  for (const [userId, fingerprint] of sessionFingerprints.entries()) {
+    if (fingerprint.lastSeen < oneDayAgo) {
+      sessionFingerprints.delete(userId);
+    }
+  }
+  
+  // Keep only last 24 hours of suspicious activities
+  securityMetrics.suspiciousActivities = securityMetrics.suspiciousActivities.filter(
+    a => a.timestamp > oneDayAgo
+  );
+  
+  // Clean acknowledged alerts older than 7 days
+  const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  securityMetrics.activeAlerts = securityMetrics.activeAlerts.filter(
+    a => !a.acknowledged || a.timestamp > oneWeekAgo
+  );
+  
 }, 60 * 60 * 1000); // Clean up every hour
