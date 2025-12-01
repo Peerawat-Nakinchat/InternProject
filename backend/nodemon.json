@@ -1,0 +1,10 @@
+{
+  "verbose": false,
+  "ignore": ["logs/*", "coverage/*", "__tests__/*"],
+  "ext": "js,json",
+  "restartable": "rs",
+  "colours": true,
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

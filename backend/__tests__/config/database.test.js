@@ -179,7 +179,7 @@ describe('Database Configuration - Branch Coverage', () => {
       expect(config.development.database).toBe('db_name');
       expect(config.development.host).toBe('db_host');
       expect(config.development.dialect).toBe('postgres');
-      expect(config.development.logging).toBe(console.log);
+      expect(config.development.logging).toBe(false);
       expect(config.development.pool).toEqual({
         max: 5,
         min: 0,

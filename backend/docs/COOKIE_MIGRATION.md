@@ -116,18 +116,6 @@ credentials: 'include' // ในทุก fetch request
 
 ---
 
-## ✅ Testing Checklist
-
-1. [ ] Login ด้วย email/password - ตรวจสอบว่า cookies ถูก set
-2. [ ] เข้าหน้าที่ต้อง authenticate - ตรวจสอบว่า cookies ถูกส่งไป
-3. [ ] Refresh page - ตรวจสอบว่ายัง logged in อยู่
-4. [ ] Logout - ตรวจสอบว่า cookies ถูก clear
-5. [ ] Google OAuth login - ตรวจสอบว่า cookies ถูก set
-6. [ ] Token refresh - ตรวจสอบว่า access token ใหม่ถูก set ใน cookies
-7. [ ] Password reset - ตรวจสอบว่า flow ยังทำงานปกติ
-
----
-
 ## 🔒 Security Benefits
 
 1. **XSS Protection**: JavaScript ไม่สามารถอ่าน tokens ได้

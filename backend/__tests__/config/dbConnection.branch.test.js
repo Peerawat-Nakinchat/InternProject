@@ -175,7 +175,7 @@ describe('dbConnection.js - Direct Branch Coverage Tests', () => {
       const config = (await import('../../src/config/database.js')).default;
       const env = process.env.NODE_ENV || 'development';
       expect(config[env]).toBeDefined();
-      expect(config[env].logging).toBe(console.log);
+      expect(config[env].logging).toBe(false);
     });
 
     it('should use production config for production env', async () => {
