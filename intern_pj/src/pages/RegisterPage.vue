@@ -355,6 +355,7 @@ const submitForm = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // ✅ สำคัญ: เพื่อให้ browser รับ cookies
       body: JSON.stringify(form.value),
     })
 
@@ -362,12 +363,15 @@ const submitForm = async () => {
 
     if (data.success) {
       successMessage.value = 'ลงทะเบียนสำเร็จ!'
-      if (data.accessToken) localStorage.setItem('accessToken', data.accessToken)
-      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
+      // ✅ ไม่ใช้ localStorage อีกต่อไป - ใช้ cookies แทน
+      // Tokens จะถูก set เป็น HTTP-Only cookies โดย backend
+      // if (data.accessToken) localStorage.setItem('accessToken', data.accessToken)
+      // if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
       if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user))
+        // localStorage.setItem('user', JSON.stringify(data.user))
         authStore.user = data.user
       }
+      console.log('✅ Register สำเร็จ - Redirecting to login')
 
       setTimeout(() => router.push('/login'), 2000)
     } else {

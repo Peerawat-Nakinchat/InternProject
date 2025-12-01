@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": ["tests/**/*", "src/**/*", "src/**/*.vue", "env.d.ts"],
+  "compilerOptions": {
+    "composite": true,
+    "types": ["node", "vitest/globals"],
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "baseUrl": "."
+  }
+}

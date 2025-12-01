@@ -2,6 +2,12 @@
 import AuthService from "../services/AuthService.js";
 import { securityLogger } from "../utils/logger.js";
 import { recordFailedLogin, clearFailedLogins } from "../middleware/securityMonitoring.js";
+import { 
+  setAuthCookies, 
+  setAccessTokenCookie, 
+  clearAuthCookies,
+  getRefreshToken 
+} from "../utils/cookieUtils.js";
 
 // ---------------- Register ----------------
 export const registerUser = async (req, res) => {
@@ -58,9 +64,14 @@ export const loginUser = async (req, res) => {
     );
     clearFailedLogins(ip);
 
+    // ✅ Set HTTP-Only cookies สำหรับ tokens (Security Enhancement)
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+
     res.json({
       success: true,
       message: "เข้าสู่ระบบสำเร็จ",
+      // ✅ ยังคง return tokens ใน response body สำหรับ backward compatibility
+      // แต่ frontend ใหม่จะใช้ cookies แทน
       ...result,
     });
   } catch (error) {
@@ -87,8 +98,25 @@ export const loginUser = async (req, res) => {
 // ---------------- Refresh Token ----------------
 export const refreshToken = async (req, res) => {
   try {
-    const { refreshToken: token } = req.body;
+    // ✅ รับ refresh token จาก cookie หรือ body (backward compatibility)
+    const token = getRefreshToken(req);
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "ไม่พบ Refresh Token",
+      });
+    }
+
     const result = await AuthService.refreshToken(token);
+
+    // ✅ Set new access token ใน cookie
+    setAccessTokenCookie(res, result.accessToken);
+
+    // ✅ ถ้ามี refresh token ใหม่ ก็ set cookie ใหม่ด้วย
+    if (result.refreshToken) {
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+    }
 
     res.json({
       success: true,
@@ -96,6 +124,10 @@ export const refreshToken = async (req, res) => {
     });
   } catch (error) {
     console.error("💥 Refresh token error:", error);
+    
+    // ✅ Clear cookies ถ้า refresh token ไม่ valid
+    clearAuthCookies(res);
+    
     res.status(401).json({
       success: false,
       message: error.message,
@@ -289,8 +321,12 @@ export const updateProfile = async (req, res) => {
 // ---------------- Logout ----------------
 export const logoutUser = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-    await AuthService.logout(refreshToken);
+    // ✅ รับ refresh token จาก cookie หรือ body (backward compatibility)
+    const refreshToken = getRefreshToken(req);
+    
+    if (refreshToken) {
+      await AuthService.logout(refreshToken);
+    }
 
     const clientInfo = req.clientInfo || {};
     if (req.user) {
@@ -301,12 +337,19 @@ export const logoutUser = async (req, res) => {
       );
     }
 
+    // ✅ Clear authentication cookies
+    clearAuthCookies(res);
+
     res.json({
       success: true,
       message: "ออกจากระบบสำเร็จ",
     });
   } catch (error) {
     console.error("💥 Logout error:", error);
+    
+    // ✅ ถึงจะ error ก็ต้อง clear cookies
+    clearAuthCookies(res);
+    
     res.status(400).json({
       success: false,
       error: error.message,
@@ -319,12 +362,19 @@ export const logoutAllUser = async (req, res) => {
   try {
     await AuthService.logoutAll(req.user.user_id);
 
+    // ✅ Clear authentication cookies
+    clearAuthCookies(res);
+
     res.json({
       success: true,
       message: "ออกจากระบบทุกอุปกรณ์สำเร็จ",
     });
   } catch (error) {
     console.error("💥 Logout all error:", error);
+    
+    // ✅ ถึงจะ error ก็ต้อง clear cookies
+    clearAuthCookies(res);
+    
     res.status(500).json({
       success: false,
       error: error.message,
@@ -338,10 +388,12 @@ export const googleAuthCallback = async (req, res) => {
     const user = req.user;
     const result = await AuthService.googleAuthCallback(user);
 
+    // ✅ Set HTTP-Only cookies สำหรับ tokens
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    res.redirect(
-      `${frontendUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`
-    );
+    // ✅ ไม่ส่ง tokens ใน URL อีกต่อไป - ใช้ cookies แทน (ปลอดภัยกว่า)
+    res.redirect(`${frontendUrl}/auth/callback?oauth=success`);
   } catch (error) {
     console.error("💥 Google Auth Callback error:", error);
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";

@@ -30,7 +30,8 @@ class ApiClient {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    // เพิ่ม Authorization token ถ้ามี
+    // ✅ เพิ่ม Authorization token ถ้ามี (สำหรับ backward compatibility)
+    // ในอนาคตสามารถลบออกได้เมื่อใช้ cookies เต็มรูปแบบแล้ว
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
@@ -38,6 +39,7 @@ class ApiClient {
     const config: RequestInit = {
       ...options,
       headers,
+      credentials: 'include', // ✅ สำคัญ: เพื่อส่ง cookies ข้าม origin
     }
         console.log('Request Headers:', headers)
 
@@ -117,4 +119,4 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient(API_BASE_URL)  
+export const api = new ApiClient(API_BASE_URL)

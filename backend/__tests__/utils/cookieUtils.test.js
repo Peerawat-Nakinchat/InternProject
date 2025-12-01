@@ -1,0 +1,404 @@
+/**
+ * Cookie Utilities Unit Tests
+ * ISO 27001 Annex A.8 - Application Security Testing
+ * 
+ * Tests cookie handling for security compliance:
+ * - HttpOnly flags
+ * - Secure flags in production
+ * - SameSite attributes
+ * - Cookie expiration
+ * - Token extraction from cookies/headers
+ */
+
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+
+import {
+  ACCESS_TOKEN_COOKIE_OPTIONS,
+  REFRESH_TOKEN_COOKIE_OPTIONS,
+  COOKIE_NAMES,
+  setAuthCookies,
+  setAccessTokenCookie,
+  clearAuthCookies,
+  getAccessToken,
+  getRefreshToken
+} from '../../src/utils/cookieUtils.js';
+
+describe('Cookie Utilities', () => {
+  // ============================================================
+  // COOKIE OPTIONS TESTS
+  // ============================================================
+  
+  describe('ACCESS_TOKEN_COOKIE_OPTIONS', () => {
+    it('should have httpOnly set to true (XSS protection)', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.httpOnly).toBe(true);
+    });
+
+    it('should have path set to root', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.path).toBe('/');
+    });
+
+    it('should have maxAge of 15 minutes', () => {
+      const expectedMaxAge = 15 * 60 * 1000; // 15 minutes in ms
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.maxAge).toBe(expectedMaxAge);
+    });
+
+    it('should have secure flag based on environment', () => {
+      // In test environment (not production), secure should be false
+      expect(typeof ACCESS_TOKEN_COOKIE_OPTIONS.secure).toBe('boolean');
+    });
+
+    it('should have sameSite attribute for CSRF protection', () => {
+      expect(['strict', 'lax', 'none']).toContain(ACCESS_TOKEN_COOKIE_OPTIONS.sameSite);
+    });
+  });
+
+  describe('REFRESH_TOKEN_COOKIE_OPTIONS', () => {
+    it('should have httpOnly set to true (XSS protection)', () => {
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.httpOnly).toBe(true);
+    });
+
+    it('should have path set to root', () => {
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.path).toBe('/');
+    });
+
+    it('should have maxAge of 7 days', () => {
+      const expectedMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.maxAge).toBe(expectedMaxAge);
+    });
+
+    it('should have secure flag based on environment', () => {
+      expect(typeof REFRESH_TOKEN_COOKIE_OPTIONS.secure).toBe('boolean');
+    });
+
+    it('should have sameSite attribute for CSRF protection', () => {
+      expect(['strict', 'lax', 'none']).toContain(REFRESH_TOKEN_COOKIE_OPTIONS.sameSite);
+    });
+  });
+
+  describe('COOKIE_NAMES', () => {
+    it('should define access token cookie name', () => {
+      expect(COOKIE_NAMES.ACCESS_TOKEN).toBeDefined();
+      expect(typeof COOKIE_NAMES.ACCESS_TOKEN).toBe('string');
+    });
+
+    it('should define refresh token cookie name', () => {
+      expect(COOKIE_NAMES.REFRESH_TOKEN).toBeDefined();
+      expect(typeof COOKIE_NAMES.REFRESH_TOKEN).toBe('string');
+    });
+
+    it('should use secure naming (no sensitive info in name)', () => {
+      // Cookie names should not reveal what they contain
+      expect(COOKIE_NAMES.ACCESS_TOKEN.toLowerCase()).not.toContain('jwt');
+      expect(COOKIE_NAMES.REFRESH_TOKEN.toLowerCase()).not.toContain('jwt');
+    });
+  });
+
+  // ============================================================
+  // SET AUTH COOKIES TESTS
+  // ============================================================
+  
+  describe('setAuthCookies', () => {
+    let mockRes;
+
+    beforeEach(() => {
+      mockRes = {
+        cookie: jest.fn()
+      };
+    });
+
+    it('should set both access and refresh token cookies', () => {
+      const accessToken = 'test-access-token';
+      const refreshToken = 'test-refresh-token';
+
+      setAuthCookies(mockRes, accessToken, refreshToken);
+
+      expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should set access token with correct options', () => {
+      const accessToken = 'test-access-token';
+      const refreshToken = 'test-refresh-token';
+
+      setAuthCookies(mockRes, accessToken, refreshToken);
+
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        accessToken,
+        ACCESS_TOKEN_COOKIE_OPTIONS
+      );
+    });
+
+    it('should set refresh token with correct options', () => {
+      const accessToken = 'test-access-token';
+      const refreshToken = 'test-refresh-token';
+
+      setAuthCookies(mockRes, accessToken, refreshToken);
+
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.REFRESH_TOKEN,
+        refreshToken,
+        REFRESH_TOKEN_COOKIE_OPTIONS
+      );
+    });
+
+    it('should handle empty token strings', () => {
+      setAuthCookies(mockRes, '', '');
+
+      expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        '',
+        ACCESS_TOKEN_COOKIE_OPTIONS
+      );
+    });
+  });
+
+  describe('setAccessTokenCookie', () => {
+    let mockRes;
+
+    beforeEach(() => {
+      mockRes = {
+        cookie: jest.fn()
+      };
+    });
+
+    it('should set only access token cookie', () => {
+      const accessToken = 'new-access-token';
+
+      setAccessTokenCookie(mockRes, accessToken);
+
+      expect(mockRes.cookie).toHaveBeenCalledTimes(1);
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        accessToken,
+        ACCESS_TOKEN_COOKIE_OPTIONS
+      );
+    });
+  });
+
+  // ============================================================
+  // CLEAR AUTH COOKIES TESTS
+  // ============================================================
+  
+  describe('clearAuthCookies', () => {
+    let mockRes;
+
+    beforeEach(() => {
+      mockRes = {
+        clearCookie: jest.fn()
+      };
+    });
+
+    it('should clear both access and refresh token cookies', () => {
+      clearAuthCookies(mockRes);
+
+      expect(mockRes.clearCookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear access token cookie with path', () => {
+      clearAuthCookies(mockRes);
+
+      expect(mockRes.clearCookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        { path: '/' }
+      );
+    });
+
+    it('should clear refresh token cookie with path', () => {
+      clearAuthCookies(mockRes);
+
+      expect(mockRes.clearCookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.REFRESH_TOKEN,
+        { path: '/' }
+      );
+    });
+  });
+
+  // ============================================================
+  // GET ACCESS TOKEN TESTS
+  // ============================================================
+  
+  describe('getAccessToken', () => {
+    it('should return token from cookies first (preferred)', () => {
+      const mockReq = {
+        cookies: {
+          [COOKIE_NAMES.ACCESS_TOKEN]: 'cookie-token'
+        },
+        headers: {
+          authorization: 'Bearer header-token'
+        }
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBe('cookie-token');
+    });
+
+    it('should fallback to Authorization header if no cookie', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {
+          authorization: 'Bearer header-token'
+        }
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBe('header-token');
+    });
+
+    it('should return null if no token in cookie or header', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {}
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBeNull();
+    });
+
+    it('should handle missing cookies object', () => {
+      const mockReq = {
+        headers: {
+          authorization: 'Bearer header-token'
+        }
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBe('header-token');
+    });
+
+    it('should handle malformed Authorization header', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {
+          authorization: 'InvalidFormat token'
+        }
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBeNull();
+    });
+
+    it('should handle Authorization header without Bearer prefix', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {
+          authorization: 'some-token'
+        }
+      };
+
+      const token = getAccessToken(mockReq);
+
+      expect(token).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // GET REFRESH TOKEN TESTS
+  // ============================================================
+  
+  describe('getRefreshToken', () => {
+    it('should return token from cookies first (preferred)', () => {
+      const mockReq = {
+        cookies: {
+          [COOKIE_NAMES.REFRESH_TOKEN]: 'cookie-refresh-token'
+        },
+        body: {
+          refreshToken: 'body-refresh-token'
+        }
+      };
+
+      const token = getRefreshToken(mockReq);
+
+      expect(token).toBe('cookie-refresh-token');
+    });
+
+    it('should fallback to body if no cookie', () => {
+      const mockReq = {
+        cookies: {},
+        body: {
+          refreshToken: 'body-refresh-token'
+        }
+      };
+
+      const token = getRefreshToken(mockReq);
+
+      expect(token).toBe('body-refresh-token');
+    });
+
+    it('should return null if no token in cookie or body', () => {
+      const mockReq = {
+        cookies: {},
+        body: {}
+      };
+
+      const token = getRefreshToken(mockReq);
+
+      expect(token).toBeNull();
+    });
+
+    it('should handle missing cookies object', () => {
+      const mockReq = {
+        body: {
+          refreshToken: 'body-refresh-token'
+        }
+      };
+
+      const token = getRefreshToken(mockReq);
+
+      expect(token).toBe('body-refresh-token');
+    });
+
+    it('should handle missing body object', () => {
+      const mockReq = {
+        cookies: {}
+      };
+
+      const token = getRefreshToken(mockReq);
+
+      expect(token).toBeNull();
+    });
+  });
+});
+
+// ============================================================
+// SECURITY COMPLIANCE TESTS
+// ============================================================
+
+describe('Cookie Security Compliance (ISO 27001)', () => {
+  describe('XSS Protection', () => {
+    it('should use HttpOnly flag on all auth cookies', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.httpOnly).toBe(true);
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.httpOnly).toBe(true);
+    });
+  });
+
+  describe('CSRF Protection', () => {
+    it('should use SameSite attribute on all auth cookies', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.sameSite).toBeDefined();
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.sameSite).toBeDefined();
+    });
+  });
+
+  describe('Token Expiration', () => {
+    it('should have shorter expiry for access token than refresh token', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.maxAge).toBeLessThan(
+        REFRESH_TOKEN_COOKIE_OPTIONS.maxAge
+      );
+    });
+
+    it('should have access token expire within 1 hour', () => {
+      const oneHourMs = 60 * 60 * 1000;
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.maxAge).toBeLessThanOrEqual(oneHourMs);
+    });
+
+    it('should have refresh token expire within 30 days', () => {
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      expect(REFRESH_TOKEN_COOKIE_OPTIONS.maxAge).toBeLessThanOrEqual(thirtyDaysMs);
+    });
+  });
+});

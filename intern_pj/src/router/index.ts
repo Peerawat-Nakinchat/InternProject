@@ -64,12 +64,16 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
+// ✅ ใช้ async guard เพื่อรอ auth check ก่อน
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const loading = useAppLoading()
 
   // เริ่มแสดง Loading เมื่อเริ่มเปลี่ยนหน้า
   loading.start()
+
+  // ✅ รอให้ auth check เสร็จก่อน (ป้องกัน redirect ไป login ก่อนที่จะ check cookies เสร็จ)
+  await authStore.waitForAuthReady()
 
   const isAuthenticated = authStore.isAuthenticated
 

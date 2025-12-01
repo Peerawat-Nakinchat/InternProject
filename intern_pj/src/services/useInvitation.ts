@@ -2,16 +2,17 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const getAuthHeader = () => {
-  const token = localStorage.getItem('accessToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// ✅ ไม่ต้องใช้ getAuthHeader อีกต่อไป - ใช้ cookies แทน
+// const getAuthHeader = () => {
+//   const token = localStorage.getItem('accessToken');
+//   return token ? { Authorization: `Bearer ${token}` } : {};
+// };
 
 export const sendInvitation = async (email: string, org_id: string, role_id: number) => {
   const response = await axios.post(
     `${API_URL}/invitations/send`,
     { email, org_id, role_id },
-    { headers: getAuthHeader() }
+    { withCredentials: true } // ✅ ใช้ cookies แทน Authorization header
   );
   return response.data;
 };
@@ -25,7 +26,7 @@ export const acceptInvitation = async (token: string) => {
   const response = await axios.post(
     `${API_URL}/invitations/accept`,
     { token },
-    { headers: getAuthHeader() }
+    { withCredentials: true } // ✅ ใช้ cookies แทน Authorization header
   );
   return response.data;
 };
