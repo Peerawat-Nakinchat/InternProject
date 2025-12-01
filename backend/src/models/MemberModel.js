@@ -138,7 +138,11 @@ const findByOrganization = async (orgId, filters = {}) => {
           'surname',
           'full_name',
           'profile_image_url',
-          'is_active'
+          'is_active',
+          'sex',
+          'user_address_1',
+          'user_address_2', 
+          'user_address_3'
         ]
       },
       {
@@ -270,7 +274,11 @@ const findByOrganizationPaginated = async (orgId, options = {}) => {
         'surname',
         'full_name',
         'profile_image_url',
-        'is_active'
+        'is_active',
+        'sex',
+        'user_address_1',
+        'user_address_2', 
+        'user_address_3'
       ],
       where: search ? {
         [Op.or]: [

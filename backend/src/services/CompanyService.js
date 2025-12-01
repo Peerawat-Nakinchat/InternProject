@@ -64,7 +64,7 @@ class CompanyService {
           userId: ownerUserId,
           roleId: 1,
         },
-        { transaction: t }
+        t
       );
 
       await t.commit();

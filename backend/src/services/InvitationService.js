@@ -229,7 +229,7 @@ class InvitationService {
           orgId: invitation.org_id,
           roleId: parseInt(invitation.role_id, 10),
         },
-        { transaction: t }
+        t
       );
 
       // อัพเดทสถานะ invitation
