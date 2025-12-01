@@ -167,6 +167,7 @@ import LoadingMessage from '@/components/loading/LoadingMessage.vue'
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
 import ResetPasswordModal from '@/components/auth/ResetPasswordModal.vue'
 import RateLimitModal from '@/components/base/RateLimitModal.vue'
+import { hasEssentialConsent } from '@/utils/cookieConsent'
 
 interface LoginForm {
   email: string
@@ -208,7 +209,7 @@ const onForgotSent = () => {
 }
 
 const onResetSuccess = () => {
-  localStorage.removeItem('reset_token')
+  sessionStorage.removeItem('reset_token')
   showReset.value = false
   successMessage.value = 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่'
 
@@ -218,7 +219,7 @@ const onResetSuccess = () => {
 }
 
 const handleCloseReset = () => {
-  localStorage.removeItem('reset_token')
+  sessionStorage.removeItem('reset_token')
   showReset.value = false
 
   // ลบ token จาก URL
@@ -226,13 +227,14 @@ const handleCloseReset = () => {
 }
 
 // ⭐ ตรวจจับ token จาก URL
+// ✅ ใช้ sessionStorage สำหรับ reset_token (temporary data, หมดอายุเมื่อปิด tab)
 onMounted(() => {
   const tokenFromUrl = route.query.token
 
   console.group('🔍 Token Detection')
   console.log('URL:', window.location.href)
   console.log('Query token:', tokenFromUrl)
-  console.log('Stored token:', localStorage.getItem('reset_token'))
+  console.log('Stored token:', sessionStorage.getItem('reset_token'))
   console.groupEnd()
 
   if (tokenFromUrl) {
@@ -240,7 +242,7 @@ onMounted(() => {
 
     if (token && typeof token === 'string') {
       console.log('✅ Token found in URL:', token)
-      localStorage.setItem('reset_token', token)
+      sessionStorage.setItem('reset_token', token)
       resetToken.value = token
       showReset.value = true
 
@@ -248,10 +250,10 @@ onMounted(() => {
       router.replace({ path: route.path, query: {} })
     }
   } else {
-    // ตรวจสอบ localStorage
-    const storedToken = localStorage.getItem('reset_token')
+    // ตรวจสอบ sessionStorage
+    const storedToken = sessionStorage.getItem('reset_token')
     if (storedToken) {
-      console.log('✅ Token found in localStorage:', storedToken)
+      console.log('✅ Token found in sessionStorage:', storedToken)
       resetToken.value = storedToken
       showReset.value = true
     }
@@ -267,7 +269,7 @@ watch(
       console.log('🔄 Token changed in URL:', token)
 
       if (token && typeof token === 'string') {
-        localStorage.setItem('reset_token', token)
+        sessionStorage.setItem('reset_token', token)
         resetToken.value = token
         showReset.value = true
       }
@@ -312,6 +314,14 @@ const handleLogin = async () => {
       return
     }
 
+    // Check for cookie consent requirement
+    if (result && 'needsConsent' in result && result.needsConsent) {
+      errorMessage.value = result.error || 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
+      // Scroll to bottom where cookie banner is
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+      return
+    }
+
     errorMessage.value = result?.error || 'เข้าสู่ระบบไม่สำเร็จ'
   } catch {
     errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
@@ -323,10 +333,22 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
+  // ✅ ตรวจสอบ Cookie Consent ก่อน OAuth login
+  if (!hasEssentialConsent()) {
+    errorMessage.value = 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    return
+  }
   window.location.href = 'http://localhost:3000/api/auth/google'
 }
 
 const handleMicrosoftLogin = () => {
+  // ✅ ตรวจสอบ Cookie Consent ก่อน OAuth login
+  if (!hasEssentialConsent()) {
+    errorMessage.value = 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    return
+  }
   alert('Microsoft OAuth ยังไม่พร้อมใช้งาน')
 }
 </script>

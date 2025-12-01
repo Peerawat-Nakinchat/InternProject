@@ -10,15 +10,20 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // ✅ สำคัญ: ต้องเปิด withCredentials เพื่อส่ง cookies ข้าม origin
+  withCredentials: true,
 })
 
-// Request Interceptor - เพิ่ม token อัตโนมัติ
+// Request Interceptor - เพิ่ม token อัตโนมัติ (fallback สำหรับ non-cookie requests)
 axiosInstance.interceptors.request.use(
   (config) => {
+    // ✅ ไม่จำเป็นต้องเพิ่ม token ใน header อีกต่อไป
+    // เพราะ cookies จะถูกส่งไปอัตโนมัติ
+    // แต่ยังคงไว้สำหรับ backward compatibility
     const auth = useAuthStore()
     const token = auth.accessToken
 
-    if (token) {
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`
     }
 
@@ -39,12 +44,12 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     console.error('❌ Response error:', error.response?.status, error.config?.url)
-    
-    const message = error.response?.data?.error 
-      || error.response?.data?.message 
-      || error.message 
+
+    const message = error.response?.data?.error
+      || error.response?.data?.message
+      || error.message
       || 'เกิดข้อผิดพลาด'
-    
+
     return Promise.reject(new Error(message))
   }
 )

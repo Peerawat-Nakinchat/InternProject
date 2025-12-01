@@ -1,22 +1,23 @@
 // src/middleware/authMiddleware.js
 import { verifyAccessToken } from '../utils/token.js';
 import { User, OrganizationMember } from '../models/dbModels.js';
+import { getAccessToken } from '../utils/cookieUtils.js';
 
 /**
  * Middleware ป้องกัน route ด้วย Access Token
+ * ✅ รองรับทั้ง HTTP-Only Cookie และ Authorization Header (backward compatibility)
  */
 const protect = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  // ✅ ใช้ utility function ที่ตรวจสอบทั้ง cookie และ header
+  const token = getAccessToken(req);
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.error('❌ ไม่มี Token หรือ format ผิด');
+  if (!token) {
+    console.error('❌ ไม่มี Token (ไม่พบทั้งใน cookie และ header)');
     return res.status(401).json({ 
       success: false, 
       message: 'ไม่พบ Token, กรุณาเข้าสู่ระบบ' 
     });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = verifyAccessToken(token);

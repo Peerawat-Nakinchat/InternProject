@@ -2,18 +2,22 @@ import { verifyRefreshToken, generateAccessToken, generateRefreshToken } from '.
 import { RefreshTokenModel } from '../models/TokenModel.js';
 import { UserModel } from '../models/UserModel.js';
 import { securityLogger } from '../utils/logger.js';
+import { 
+  getRefreshToken as getRefreshTokenFromRequest, 
+  setAuthCookies, 
+  setAccessTokenCookie,
+  clearAuthCookies 
+} from '../utils/cookieUtils.js';
 
 /**
  * Middleware to refresh access token using refresh token
  * Supports token rotation for enhanced security
+ * ✅ รองรับ HTTP-Only Cookies และ backward compatibility
  */
 export const refreshAccessToken = async (req, res) => {
   try {
-    // Extract refresh token from multiple sources
-    const refreshToken =
-      req.body.refreshToken ||
-      req.cookies?.refresh_token ||
-      req.headers['x-refresh-token'];
+    // ✅ ใช้ utility function ที่รองรับทั้ง cookie และ body
+    const refreshToken = getRefreshTokenFromRequest(req);
 
     if (!refreshToken) {
       return res.status(400).json({ 
@@ -120,6 +124,13 @@ export const refreshAccessToken = async (req, res) => {
       rotated: enableTokenRotation
     });
 
+    // ✅ Set cookies for new tokens
+    if (enableTokenRotation && newRefreshToken) {
+      setAuthCookies(res, newAccessToken, newRefreshToken);
+    } else {
+      setAccessTokenCookie(res, newAccessToken);
+    }
+
     const response = {
       success: true,
       accessToken: newAccessToken
@@ -134,6 +145,9 @@ export const refreshAccessToken = async (req, res) => {
 
   } catch (err) {
     console.error('❌ Refresh token error:', err);
+
+    // ✅ Clear cookies on error
+    clearAuthCookies(res);
 
     // Log error
     securityLogger.suspiciousActivity(
@@ -168,13 +182,12 @@ export const refreshAccessToken = async (req, res) => {
 /**
  * Middleware to validate refresh token without refreshing
  * Useful for checking token validity
+ * ✅ รองรับ HTTP-Only Cookies
  */
 export const validateRefreshToken = async (req, res, next) => {
   try {
-    const refreshToken = 
-      req.body.refreshToken ||
-      req.cookies?.refresh_token ||
-      req.headers['x-refresh-token'];
+    // ✅ ใช้ utility function ที่รองรับทั้ง cookie และ body
+    const refreshToken = getRefreshTokenFromRequest(req);
 
     if (!refreshToken) {
       return res.status(400).json({ 

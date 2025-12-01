@@ -125,23 +125,23 @@ watch(
       return;
     }
 
-    loading.value = true; 
+    loading.value = true;
 
     try {
       console.log('🔍 กำลังตรวจสอบ Token:', token);
 
       // 2. ⭐ เติม _t: new Date().getTime() เพื่อแก้ปัญหา 304 (บังคับไม่ให้ใช้ Cache)
       const response = await axios.get("/auth/verify-reset-token", {
-        params: { 
+        params: {
           token: token,
-          _t: new Date().getTime() 
+          _t: new Date().getTime()
         }
       });
 
       console.log('✅ ผลลัพธ์จาก Server:', response);
 
       // 3. ⭐ ดักจับข้อมูลให้ชัวร์ (เผื่อ axios ของคุณ return มาคนละแบบ)
-      const resData = response.data || response; 
+      const resData = response.data || response;
 
       if (resData.success === true && resData.valid === true) {
         tokenValid.value = true;
@@ -204,8 +204,10 @@ const submit = async () => {
 
     message.value = response.message || "เปลี่ยนรหัสผ่านสำเร็จ";
 
-    // Clear localStorage
-    localStorage.removeItem("reset_token");
+    // ✅ ไม่จำเป็นต้อง clear localStorage อีกต่อไป
+    // reset_token เป็น one-time use token สำหรับ password reset
+    // ไม่เกี่ยวกับ auth tokens ที่เก็บใน cookies
+    // localStorage.removeItem("reset_token");
 
     // Emit success และปิด modal หลัง 2 วินาที
     setTimeout(() => {

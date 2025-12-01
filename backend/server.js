@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swaggerConfig.js";
 import cron from "node-cron";
@@ -65,6 +66,9 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "x-org-id"],
   })
 );
+
+// Cookie Parser - สำหรับ parse cookies จาก request
+app.use(cookieParser());
 
 // Rate Limiting
 const apiLimiter = rateLimit({
@@ -230,6 +234,7 @@ const startServer = async () => {
       console.log(`   ✓ Input Validation & Sanitization`);
       console.log(`   ✓ Audit Logging`);
       console.log(`   ✓ Token Hashing`);
+      console.log(`   ✓ HTTP-Only Cookies (ISO 27001 Compliant)`);
       console.log(`   ✓ Scheduled Cleanup Tasks`);
       console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
       
