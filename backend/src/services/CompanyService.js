@@ -112,7 +112,6 @@ class CompanyService {
         ...plain,
         role_id: 1,
         role_name: 'OWNER',
-        member_count: 0 
       };
     });
 
@@ -128,11 +127,23 @@ class CompanyService {
         role_id: roleId,
         role_name: this.mapRoleIdToName(roleId), 
         members: undefined, 
-        member_count: 0
       };
     });
 
-    return [...formattedOwned, ...formattedMember];
+    // รวมทั้งหมดก่อน
+    const companies = [...formattedOwned, ...formattedMember];
+
+    // 3) ดึงจำนวนสมาชิกทั้งหมดของ org เหล่านี้
+    const orgIds = companies.map(c => c.org_id);
+    const memberCountsMap = await OrganizationModel.getMemberCounts(orgIds);
+
+    // 4) ใส่ member_count ให้แต่ละบริษัท
+    const companiesWithCounts = companies.map(c => ({
+      ...c,
+      member_count: memberCountsMap[c.org_id] ?? 0,
+    }));
+
+    return companiesWithCounts;
   }
 
   /**
