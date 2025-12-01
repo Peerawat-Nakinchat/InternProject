@@ -7,6 +7,7 @@ import { jest, afterAll } from '@jest/globals';
 
 // Mock environment variables for testing
 process.env.NODE_ENV = 'test';
+process.env.SKIP_DB_CONNECTION = 'true'; // Skip DB connection test
 process.env.ACCESS_TOKEN_SECRET = 'test-access-secret-key-for-jwt-testing-12345';
 process.env.REFRESH_TOKEN_SECRET = 'test-refresh-secret-key-for-jwt-testing-12345';
 process.env.ACCESS_EXPIRES = '15m';

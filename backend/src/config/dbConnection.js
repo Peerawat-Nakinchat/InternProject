@@ -35,6 +35,9 @@ const testConnection = async () => {
   }
 };
 
-testConnection();
+// Skip DB connection test in test environment with SKIP_DB_CONNECTION flag
+if (process.env.NODE_ENV !== 'test' || !process.env.SKIP_DB_CONNECTION) {
+  testConnection();
+}
 
 export default sequelize;

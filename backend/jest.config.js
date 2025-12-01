@@ -49,10 +49,8 @@ export default {
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.js'],
   
-  // Module name mapping
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
-  },
+  // REMOVED moduleNameMapper to allow jest.unstable_mockModule to work properly
+  // The .js extension is handled by Node.js ESM resolution
   
   // Test timeout (30 seconds for async operations)
   testTimeout: 30000,
