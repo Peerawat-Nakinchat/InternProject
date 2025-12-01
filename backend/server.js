@@ -188,14 +188,21 @@ cron.schedule('0 2 * * *', async () => {
 });
 
 // Cleanup old audit logs every week (Sunday at 3 AM)
-cron.schedule('0 3 * * 0', async () => {
+cron.schedule('0 3 * * *', async () => {
   try {
     console.log('🧹 Running scheduled audit log cleanup...');
     const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90;
-    await AuditLogModel.deleteOldLogs(retentionDays);
+    
+    // เปลี่ยนมาใช้ Service เพื่อให้มันบันทึก Log การลบด้วย
+    const result = await AuditLogService.cleanup(retentionDays);
+    
+    console.log(`✅ Cleanup complete. Deleted ${result.deleted} logs.`);
   } catch (error) {
     console.error('❌ Error in scheduled audit log cleanup:', error);
   }
+}, {
+  scheduled: true,
+  timezone: "Asia/Bangkok" // ระบุเวลาไทย เพื่อให้รันตอนตี 3 บ้านเราจริงๆ
 });
 
 // ========================================
