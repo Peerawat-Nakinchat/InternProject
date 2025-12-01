@@ -10,6 +10,7 @@ import {
 } from "../controllers/InvitationController.js";
 import { validateEmail } from "../middleware/validation.js";
 import { auditLog } from "../middleware/auditLogMiddleware.js";
+import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 
 const router = express.Router();
 
@@ -80,7 +81,7 @@ router.post(
   "/send",
   protect,
   validateEmail,
-  auditLog("SEND_INVITATION", "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.INVITATION.SEND, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
   sendInvitation
 );
 
@@ -124,7 +125,7 @@ router.post(
   "/resend",
   protect,
   validateEmail,
-  auditLog("RESEND_INVITATION", "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.INVITATION.RESEND, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
   resendInvitation
 );
 
@@ -216,7 +217,7 @@ router.get("/:token", getInvitationInfo);
 router.post(
   "/accept",
   protect,
-  auditLog("ACCEPT_INVITATION", "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.INVITATION.ACCEPT, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
   acceptInvitation
 );
 
@@ -249,7 +250,7 @@ router.post(
 router.post(
   "/cancel",
   protect,
-  auditLog("CANCEL_INVITATION", "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.INVITATION.CANCEL, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
   cancelInvitation
 );
 

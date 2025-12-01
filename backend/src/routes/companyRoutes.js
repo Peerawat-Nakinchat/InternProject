@@ -10,6 +10,7 @@ import {
 import { protect } from "../middleware/authMiddleware.js";
 import { requireOrganization, requireOrgRole } from "../middleware/companyMiddleware.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
+import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 
 const router = express.Router();
 
@@ -85,7 +86,7 @@ router.use(protect);
  */
 router.post(
   "/",
-  auditLog("CREATE_COMPANY", "COMPANY", { severity: "HIGH", category: "COMPANY" }),
+  auditLog(AUDIT_ACTIONS.COMPANY.CREATE, "COMPANY", { severity: "HIGH", category: "COMPANY" }),
   createCompany
 );
 
@@ -130,7 +131,7 @@ router.post(
  */
 router.get(
   "/",
-  auditLog("VIEW_MY_COMPANIES", "COMPANY", { severity: "LOW", category: "COMPANY" }),
+  auditLog(AUDIT_ACTIONS.COMPANY.VIEW_MY_COMPANIES, "COMPANY", { severity: "LOW", category: "COMPANY" }),
   getUserCompanies
 );
 
@@ -173,7 +174,7 @@ router.get(
 router.get(
   "/:orgId",
   requireOrganization,
-  auditLog("VIEW_COMPANY_DETAIL", "COMPANY", { severity: "LOW", category: "COMPANY" }),
+  auditLog(AUDIT_ACTIONS.COMPANY.VIEW_DETAIL, "COMPANY", { severity: "LOW", category: "COMPANY" }),
   getCompanyById
 );
 
@@ -243,7 +244,7 @@ router.put(
   requireOrganization,
   requireOrgRole([1]),
   auditChange("COMPANY", (req) => req.params.orgId),
-  auditLog("UPDATE_COMPANY", "COMPANY", { severity: "MEDIUM", category: "COMPANY" }),
+  auditLog(AUDIT_ACTIONS.COMPANY.UPDATE, "COMPANY", { severity: "MEDIUM", category: "COMPANY" }),
   updateCompany
 );
 
@@ -283,7 +284,7 @@ router.delete(
   "/:orgId",
   requireOrganization,
   requireOrgRole([1]),
-  auditLog("DELETE_COMPANY", "COMPANY", { severity: "CRITICAL", category: "COMPANY" }),
+  auditLog(AUDIT_ACTIONS.COMPANY.DELETE, "COMPANY", { severity: "CRITICAL", category: "COMPANY" }),
   deleteCompany
 );
 

@@ -4,6 +4,7 @@ import { MemberController } from "../controllers/MemberController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireOrganization, requireOrgRole } from "../middleware/companyMiddleware.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
+import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 
 const router = express.Router();
 
@@ -90,7 +91,7 @@ router.use(requireOrganization);
  */
 router.get(
   "/:orgId",
-  auditLog("VIEW_MEMBERS", "MEMBER", { severity: "LOW", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.MEMBER.VIEW_ALL, "MEMBER", { severity: "LOW", category: "MEMBERSHIP" }),
   MemberController.listMembers
 );
 
@@ -146,7 +147,7 @@ router.get(
  */
 router.post(
   "/:orgId/invite",
-  auditLog("INVITE_MEMBER", "MEMBER", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.MEMBER.INVITE, "MEMBER", { severity: "MEDIUM", category: "MEMBERSHIP" }),
   MemberController.inviteMemberToCompany
 );
 
@@ -203,7 +204,7 @@ router.post(
 router.patch(
   "/:orgId/:memberId/role",
   auditChange("MEMBER", (req) => req.params.memberId),
-  auditLog("CHANGE_MEMBER_ROLE", "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.MEMBER.CHANGE_ROLE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
   MemberController.changeMemberRole
 );
 
@@ -246,7 +247,7 @@ router.patch(
  */
 router.delete(
   "/:orgId/:memberId",
-  auditLog("REMOVE_MEMBER", "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
+  auditLog(AUDIT_ACTIONS.MEMBER.REMOVE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
   MemberController.removeMember
 );
 
@@ -298,7 +299,7 @@ router.delete(
 router.post(
   "/:orgId/transfer-owner",
   auditChange("COMPANY", (req) => req.params.orgId),
-  auditLog("TRANSFER_OWNERSHIP", "COMPANY", { severity: "CRITICAL", category: "SECURITY" }),
+  auditLog(AUDIT_ACTIONS.MEMBER.TRANSFER_OWNERSHIP, "COMPANY", { severity: "CRITICAL", category: "SECURITY" }),
   MemberController.transferOwner
 );
 

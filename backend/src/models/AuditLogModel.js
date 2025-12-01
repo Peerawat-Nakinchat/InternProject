@@ -32,28 +32,7 @@ export const AuditLog = sequelize.define('sys_audit_logs', {
   action: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    comment: 'Action type (e.g., LOGIN, CREATE, UPDATE, DELETE)',
-    validate: {
-      isIn: [[
-        // Auth actions
-        'LOGIN', 'LOGOUT', 'LOGOUT_ALL', 'REGISTER', 
-        'PASSWORD_RESET', 'PASSWORD_CHANGE', 'EMAIL_CHANGE',
-        'PROFILE_UPDATE', 'ACCOUNT_ACTIVATE', 'ACCOUNT_DEACTIVATE',
-        // Company actions
-        'COMPANY_CREATE', 'COMPANY_UPDATE', 'COMPANY_DELETE', 'COMPANY_VIEW',
-        // Member actions
-        'MEMBER_INVITE', 'MEMBER_ADD', 'MEMBER_REMOVE', 'MEMBER_ROLE_CHANGE',
-        'OWNER_TRANSFER',
-        // Invitation actions
-        'INVITATION_SEND', 'INVITATION_ACCEPT', 'INVITATION_CANCEL',
-        // System actions
-        'SYSTEM_STARTUP', 'SYSTEM_SHUTDOWN', 'DATABASE_BACKUP',
-        // Security actions
-        'SUSPICIOUS_ACTIVITY', 'FAILED_LOGIN', 'TOKEN_REFRESH',
-        // Other
-        'OTHER'
-      ]]
-    }
+    comment: 'Action type defined in constants/AuditActions.js)',
   },
   action_description: {
     type: DataTypes.TEXT,
@@ -75,10 +54,7 @@ export const AuditLog = sequelize.define('sys_audit_logs', {
   target_type: {
     type: DataTypes.STRING(50),
     allowNull: true,
-    comment: 'Type of resource (e.g., USER, ORGANIZATION, MEMBER)',
-    validate: {
-      isIn: [['USER', 'ORGANIZATION', 'MEMBER', 'INVITATION', 'TOKEN', 'SYSTEM', 'OTHER']]
-    }
+    comment: 'Type of resource (e.g., USER, ORGANIZATION, MEMBER)'
   },
 
   // Data Changes
@@ -118,9 +94,6 @@ export const AuditLog = sequelize.define('sys_audit_logs', {
     type: DataTypes.STRING(10),
     allowNull: true,
     comment: 'HTTP method (GET, POST, PUT, DELETE, PATCH)',
-    validate: {
-      isIn: [['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']]
-    }
   },
   request_body: {
     type: DataTypes.JSONB,
@@ -149,9 +122,6 @@ export const AuditLog = sequelize.define('sys_audit_logs', {
     allowNull: false,
     defaultValue: 'SUCCESS',
     comment: 'Action result status',
-    validate: {
-      isIn: [['SUCCESS', 'FAILED', 'ERROR', 'WARNING', 'PARTIAL']]
-    }
   },
   error_message: {
     type: DataTypes.TEXT,
@@ -206,17 +176,11 @@ export const AuditLog = sequelize.define('sys_audit_logs', {
     allowNull: false,
     defaultValue: 'INFO',
     comment: 'Log severity level',
-    validate: {
-      isIn: [['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']]
-    }
   },
   category: {
     type: DataTypes.STRING(50),
     allowNull: true,
     comment: 'Log category (SECURITY, BUSINESS, SYSTEM, etc.)',
-    validate: {
-      isIn: [['SECURITY', 'BUSINESS', 'SYSTEM', 'PERFORMANCE', 'COMPLIANCE', 'OTHER']]
-    }
   },
 
   // Timestamps

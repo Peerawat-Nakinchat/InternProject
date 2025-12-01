@@ -50,9 +50,9 @@ export const auditLog = (action, targetType = null, options = {}) => {
         // Build log data
         const logData = {
           // User info
-          user_id: req.user?.user_id || null,
-          user_email: req.user?.email || null,
-          user_name: req.user?.full_name || null,
+          user_id: req.user?.user_id || parsedData?.user?.user_id || parsedData?.data?.user_id || null,
+          user_email: req.user?.email || parsedData?.user?.email || parsedData?.data?.email || null,
+          user_name: req.user?.full_name || parsedData?.user?.full_name || (parsedData?.user?.name ? `${parsedData.user.name} ${parsedData.user.surname}` : null) || null,
 
           // Action info
           action: action,
@@ -203,7 +203,7 @@ export const auditChange = (targetType, findResourceFn, options = {}) => {
 function inferTargetTable(targetType, path = '') {
   const tableMap = {
     'USER': 'sys_users',
-    'ORGANIZATION': 'sys_organizations',
+    'COMPANY': 'sys_organizations',
     'MEMBER': 'sys_organization_members',
     'INVITATION': 'invitations',
     'TOKEN': 'sys_refresh_tokens'

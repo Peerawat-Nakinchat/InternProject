@@ -4,14 +4,12 @@ import crypto from "crypto";
 import { UserModel } from "../models/UserModel.js";
 import { MemberModel } from "../models/MemberModel.js";
 import { RefreshTokenModel } from "../models/TokenModel.js";
-import { OrganizationModel } from "../models/CompanyModel.js";
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } from "../utils/token.js";
 import { sendEmail } from "../utils/mailer.js";
-import { sequelize } from "../models/dbModels.js";
 
 /**
  * AuthService - จัดการ Business Logic ทั้งหมดเกี่ยวกับ Authentication

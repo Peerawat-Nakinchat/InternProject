@@ -28,6 +28,7 @@ import {
   validateUpdateProfile,
 } from "../middleware/validation.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
+import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 
 const router = express.Router();
 
@@ -85,7 +86,7 @@ const router = express.Router();
 router.post(
   "/register",
   validateRegister,
-  auditLog("USER_REGISTER", "USER", { severity: "INFO", category: "AUTH" }),
+  auditLog(AUDIT_ACTIONS.AUTH.REGISTER, "USER", { severity: "INFO", category: "AUTH" }),
   registerUser
 );
 
@@ -134,7 +135,7 @@ router.post(
 router.post(
   "/login",
   validateLogin,
-  auditLog("USER_LOGIN", "USER", { severity: "INFO", category: "AUTH" }),
+  auditLog(AUDIT_ACTIONS.AUTH.LOGIN, "USER", { severity: "INFO", category: "AUTH" }),
   loginUser
 );
 
@@ -163,7 +164,8 @@ router.post(
  */
 router.post(
   "/logout",
-  auditLog("USER_LOGOUT", "USER", { severity: "INFO", category: "AUTH" }),
+  protect,
+  auditLog(AUDIT_ACTIONS.AUTH.LOGOUT, "USER", { severity: "INFO", category: "AUTH" }),
   logoutUser
 );
 
@@ -194,7 +196,7 @@ router.post(
 router.post(
   "/forgot-password",
   validateForgotPassword,
-  auditLog("FORGOT_PASSWORD", "USER", { severity: "MEDIUM", category: "SECURITY" }),
+  auditLog(AUDIT_ACTIONS.AUTH.FORGOT_PASSWORD, "USER", { severity: "MEDIUM", category: "SECURITY" }),
   forgotPassword
 );
 
@@ -219,7 +221,7 @@ router.post(
  */
 router.get(
   "/verify-reset-token",
-  auditLog("VERIFY_RESET_TOKEN", "USER", { severity: "MEDIUM", category: "SECURITY" }),
+  auditLog(AUDIT_ACTIONS.AUTH.VERIFY_RESET_TOKEN, "USER", { severity: "MEDIUM", category: "SECURITY" }),
   verifyResetToken
 );
 
@@ -253,7 +255,7 @@ router.get(
 router.post(
   "/reset-password",
   validateResetPassword,
-  auditLog("RESET_PASSWORD", "USER", { severity: "HIGH", category: "SECURITY" }),
+  auditLog(AUDIT_ACTIONS.AUTH.RESET_PASSWORD, "USER", { severity: "HIGH", category: "SECURITY" }),
   resetPassword
 );
 
@@ -271,7 +273,7 @@ router.post(
  */
 router.get(
   "/google",
-  auditLog("GOOGLE_OAUTH_START", "USER"),
+  auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_START, "USER"),
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
@@ -291,7 +293,7 @@ router.get(
     session: false,
     failureRedirect: "/login",
   }),
-  auditLog("GOOGLE_OAUTH_CALLBACK", "USER"),
+  auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_CALLBACK, "USER"),
   googleAuthCallback
 );
 
@@ -322,7 +324,7 @@ router.get(
  */
 router.post(
   "/refresh",
-  auditLog("REFRESH_TOKEN", "USER", { category: "AUTH" }),
+  auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN, "USER", { category: "AUTH" }),
   refreshToken
 );
 
@@ -349,7 +351,7 @@ router.post(
  */
 router.post(
   "/token",
-  auditLog("REFRESH_TOKEN_ALT", "USER", { category: "AUTH" }),
+  auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN_ALT, "USER", { category: "AUTH" }),
   refreshAccessToken
 );
 
@@ -375,7 +377,7 @@ router.post(
 router.get(
   "/profile",
   protect,
-  auditLog("GET_PROFILE", "USER"),
+  auditLog(AUDIT_ACTIONS.AUTH.GET_PROFILE, "USER"),
   getProfile
 );
 
@@ -426,7 +428,7 @@ router.put(
   protect,
   validateUpdateProfile,
   auditChange("USER", (req) => req.user.user_id),
-  auditLog("UPDATE_PROFILE", "USER", { severity: "LOW", category: "PROFILE" }),
+  auditLog(AUDIT_ACTIONS.AUTH.UPDATE_PROFILE, "USER", { severity: "LOW", category: "PROFILE" }),
   updateProfile
 );
 
@@ -462,7 +464,7 @@ router.put(
  *       409:
  *         description: Email already in use
  */
-router.put("/change-email", protect, auditChange("USER", (req) => req.user.user_id), auditLog("CHANGE_EMAIL", "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
+router.put("/change-email", protect, auditChange("USER", (req) => req.user.user_id), auditLog(AUDIT_ACTIONS.AUTH.CHANGE_EMAIL, "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
 
 /**
  * @swagger
@@ -493,7 +495,7 @@ router.put("/change-email", protect, auditChange("USER", (req) => req.user.user_
  *       401:
  *         description: Invalid old password
  */
-router.put("/change-password", protect, auditLog("CHANGE_PASSWORD", "USER", { severity: "MEDIUM", category: "AUTH" }), validateChangePassword, changePassword);
+router.put("/change-password", protect, auditLog(AUDIT_ACTIONS.AUTH.CHANGE_PASSWORD, "USER", { severity: "MEDIUM", category: "AUTH" }), validateChangePassword, changePassword);
 
 /**
  * @swagger
@@ -510,6 +512,6 @@ router.put("/change-password", protect, auditLog("CHANGE_PASSWORD", "USER", { se
  *       401:
  *         description: Unauthorized
  */
-router.post("/logout-all", protect, auditLog("LOGOUT_ALL", "USER", { severity: "MEDIUM", category: "AUTH" }), logoutAllUser);
+router.post("/logout-all", protect, auditLog(AUDIT_ACTIONS.AUTH.LOGOUT_ALL, "USER", { severity: "MEDIUM", category: "AUTH" }), logoutAllUser);
 
 export default router;
