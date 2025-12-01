@@ -1,9 +1,28 @@
 // src/utils/axios.ts
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 // 🔥 ใช้ environment variable หรือกำหนดตรงๆ
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+
+// ✅ สำหรับจัดการ refresh token ที่กำลังทำงานอยู่
+let isRefreshing = false
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void
+  reject: (reason?: unknown) => void
+}> = []
+
+// ✅ ประมวลผล queue หลัง refresh สำเร็จ/ล้มเหลว
+const processQueue = (error: Error | null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve()
+    }
+  })
+  failedQueue = []
+}
 
 const axiosInstance = axios.create({
   baseURL: API_URL, // เปลี่ยนจาก '/api' เป็น full URL
@@ -36,17 +55,68 @@ axiosInstance.interceptors.request.use(
   }
 )
 
-// Response Interceptor - จัดการ error
+// Response Interceptor - จัดการ error และ auto refresh token
 axiosInstance.interceptors.response.use(
   (response) => {
     console.log('✅ Response:', response.config.url, response.status)
     return response.data
   },
-  (error) => {
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
     console.error('❌ Response error:', error.response?.status, error.config?.url)
 
-    const message = error.response?.data?.error
-      || error.response?.data?.message
+    // ✅ ถ้าได้ 401 และยังไม่เคย retry
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // ❌ ไม่ต้อง refresh ถ้าเป็น request ไปที่ /auth/refresh หรือ /auth/login
+      const url = originalRequest.url || ''
+      if (url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/logout')) {
+        return Promise.reject(error)
+      }
+
+      // ✅ ถ้ากำลัง refresh อยู่ ให้รอ queue
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then(() => {
+          // retry request เดิมหลัง refresh สำเร็จ
+          return axiosInstance(originalRequest)
+        }).catch(err => {
+          return Promise.reject(err)
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        const auth = useAuthStore()
+        console.log('🔄 Token expired, trying to refresh...')
+
+        const refreshed = await auth.refreshAccessToken()
+
+        if (refreshed) {
+          console.log('✅ Token refreshed successfully, retrying request...')
+          processQueue(null)
+          // retry request เดิม
+          return axiosInstance(originalRequest)
+        } else {
+          // refresh ไม่สำเร็จ - logout แล้ว
+          console.log('❌ Refresh failed, user logged out')
+          processQueue(new Error('Refresh token expired'))
+          return Promise.reject(error)
+        }
+      } catch (refreshError) {
+        console.error('❌ Refresh error:', refreshError)
+        processQueue(refreshError as Error)
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+
+    const message = (error.response?.data as { error?: string; message?: string })?.error
+      || (error.response?.data as { error?: string; message?: string })?.message
       || error.message
       || 'เกิดข้อผิดพลาด'
 

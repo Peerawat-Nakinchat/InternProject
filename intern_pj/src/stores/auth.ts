@@ -354,12 +354,16 @@ export const useAuthStore = defineStore('auth', () => {
           // localStorage.setItem('refreshToken', response.data.refreshToken)
         }
 
+        console.log('✅ Token refreshed successfully')
         return true
       }
       return false
     } catch (err) {
       console.error('Refresh token error:', err)
-      await logout()
+      // ✅ Clear state แต่ไม่ต้องเรียก logout() เพราะอาจทำให้ loop
+      user.value = null
+      accessToken.value = null
+      refreshToken.value = null
       return false
     }
   }
