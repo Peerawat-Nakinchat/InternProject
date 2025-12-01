@@ -21,7 +21,6 @@ export const registerUser = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000    
     };
 
-    
     res.cookie('refreshToken', result.refreshToken, cookieOptions);
 
     // 2. เก็บ Log ความปลอดภัย (Security Logger)
@@ -36,12 +35,8 @@ export const registerUser = async (req, res) => {
     // 3. ส่ง Response กลับไปให้ Frontend
     res.status(201).json({
       success: true,
-      message: "ลงทะเบียนสำเร็จ",
-      
-      
-      accessToken: result.accessToken, 
-      
-      
+      message: "ลงทะเบียนสำเร็จ",    
+      accessToken: result.accessToken,  
       ...result,
     });
 
