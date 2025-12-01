@@ -63,6 +63,9 @@ export interface ProfileUpdateData {
     profile_image_url: string
 }
 
+// ✅ Promise สำหรับรอ initAuth เสร็จ (ใช้ใน router guard)
+let initAuthPromise: Promise<void> | null = null
+
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
@@ -72,6 +75,8 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  // ✅ เพิ่ม state เพื่อบอกว่า auth ถูก check แล้วหรือยัง
+  const authReady = ref(false)
 
   // Computed
   const isAuthenticated = computed(() => !!user.value)
@@ -80,6 +85,11 @@ export const useAuthStore = defineStore('auth', () => {
   // ✅ Initialize from server (ไม่ใช่ localStorage อีกต่อไป)
   // เราจะ check auth status จาก backend โดยใช้ cookies
   const initAuth = async () => {
+    // ✅ ถ้า auth ถูก check แล้ว ไม่ต้องทำซ้ำ
+    if (authReady.value) {
+      return
+    }
+
     try {
       // ลอง fetch profile เพื่อ check ว่า cookies ยัง valid อยู่ไหม
       const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
@@ -90,13 +100,73 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = response.data.user
         console.log('✅ Auth initialized from cookies - user found')
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      // ถ้า 401 ลอง refresh token ก่อน
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { status?: number } }
+        if (axiosErr.response?.status === 401) {
+          console.log('ℹ️ Access token expired, trying refresh...')
+          const refreshed = await tryRefreshOnInit()
+          if (refreshed) {
+            return // refresh สำเร็จ authReady จะถูก set ใน tryRefreshOnInit
+          }
+        }
+      }
       // ถ้า error แปลว่า ไม่มี valid session
       console.log('ℹ️ No valid session found')
       user.value = null
       accessToken.value = null
       refreshToken.value = null
+    } finally {
+      // ✅ บอกว่า auth check เสร็จแล้ว
+      authReady.value = true
     }
+  }
+
+  // ✅ ลอง refresh token เมื่อ init (ถ้า access token หมดอายุแต่ยังมี refresh token)
+  const tryRefreshOnInit = async (): Promise<boolean> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+        withCredentials: true
+      })
+
+      if (response.data.success) {
+        accessToken.value = response.data.accessToken
+        if (response.data.refreshToken) {
+          refreshToken.value = response.data.refreshToken
+        }
+
+        // ลอง fetch profile อีกครั้งหลัง refresh
+        const profileResponse = await axios.get(`${API_BASE_URL}/auth/profile`, {
+          withCredentials: true
+        })
+
+        if (profileResponse.data.success && profileResponse.data.user) {
+          user.value = profileResponse.data.user
+          console.log('✅ Auth restored via refresh token')
+          authReady.value = true
+          return true
+        }
+      }
+      return false
+    } catch (err) {
+      console.log('ℹ️ Refresh token also invalid/expired')
+      return false
+    }
+  }
+
+  // ✅ รอ initAuth เสร็จ (ใช้ใน router guard)
+  const waitForAuthReady = (): Promise<void> => {
+    if (authReady.value) {
+      return Promise.resolve()
+    }
+
+    // ถ้ายังไม่มี promise ให้สร้างใหม่
+    if (!initAuthPromise) {
+      initAuthPromise = initAuth()
+    }
+
+    return initAuthPromise
   }
 
   // Login
@@ -390,7 +460,8 @@ const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolea
 }
 
   // Initialize on store creation
-  initAuth()
+  // ✅ เก็บ promise เพื่อให้ router guard รอได้
+  initAuthPromise = initAuth()
 
   return {
     // State
@@ -399,6 +470,7 @@ const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolea
     refreshToken,
     isLoading,
     error,
+    authReady, // ✅ เพิ่ม: บอกว่า auth ถูก check แล้วหรือยัง
     // Computed
     isAuthenticated,
     userName,
@@ -409,6 +481,7 @@ const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolea
     fetchProfile,
     refreshAccessToken,
     initAuth,
+    waitForAuthReady, // ✅ เพิ่ม: รอ auth check เสร็จ
     changeEmail,
     changePassword,
     updateProfile
