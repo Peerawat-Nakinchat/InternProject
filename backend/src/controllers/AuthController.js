@@ -12,8 +12,19 @@ import {
 // ---------------- Register ----------------
 export const registerUser = async (req, res) => {
   try {
+    // 1. เรียก Service: สร้าง User, Transaction, Invite Logic และได้ Token กลับมา
     const result = await AuthService.register(req.body);
+    const cookieOptions = {
+      httpOnly: true,                                   
+      secure: process.env.NODE_ENV === 'production',   
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', 
+      maxAge: 7 * 24 * 60 * 60 * 1000    
+    };
 
+    
+    res.cookie('refreshToken', result.refreshToken, cookieOptions);
+
+    // 2. เก็บ Log ความปลอดภัย (Security Logger)
     const clientInfo = req.clientInfo || {};
     securityLogger.registrationSuccess(
       result.user.user_id,
@@ -22,14 +33,22 @@ export const registerUser = async (req, res) => {
       clientInfo.userAgent || req.headers["user-agent"]
     );
 
+    // 3. ส่ง Response กลับไปให้ Frontend
     res.status(201).json({
       success: true,
       message: "ลงทะเบียนสำเร็จ",
+      
+      
+      accessToken: result.accessToken, 
+      
+      
       ...result,
     });
+
   } catch (error) {
     console.error("💥 Register error:", error);
 
+    // เก็บ Log กรณี Error
     const clientInfo = req.clientInfo || {};
     if (error.code === "USER_EXISTS") {
       securityLogger.registrationFailed(
@@ -40,7 +59,8 @@ export const registerUser = async (req, res) => {
       );
     }
 
-    res.status(error.code === "USER_EXISTS" ? 400 : 500).json({
+    // ส่ง Error Response
+    res.status(error.code === "USER_EXISTS" ? 409 : 500).json({ 
       success: false,
       error: error.message,
     });
