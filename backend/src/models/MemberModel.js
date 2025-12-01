@@ -45,17 +45,16 @@ export const OrganizationMember = sequelize.define('sys_organization_members', {
 /**
  * Add member to organization
  */
-const create = async (data, options = {}) => {
-  const { transaction } = options;
+const create = async (data, transaction = null) => {
   const [member, created] = await OrganizationMember.upsert(
     {
-      org_id: data.orgId,
-      user_id: data.userId,
-      role_id: Number(data.roleId),
+      org_id: data.orgId || data.org_id, // รองรับทั้ง camelCase และ snake_case กันเหนียว
+      user_id: data.userId || data.user_id,
+      role_id: Number(data.roleId || data.role_id),
       joined_date: new Date()
     },
     {
-      transaction,
+      transaction, // ส่ง transaction ต่อให้ Sequelize
       returning: true
     }
   );

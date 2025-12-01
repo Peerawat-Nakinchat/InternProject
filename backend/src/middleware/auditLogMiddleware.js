@@ -205,7 +205,7 @@ function inferTargetTable(targetType, path = '') {
     'USER': 'sys_users',
     'COMPANY': 'sys_organizations',
     'MEMBER': 'sys_organization_members',
-    'INVITATION': 'invitations',
+    'INVITATION': 'sys_invitations',
     'TOKEN': 'sys_refresh_tokens'
   };
 

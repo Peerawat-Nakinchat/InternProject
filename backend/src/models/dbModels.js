@@ -10,6 +10,7 @@ import { Organization } from "./CompanyModel.js";
 import { OrganizationMember } from "./MemberModel.js";
 import { RefreshToken } from "./TokenModel.js";
 import { AuditLog } from "./AuditLogModel.js";
+import { Invitation } from "./InvitationModel.js";
 
 // ==================== ASSOCIATIONS ====================
 
@@ -68,6 +69,19 @@ User.hasMany(RefreshToken, {
   onDelete: 'CASCADE' 
 });
 
+Invitation.belongsTo(User, { 
+  foreignKey: 'invited_by', 
+  as: 'inviter' 
+});
+Invitation.belongsTo(Organization, { 
+  foreignKey: 'org_id', 
+  as: 'organization' 
+});
+Invitation.belongsTo(Role, { 
+  foreignKey: 'role_id', 
+  as: 'role' 
+});
+
 // ==================== SYNC DATABASE ====================
 const syncDatabase = async () => {
   try {
@@ -111,6 +125,7 @@ export {
   OrganizationMember,
   RefreshToken,
   AuditLog,
+  Invitation,
   syncDatabase
 };
 
@@ -122,5 +137,6 @@ export default {
   OrganizationMember,
   RefreshToken,
   AuditLog,
+  Invitation,
   syncDatabase
 };

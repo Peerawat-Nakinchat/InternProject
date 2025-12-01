@@ -4,6 +4,9 @@ import crypto from "crypto";
 import { UserModel } from "../models/UserModel.js";
 import { MemberModel } from "../models/MemberModel.js";
 import { RefreshTokenModel } from "../models/TokenModel.js";
+import { InvitationModel } from "../models/InvitationModel.js";
+import InvitationService from "./InvitationService.js";
+import { sequelize } from "../models/dbModels.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -18,51 +21,76 @@ class AuthService {
   /**
    * ลงทะเบียนผู้ใช้ใหม่
    */
-  async register(userData) {
-    const {
-      email,
-      password,
-      name,
-      surname,
-      sex,
-      user_address_1,
-      user_address_2,
-      user_address_3,
-      inviteToken
-    } = userData;
+async register(userData) {
+  const {
+    email,
+    password,
+    name,
+    surname,
+    sex,
+    user_address_1,
+    user_address_2,
+    user_address_3,
+    inviteToken
+  } = userData;
 
-    // Validation
-    if (!email || !password || !name || !surname || !sex) {
-      throw new Error("กรุณากรอกข้อมูลที่จำเป็น");
+  // Validation
+  if (!email || !password || !name || !surname || !sex) {
+    throw new Error("กรุณากรอกข้อมูลที่จำเป็น");
+  }
+
+  // Normalize email
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // ตรวจสอบ invite token ก่อน (ถ้ามี)
+  let invitationInfo = null;
+  if (inviteToken) {
+    try {
+      invitationInfo = await InvitationService.getInvitationInfo(inviteToken);
+      
+      // ตรวจสอบว่า email ตรงกันหรือไม่
+      if (invitationInfo.email.toLowerCase() !== normalizedEmail) {
+        throw new Error("อีเมลไม่ตรงกับคำเชิญ กรุณาใช้อีเมล " + invitationInfo.email);
+      }
+    } catch (error) {
+      console.error("Invitation validation error:", error);
+      // ⚠️ ไม่ throw error - ให้ลงทะเบียนได้ปกติ แต่ไม่ auto-accept
+      invitationInfo = null;
     }
+  }
 
-    // Normalize email
-    const normalizedEmail = email.toLowerCase().trim();
+  // Check existing user
+  const existingUser = await UserModel.findByEmail(normalizedEmail);
+  if (existingUser) {
+    const error = new Error("ไม่สามารถลงทะเบียนได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง");
+    error.code = "USER_EXISTS";
+    throw error;
+  }
 
-    // Check existing user
-    const existingUser = await UserModel.findByEmail(normalizedEmail);
-    if (existingUser) {
-      const error = new Error("ไม่สามารถลงทะเบียนได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง");
-      error.code = "USER_EXISTS";
-      throw error;
-    }
+  // เริ่ม Transaction
+  const t = await sequelize.transaction();
 
+  try {
     // Hash password
     const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 10;
     const salt = await bcrypt.genSalt(saltRounds);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    const created = await UserModel.create({
-      email: normalizedEmail,
-      passwordHash: hashedPassword,
-      name,
-      surname,
-      sex,
-      user_address_1,
-      user_address_2,
-      user_address_3,
-    });
+    // ✅ ตรวจสอบว่า UserModel.create รับ transaction อย่างไร
+    // วิธีที่ 1: ถ้ารับเป็น parameter ที่ 2
+    const created = await UserModel.create(
+      {
+        email: normalizedEmail,
+        passwordHash: hashedPassword,
+        name,
+        surname,
+        sex,
+        user_address_1,
+        user_address_2,
+        user_address_3,
+      },
+      t // ← ส่ง transaction เป็น parameter ที่ 2
+    );
 
     const userId = created.user_id;
 
@@ -76,18 +104,31 @@ class AuthService {
     expiresAt.setDate(expiresAt.getDate() + expiryDays);
 
     // Save refresh token
-    await RefreshTokenModel.create({
-      userId: userId,
-      refreshToken: refreshToken,
-      expiresAt: expiresAt
-    });
+    await RefreshTokenModel.create(
+      {
+        userId: userId,
+        refreshToken: refreshToken,
+        expiresAt: expiresAt
+      },
+      t // ← ส่ง transaction
+    );
 
     // Process invite token if provided
-    if (inviteToken) {
-      await this.processInviteToken(userId, inviteToken);
+    let orgId = null;
+    if (inviteToken && invitationInfo) {
+      try {
+        orgId = await this.processInviteToken(userId, inviteToken, invitationInfo, t);
+      } catch (error) {
+        console.error("Process invitation error:", error);
+        // ไม่ throw - ให้ user ลงทะเบียนสำเร็จก่อน
+      }
     }
 
+    // Commit transaction
+    await t.commit();
+
     return {
+      success: true,
       accessToken,
       refreshToken,
       user: {
@@ -97,8 +138,49 @@ class AuthService {
         surname,
         full_name: `${name} ${surname}`,
       },
+      ...(orgId && { org_id: orgId })
     };
+  } catch (error) {
+    console.error("Register transaction error:", error);
+    // Rollback on error
+    if (!t.finished) {
+      await t.rollback();
+    }
+    throw error;
   }
+}
+
+/**
+ * Process invitation token หลังสร้าง user
+ */
+async processInviteToken(userId, inviteToken, invitationInfo, transaction) {
+  try {
+    const invitation = await InvitationModel.findByToken(inviteToken);
+
+    if (!invitation || invitation.status !== 'pending') {
+      throw new Error("Invitation is not valid");
+    }
+
+    // Add member to organization
+    await MemberModel.create({
+      userId: userId,
+      orgId: invitationInfo.org_id,
+      roleId: parseInt(invitationInfo.role_id, 10),
+    }, { transaction });
+
+    // Update invitation status
+    await InvitationModel.updateStatus(
+      invitationInfo.invitation_id,
+      'accepted',
+      transaction
+    );
+
+    return invitationInfo.org_id;
+  } catch (error) {
+    console.error("Process invite token error:", error);
+    throw new Error("ไม่สามารถประมวลผลคำเชิญได้: " + error.message);
+  }
+}
 
   /**
    * เข้าสู่ระบบ

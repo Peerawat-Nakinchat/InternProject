@@ -7,11 +7,13 @@ import InvitationService from "../services/InvitationService.js";
 export const sendInvitation = async (req, res) => {
   try {
     const { email, org_id, role_id } = req.body;
+    const invited_by = req.user.user_id;
 
     const result = await InvitationService.sendInvitation(
       email,
       org_id,
-      role_id
+      role_id,
+      invited_by
     );
 
     res.json(result);
@@ -128,6 +130,25 @@ export const resendInvitation = async (req, res) => {
       : 500;
 
     res.status(statusCode).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+export const getOrganizationInvitations = async (req, res) => {
+  try {
+    const { org_id } = req.params;
+    
+    const invitations = await InvitationService.getOrganizationInvitations(org_id);
+    
+    res.json({
+      success: true,
+      invitations
+    });
+  } catch (error) {
+    console.error("Get invitations error:", error);
+    res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
     });
