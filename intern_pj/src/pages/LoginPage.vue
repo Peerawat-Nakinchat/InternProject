@@ -16,7 +16,13 @@
           <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>
         </header>
 
-        <!-- 🔥 ลบ LoadingMessage ซ้ำออก -->
+        <!-- Invitation Success Message -->
+        <div
+          v-if="invitationSuccessMessage && !isLoading"
+          class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
+        >
+          {{ invitationSuccessMessage }}
+        </div>
 
         <!-- Error Message -->
         <div
@@ -188,6 +194,7 @@ const form = reactive<LoginForm>({
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const invitationSuccessMessage = ref('') // ✅ เพิ่ม
 
 // Modal states
 const showForgot = ref(false)
@@ -221,53 +228,47 @@ const onResetSuccess = () => {
 const handleCloseReset = () => {
   sessionStorage.removeItem('reset_token')
   showReset.value = false
-
-  // ลบ token จาก URL
   router.replace({ path: route.path, query: {} })
 }
 
-// ⭐ ตรวจจับ token จาก URL
-// ✅ ใช้ sessionStorage สำหรับ reset_token (temporary data, หมดอายุเมื่อปิด tab)
+// ✅ ตรวจสอบ query parameters เมื่อ mount
 onMounted(() => {
+  // ✅ Check for invitation success message
+  const message = route.query.message as string
+  if (message === 'registration_with_invitation_success') {
+    invitationSuccessMessage.value = '🎉 ลงทะเบียนและเข้าร่วมองค์กรสำเร็จ! กรุณาเข้าสู่ระบบ'
+    
+    // Clear message after 5 seconds
+    setTimeout(() => {
+      invitationSuccessMessage.value = ''
+      router.replace({ path: route.path, query: {} })
+    }, 5000)
+  }
+
+  // Check for reset token
   const tokenFromUrl = route.query.token
-
-  console.group('🔍 Token Detection')
-  console.log('URL:', window.location.href)
-  console.log('Query token:', tokenFromUrl)
-  console.log('Stored token:', sessionStorage.getItem('reset_token'))
-  console.groupEnd()
-
   if (tokenFromUrl) {
     const token = Array.isArray(tokenFromUrl) ? tokenFromUrl[0] : tokenFromUrl
-
     if (token && typeof token === 'string') {
-      console.log('✅ Token found in URL:', token)
       sessionStorage.setItem('reset_token', token)
       resetToken.value = token
       showReset.value = true
-
-      // ลบ query token ออกจาก URL
       router.replace({ path: route.path, query: {} })
     }
   } else {
-    // ตรวจสอบ sessionStorage
     const storedToken = sessionStorage.getItem('reset_token')
     if (storedToken) {
-      console.log('✅ Token found in sessionStorage:', storedToken)
       resetToken.value = storedToken
       showReset.value = true
     }
   }
 })
 
-// ⭐ Watch route changes
 watch(
   () => route.query.token,
   (newToken) => {
     if (newToken && !showReset.value) {
       const token = Array.isArray(newToken) ? newToken[0] : newToken
-      console.log('🔄 Token changed in URL:', token)
-
       if (token && typeof token === 'string') {
         sessionStorage.setItem('reset_token', token)
         resetToken.value = token
@@ -280,6 +281,7 @@ watch(
 const handleLogin = async () => {
   errorMessage.value = ''
   successMessage.value = ''
+  invitationSuccessMessage.value = '' // ✅ Clear invitation message
 
   if (!form.email || !form.password) {
     errorMessage.value = 'กรุณากรอกอีเมลและรหัสผ่าน'
@@ -298,7 +300,6 @@ const handleLogin = async () => {
     if (result?.success) {
       successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
 
-      // Redirect
       setTimeout(() => {
         const redirectPath = (route.query.redirect as string) || '/'
         router.push(redirectPath)
@@ -307,17 +308,14 @@ const handleLogin = async () => {
       return
     }
 
-    // Check for rate limit
     if (result && 'rateLimited' in result && result.rateLimited) {
       rateLimitMinutes.value = 'retryAfter' in result ? result.retryAfter : undefined
       showRateLimit.value = true
       return
     }
 
-    // Check for cookie consent requirement
     if (result && 'needsConsent' in result && result.needsConsent) {
       errorMessage.value = result.error || 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
-      // Scroll to bottom where cookie banner is
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
       return
     }
@@ -333,7 +331,6 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
-  // ✅ ตรวจสอบ Cookie Consent ก่อน OAuth login
   if (!hasEssentialConsent()) {
     errorMessage.value = 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
@@ -343,7 +340,6 @@ const handleGoogleLogin = () => {
 }
 
 const handleMicrosoftLogin = () => {
-  // ✅ ตรวจสอบ Cookie Consent ก่อน OAuth login
   if (!hasEssentialConsent()) {
     errorMessage.value = 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ'
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })

@@ -1,6 +1,7 @@
 // src/models/UserModel.js
 import { DataTypes, Op } from 'sequelize';
 import sequelize from "../config/dbConnection.js";
+import Role from "./RoleModel.js";
 
 
 // ==================== USER MODEL ====================
@@ -22,9 +23,6 @@ export const User = sequelize.define('sys_users', {
   password_hash: {
     type: DataTypes.STRING(255),
     allowNull: true,
-    validate: {
-      len: [6, 255]
-    }
   },
   name: {
     type: DataTypes.STRING(200),
@@ -99,13 +97,7 @@ export const User = sequelize.define('sys_users', {
   },
   role_id: {
   type: DataTypes.INTEGER,
-  allowNull: false,
-  references: {
-    model: 'sys_role', // table ที่อ้างอิง
-    key: 'role_id'
-  },
-  onUpdate: 'CASCADE',
-  onDelete: 'NO ACTION'
+  allowNull: false
   },
   is_active: {
     type: DataTypes.BOOLEAN,
