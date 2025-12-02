@@ -78,15 +78,11 @@ export const createAuthController = (deps = {}) => {
         clientInfo.userAgent || req.headers["user-agent"]
       );
       security.clearFailedLogins(ip);
-
-      // ✅ Set HTTP-Only cookies สำหรับ tokens (Security Enhancement)
       cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
 
       res.json({
         success: true,
         message: "เข้าสู่ระบบสำเร็จ",
-        // ✅ ยังคง return tokens ใน response body สำหรับ backward compatibility
-        // แต่ frontend ใหม่จะใช้ cookies แทน
         ...result,
       });
     } catch (error) {
@@ -113,7 +109,6 @@ export const createAuthController = (deps = {}) => {
   // ---------------- Refresh Token ----------------
   const refreshToken = async (req, res) => {
     try {
-      // ✅ รับ refresh token จาก cookie หรือ body (backward compatibility)
       const token = cookies.getRefreshToken(req);
       
       if (!token) {
@@ -125,10 +120,8 @@ export const createAuthController = (deps = {}) => {
 
       const result = await service.refreshToken(token);
 
-      // ✅ Set new access token ใน cookie
       cookies.setAccessTokenCookie(res, result.accessToken);
 
-      // ✅ ถ้ามี refresh token ใหม่ ก็ set cookie ใหม่ด้วย
       if (result.refreshToken) {
         cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
       }
@@ -139,8 +132,7 @@ export const createAuthController = (deps = {}) => {
       });
     } catch (error) {
       console.error("💥 Refresh token error:", error);
-      
-      // ✅ Clear cookies ถ้า refresh token ไม่ valid
+
       cookies.clearAuthCookies(res);
       
       res.status(401).json({
@@ -222,7 +214,6 @@ export const createAuthController = (deps = {}) => {
       await service.resetPassword(token, password);
 
       const clientInfo = req.clientInfo || {};
-      // Note: We don't have user_id here, so we can't log it
       logger.passwordResetSuccess(
         null,
         null,

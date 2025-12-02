@@ -29,6 +29,7 @@ import {
 } from "../middleware/validation.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
+import UserModel from "../models/UserModel.js";
 
 const router = express.Router();
 
@@ -427,7 +428,7 @@ router.put(
   "/update-profile",
   protect,
   validateUpdateProfile,
-  auditChange("USER", (req) => req.user.user_id),
+  auditChange("USER", (id) => UserModel.findById(id)),
   auditLog(AUDIT_ACTIONS.AUTH.UPDATE_PROFILE, "USER", { severity: "LOW", category: "PROFILE" }),
   updateProfile
 );
@@ -464,7 +465,7 @@ router.put(
  *       409:
  *         description: Email already in use
  */
-router.put("/change-email", protect, auditChange("USER", (req) => req.user.user_id), auditLog(AUDIT_ACTIONS.AUTH.CHANGE_EMAIL, "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
+router.put("/change-email", protect, auditChange("USER", (id) => UserModel.findById(id)), auditLog(AUDIT_ACTIONS.AUTH.CHANGE_EMAIL, "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
 
 /**
  * @swagger

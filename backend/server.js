@@ -13,7 +13,6 @@ import "./src/config/loadEnv.js";
 import { syncDatabase } from "./src/models/dbModels.js";
 import { RefreshTokenModel } from "./src/models/TokenModel.js";
 import { addCorrelationId, addSessionId, clientInfoMiddleware } from "./src/middleware/auditLogMiddleware.js";
-import { AuditLogModel } from "./src/models/AuditLogModel.js";
 import sequelize from "./src/config/dbConnection.js";
 
 dotenv.config();

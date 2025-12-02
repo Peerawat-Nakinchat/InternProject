@@ -5,6 +5,8 @@ import { protect } from "../middleware/authMiddleware.js";
 import { requireOrganization, requireOrgRole } from "../middleware/companyMiddleware.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
+import MemberModel from "../models/MemberModel.js";
+import OrganizationModel from "../models/CompanyModel.js";
 
 const router = express.Router();
 
@@ -203,7 +205,7 @@ router.post(
  */
 router.patch(
   "/:orgId/:memberId/role",
-  auditChange("MEMBER", (req) => req.params.memberId),
+  auditChange("MEMBER", (id) => MemberModel.findById(id)),
   auditLog(AUDIT_ACTIONS.MEMBER.CHANGE_ROLE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
   MemberController.changeMemberRole
 );
@@ -247,6 +249,7 @@ router.patch(
  */
 router.delete(
   "/:orgId/:memberId",
+  auditChange("MEMBER", (id) => MemberModel.findById(id)),
   auditLog(AUDIT_ACTIONS.MEMBER.REMOVE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
   MemberController.removeMember
 );
@@ -298,7 +301,7 @@ router.delete(
  */
 router.post(
   "/:orgId/transfer-owner",
-  auditChange("COMPANY", (req) => req.params.orgId),
+  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
   auditLog(AUDIT_ACTIONS.MEMBER.TRANSFER_OWNERSHIP, "COMPANY", { severity: "CRITICAL", category: "SECURITY" }),
   MemberController.transferOwner
 );

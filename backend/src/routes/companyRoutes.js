@@ -11,6 +11,7 @@ import { protect } from "../middleware/authMiddleware.js";
 import { requireOrganization, requireOrgRole } from "../middleware/companyMiddleware.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
+import OrganizationModel from "../models/CompanyModel.js";
 
 const router = express.Router();
 
@@ -243,7 +244,7 @@ router.put(
   "/:orgId",
   requireOrganization,
   requireOrgRole([1]),
-  auditChange("COMPANY", (req) => req.params.orgId),
+  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
   auditLog(AUDIT_ACTIONS.COMPANY.UPDATE, "COMPANY", { severity: "MEDIUM", category: "COMPANY" }),
   updateCompany
 );
@@ -284,6 +285,7 @@ router.delete(
   "/:orgId",
   requireOrganization,
   requireOrgRole([1]),
+  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
   auditLog(AUDIT_ACTIONS.COMPANY.DELETE, "COMPANY", { severity: "CRITICAL", category: "COMPANY" }),
   deleteCompany
 );
