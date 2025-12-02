@@ -1,0 +1,326 @@
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('../../src/config/dbConnection.js', () => import('../mocks/db.mock.js'));
+jest.unstable_mockModule('../../src/models/UserModel.js', () => import('../mocks/user.mock.js'));
+jest.unstable_mockModule('../../src/models/MemberModel.js', () => import('../mocks/member.mock.js'));
+
+import sequelize, { transactionFactory, mockOrganization } from '../mocks/db.mock.js';
+import { OrganizationMember } from '../mocks/member.mock.js';
+import { orgFactory } from '../factories/org.factory.js';
+import { Op, ValidationError } from 'sequelize';
+
+const { default: OrganizationModel, OrganizationModel: NamedExport, Organization } = await import('../../src/models/CompanyModel.js'); // ESM import หลัง mock
+
+describe('OrganizationModel – พฤติกรรมหลัก', () => {
+  let trx;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    trx = transactionFactory();
+  });
+
+  describe('create()', () => {
+    it('ควร normalize ค่าก่อนสร้าง และส่ง transaction ถ้ามี', async () => {
+      const payload = orgFactory({
+        org_name: '  acme co.  ',
+        org_code: '  ac-me_01  ',    // จะถูก toUpperCase และ trim
+        org_integrate: undefined,    // default N
+      });
+
+      const created = { ...payload, org_id: payload.org_id, org_name: 'acme co.', org_code: 'AC-ME_01', org_integrate:'N' };
+      mockOrganization.create.mockResolvedValue(created);
+
+      const result = await NamedExport.create(payload, trx);
+
+      expect(mockOrganization.create).toHaveBeenCalledTimes(1);
+      const [args, options] = mockOrganization.create.mock.calls[0];
+      expect(args.org_name).toBe('acme co.');
+      expect(args.org_code).toBe('AC-ME_01');
+      expect(options).toEqual({ transaction: trx });
+      expect(result).toBe(created);
+    });
+
+    it('ควรโยน ValidationError ให้ caller เมื่อ validation ไม่ผ่าน', async () => {
+      const payload = orgFactory({ org_name: '', org_code: '***' });
+      const err = new ValidationError('Validation failed');
+      mockOrganization.create.mockRejectedValue(err);
+
+      await expect(NamedExport.create(payload)).rejects.toBe(err);
+      expect(mockOrganization.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('findById()', () => {
+    it('ควร include owner association', async () => {
+      const org = orgFactory();
+      mockOrganization.findByPk.mockResolvedValue(org);
+
+      const result = await NamedExport.findById(org.org_id);
+
+      expect(mockOrganization.findByPk).toHaveBeenCalledWith(org.org_id, expect.objectContaining({
+        include: expect.arrayContaining([expect.objectContaining({ as: 'owner' })])
+      }));
+      expect(result).toBe(org);
+    });
+  });
+
+  describe('findByCode()', () => {
+    it('ควรค้นหาแบบ uppercase + trim', async () => {
+      const org = orgFactory({ org_code: 'ACME' });
+      mockOrganization.findOne.mockResolvedValue(org);
+
+      const result = await NamedExport.findByCode('  acme ');
+      expect(mockOrganization.findOne).toHaveBeenCalledWith({
+        where: { org_code: 'ACME' },
+      });
+      expect(result).toBe(org);
+    });
+  });
+
+  describe('findByOwner()', () => {
+    it('ควร include owner และ where ตาม owner_user_id', async () => {
+      const ownerId = '1111-2222';
+      const rows = [orgFactory({ owner_user_id: ownerId })];
+      mockOrganization.findAll.mockResolvedValue(rows);
+
+      const result = await NamedExport.findByOwner(ownerId);
+
+      expect(mockOrganization.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: { owner_user_id: ownerId },
+        include: expect.arrayContaining([expect.objectContaining({ as: 'owner' })])
+      }));
+      expect(result).toBe(rows);
+    });
+  });
+
+  describe('findByMember()', () => {
+    it('ควร include members และ where owner_user_id != userId', async () => {
+      const userId = 'user-abc';
+      const rows = [orgFactory()];
+      mockOrganization.findAll.mockResolvedValue(rows);
+
+      const result = await NamedExport.findByMember(userId);
+
+      expect(mockOrganization.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        include: expect.arrayContaining([
+          expect.objectContaining({ as: 'members', where: { user_id: userId } }),
+          expect.objectContaining({ as: 'owner' }),
+        ]),
+        where: expect.objectContaining({
+          [expect.any(Symbol)]: userId // เป็น Op.ne
+        })
+      }));
+
+      // ตรวจค่าจริงของ Op.ne
+      const call = mockOrganization.findAll.mock.calls[0][0];
+      expect(call.where.owner_user_id[Op.ne]).toBe(userId);
+
+      expect(result).toBe(rows);
+    });
+  });
+
+  describe('update()', () => {
+    it('ควร whitelist fields และ normalize org_code และคืนค่า updated model', async () => {
+      const orgId = 'o-1';
+      const updates = {
+        org_name: '  New Name  ',
+        org_code: '  x-01  ',
+        owner_user_id: 'ไม่ควรถูกอัพเดต', // ไม่อยู่ใน whitelist
+      };
+      const updated = orgFactory({ org_name: '  New Name  ', org_code: 'X-01' });
+
+      mockOrganization.update.mockResolvedValue([1, [updated]]);
+
+      const result = await NamedExport.update(orgId, updates, trx);
+
+      expect(mockOrganization.update).toHaveBeenCalledWith(
+        { org_name: '  New Name  ', org_code: 'X-01' },
+        expect.objectContaining({
+          where: { org_id: orgId },
+          returning: true,
+          validate: true,
+          transaction: trx
+        })
+      );
+      expect(result).toBe(updated);
+    });
+
+    it('เมื่อไม่ได้ส่ง org_code ไม่ต้อง normalize', async () => {
+      const orgId = 'o-2';
+      const updates = { org_name: 'Hello' };
+      const updated = orgFactory({ org_name: 'Hello' });
+
+      mockOrganization.update.mockResolvedValue([1, [updated]]);
+
+      const result = await NamedExport.update(orgId, updates);
+
+      const [payload] = mockOrganization.update.mock.calls[0];
+      expect(payload).toEqual({ org_name: 'Hello' });
+      expect(result).toBe(updated);
+    });
+  });
+
+  describe('deleteById()', () => {
+    it('ควรคืน true เมื่อมีแถวถูกลบ', async () => {
+      mockOrganization.destroy.mockResolvedValue(1);
+      await expect(NamedExport.deleteById('id1', trx)).resolves.toBe(true);
+      expect(mockOrganization.destroy).toHaveBeenCalledWith({ where: { org_id: 'id1' }, transaction: trx });
+    });
+
+    it('ควรคืน false เมื่อไม่พบข้อมูล', async () => {
+      mockOrganization.destroy.mockResolvedValue(0);
+      await expect(NamedExport.deleteById('id1')).resolves.toBe(false);
+    });
+  });
+
+  describe('updateOwner()', () => {
+    it('อัพเดต owner_user_id และคืน updated record', async () => {
+      const updated = orgFactory({ owner_user_id: 'new-owner' });
+      mockOrganization.update.mockResolvedValue([1, [updated]]);
+
+      const result = await NamedExport.updateOwner('org-1', 'new-owner', trx);
+
+      expect(mockOrganization.update).toHaveBeenCalledWith(
+        { owner_user_id: 'new-owner' },
+        expect.objectContaining({ where: { org_id: 'org-1' }, returning: true, transaction: trx })
+      );
+      expect(result).toBe(updated);
+    });
+  });
+
+  describe('codeExists()', () => {
+    it('เช็คมี code โดยไม่มี exclude', async () => {
+      mockOrganization.count.mockResolvedValue(2);
+      await expect(NamedExport.codeExists('  acme ')).resolves.toBe(true);
+      expect(mockOrganization.count).toHaveBeenCalledWith({ where: { org_code: 'ACME' } });
+    });
+
+    it('เช็คมี code โดย excludeOrgId', async () => {
+      mockOrganization.count.mockResolvedValue(0);
+      const excludeId = 'org-x';
+      const exists = await NamedExport.codeExists('Acme', excludeId);
+      expect(exists).toBe(false);
+
+      const where = mockOrganization.count.mock.calls[0][0].where;
+      expect(where).toEqual({
+        org_code: 'ACME',
+        org_id: { [Op.ne]: excludeId },
+      });
+    });
+  });
+
+  describe('search()', () => {
+    it('default options + ไม่มีฟิลเตอร์', async () => {
+      const rows = [orgFactory(), orgFactory()];
+      mockOrganization.findAndCountAll.mockResolvedValue({ count: 2, rows });
+
+      const result = await NamedExport.search();
+      expect(mockOrganization.findAndCountAll).toHaveBeenCalledWith(expect.objectContaining({
+        where: {},
+        limit: 10,
+        offset: 0,
+        order: [['created_date', 'DESC']],
+      }));
+      expect(result.total).toBe(2);
+      expect(result.totalPages).toBe(1);
+    });
+
+    it('มีฟิลเตอร์ครบ + เปลี่ยน paging/sort', async () => {
+      const rows = [orgFactory()];
+      mockOrganization.findAndCountAll.mockResolvedValue({ count: 11, rows });
+
+      const filters = { org_name: 'ac', org_code: 'ac', owner_user_id: 'owner-1' };
+      const options = { page: 2, limit: 5, sortBy: 'org_name', sortOrder: 'ASC' };
+
+      const result = await NamedExport.search(filters, options);
+
+      const call = mockOrganization.findAndCountAll.mock.calls[0][0];
+      expect(call.where.org_name[Op.iLike]).toBe('%ac%');
+      expect(call.where.org_code[Op.iLike]).toBe('%ac%');
+      expect(call.where.owner_user_id).toBe('owner-1');
+      expect(call.limit).toBe(5);
+      expect(call.offset).toBe(5);
+      expect(call.order).toEqual([['org_name', 'ASC']]);
+      expect(result.totalPages).toBe(3); // 11/5 = 2.2 -> ceil = 3
+    });
+  });
+
+  describe('findByIdWithStats()', () => {
+    it('ควร include owner + members (through attributes)', async () => {
+      const org = orgFactory();
+      mockOrganization.findByPk.mockResolvedValue(org);
+
+      const result = await NamedExport.findByIdWithStats(org.org_id);
+      expect(mockOrganization.findByPk).toHaveBeenCalledWith(org.org_id, expect.objectContaining({
+        include: expect.arrayContaining([
+          expect.objectContaining({ as: 'owner' }),
+          expect.objectContaining({ as: 'members' }),
+        ])
+      }));
+      expect(result).toBe(org);
+    });
+  });
+
+  describe('getMemberCounts()', () => {
+    it('เมื่อ orgIds = null -> ไม่ควรมี where.org_id', async () => {
+      OrganizationMember.findAll.mockResolvedValue([
+        { toJSON: () => ({ org_id: 'o1', member_count: '3' }) },
+        { toJSON: () => ({ org_id: 'o2', member_count: '0' }) },
+      ]);
+
+      const map = await NamedExport.getMemberCounts(null);
+      expect(OrganizationMember.findAll).toHaveBeenCalledWith(expect.objectContaining({
+        attributes: expect.any(Array),
+        where: {},
+        group: ['org_id'],
+      }));
+      expect(map).toEqual({ o1: 3, o2: 0 });
+    });
+
+    it('เมื่อส่ง orgIds Array -> ใช้ Op.in', async () => {
+      OrganizationMember.findAll.mockResolvedValue([
+        { toJSON: () => ({ org_id: 'o1', member_count: '5' }) },
+      ]);
+      const ids = ['o1', 'o99'];
+      await NamedExport.getMemberCounts(ids);
+
+      const call = OrganizationMember.findAll.mock.calls[0][0];
+      expect(call.where.org_id[Op.in]).toEqual(ids);
+    });
+  });
+
+  describe('count()', () => {
+    it('proxy ไปที่ Organization.count', async () => {
+      mockOrganization.count.mockResolvedValue(7);
+      await expect(NamedExport.count({ org_integrate: 'N' })).resolves.toBe(7);
+      expect(mockOrganization.count).toHaveBeenCalledWith({ where: { org_integrate: 'N' } });
+    });
+  });
+
+  describe('bulkCreate()', () => {
+    it('ส่ง validate:true + transaction', async () => {
+      const payloads = [orgFactory(), orgFactory()];
+      mockOrganization.bulkCreate.mockResolvedValue(payloads);
+      const res = await NamedExport.bulkCreate(payloads, trx);
+
+      expect(mockOrganization.bulkCreate).toHaveBeenCalledWith(payloads, { transaction: trx, validate: true });
+      expect(res).toBe(payloads);
+    });
+  });
+
+  describe('isOwner()', () => {
+    it('คืน true เมื่อ owner_user_id ตรง', async () => {
+      const org = { owner_user_id: 'u1' };
+      mockOrganization.findByPk.mockResolvedValue(org);
+      await expect(NamedExport.isOwner('o1', 'u1')).resolves.toBe(true);
+    });
+
+    it('คืน false เมื่อไม่ตรงหรือไม่พบ', async () => {
+      mockOrganization.findByPk.mockResolvedValue({ owner_user_id: 'u1' });
+      await expect(NamedExport.isOwner('o1', 'u2')).resolves.toBe(false);
+
+      mockOrganization.findByPk.mockResolvedValue(null);
+      await expect(NamedExport.isOwner('o1', 'u2')).resolves.toBe(false);
+    });
+  });
+});
