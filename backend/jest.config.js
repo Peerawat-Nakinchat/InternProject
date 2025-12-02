@@ -10,6 +10,9 @@ export default {
   transform: {},
   extensionsToTreatAsEsm: [],
   
+  roots: ['<rootDir>/__tests__', '<rootDir>/src'],
+  moduleDirectories: ['node_modules', '<rootDir>/__tests__/__mocks__'],
+
   // Test file patterns
   testMatch: [
     '**/__tests__/**/*.test.js',
@@ -48,6 +51,10 @@ export default {
   
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.js'],
+
+  moduleNameMapper: {
+    '^isomorphic-dompurify$': '<rootDir>/__tests__/__mocks__/isomorphic-dompurify.js'
+  },
   
   // REMOVED moduleNameMapper to allow jest.unstable_mockModule to work properly
   // The .js extension is handled by Node.js ESM resolution
