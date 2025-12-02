@@ -7,7 +7,7 @@
     <div class="flex flex-col flex-1">
       
       <!-- Navbar -->
-      <Navbar class="h-12 z-20" />
+      <Navbar class="h-12 z-40" />
 
       <!-- Toolbar -->
       <ToolBar class="h-12 z-30" @open-invite="openInviteModal">
