@@ -3,117 +3,87 @@ import { AuditLogModel } from '../models/AuditLogModel.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * AuditLogService - Business Logic for Audit Logging
+ * Factory for AuditLogService
+ * @param {Object} deps - Dependencies injection
  */
-class AuditLogService {
-  /**
-   * Sanitize sensitive data before logging
-   */
-  sanitizeData(data) {
+export const createAuditLogService = (deps = {}) => {
+  const Model = deps.model || AuditLogModel;
+  const generateUuid = deps.uuid || uuidv4;
+
+  // --- Helpers ---
+
+  const sanitizeData = (data) => {
     if (!data || typeof data !== 'object') return data;
 
     const sensitiveFields = [
-      'password',
-      'password_hash',
-      'oldPassword',
-      'newPassword',
-      'token',
-      'refreshToken',
-      'accessToken',
-      'reset_token',
-      'credit_card',
-      'cvv',
-      'ssn',
-      'api_key',
-      'secret'
+      'password', 'password_hash', 'oldPassword', 'newPassword',
+      'token', 'refreshToken', 'accessToken', 'reset_token',
+      'credit_card', 'cvv', 'ssn', 'api_key', 'secret'
     ];
 
     const sanitized = Array.isArray(data) ? [] : {};
 
     for (const key in data) {
-      if (data.hasOwnProperty(key)) {
-        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        if (sensitiveFields.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
           sanitized[key] = '***REDACTED***';
         } else if (typeof data[key] === 'object' && data[key] !== null) {
-          sanitized[key] = this.sanitizeData(data[key]);
+          sanitized[key] = sanitizeData(data[key]);
         } else {
           sanitized[key] = data[key];
         }
       }
     }
-
     return sanitized;
-  }
+  };
 
-  /**
-   * Calculate diff between old and new data
-   */
-  calculateChanges(oldData, newData) {
+  const calculateChanges = (oldData, newData) => {
     if (!oldData || !newData) return null;
-
     const changes = {};
     const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
 
     for (const key of allKeys) {
-      if (oldData[key] !== newData[key]) {
+      // Simple equality check (can be enhanced with deep equality if needed)
+      if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
         changes[key] = {
           old: oldData[key],
           new: newData[key]
         };
       }
     }
-
     return Object.keys(changes).length > 0 ? changes : null;
-  }
+  };
 
-  /**
-   * Log an action
-   */
-  async log(logData) {
+  // --- Core Methods ---
+
+  const log = async (logData) => {
     try {
-      // Sanitize sensitive data
-      if (logData.before_data) {
-        logData.before_data = this.sanitizeData(logData.before_data);
-      }
-      if (logData.after_data) {
-        logData.after_data = this.sanitizeData(logData.after_data);
-      }
-      if (logData.request_body) {
-        logData.request_body = this.sanitizeData(logData.request_body);
-      }
+      if (logData.before_data) logData.before_data = sanitizeData(logData.before_data);
+      if (logData.after_data) logData.after_data = sanitizeData(logData.after_data);
+      if (logData.request_body) logData.request_body = sanitizeData(logData.request_body);
 
-      // Calculate changes if both before and after data exist
       if (logData.before_data && logData.after_data && !logData.changes) {
-        logData.changes = this.calculateChanges(
-          logData.before_data,
-          logData.after_data
-        );
+        logData.changes = calculateChanges(logData.before_data, logData.after_data);
       }
 
-      // Set default values
       logData.status = logData.status || 'SUCCESS';
       logData.severity = logData.severity || 'INFO';
       logData.created_at = logData.created_at || new Date();
 
-      // Generate correlation ID if not provided
       if (!logData.correlation_id && logData.generateCorrelationId) {
-        logData.correlation_id = uuidv4();
+        logData.correlation_id = generateUuid();
       }
 
-      const log = await AuditLogModel.create(logData);
-      return log;
+      const logEntry = await Model.create(logData);
+      return logEntry;
     } catch (error) {
       console.error('Failed to create audit log:', error);
-      // Don't throw - logging should never break the app
       return null;
     }
-  }
+  };
 
-  /**
-   * Log authentication events
-   */
-  async logAuth(action, userId, userEmail, userName, ipAddress, userAgent, additionalData = {}) {
-    return await this.log({
+  const logAuth = async (action, userId, userEmail, userName, ipAddress, userAgent, additionalData = {}) => {
+    return await log({
       user_id: userId,
       user_email: userEmail,
       user_name: userName,
@@ -126,13 +96,10 @@ class AuditLogService {
       severity: action.includes('FAILED') ? 'WARNING' : 'INFO',
       ...additionalData
     });
-  }
+  };
 
-  /**
-   * Log data changes (CREATE/UPDATE/DELETE)
-   */
-  async logDataChange(action, targetType, targetId, targetTable, beforeData, afterData, userId, metadata = {}) {
-    return await this.log({
+  const logDataChange = async (action, targetType, targetId, targetTable, beforeData, afterData, userId, metadata = {}) => {
+    return await log({
       user_id: userId,
       action,
       target_type: targetType,
@@ -144,13 +111,10 @@ class AuditLogService {
       severity: 'INFO',
       ...metadata
     });
-  }
+  };
 
-  /**
-   * Log security events
-   */
-  async logSecurity(action, description, userId, ipAddress, severity = 'WARNING', metadata = {}) {
-    return await this.log({
+  const logSecurity = async (action, description, userId, ipAddress, severity = 'WARNING', metadata = {}) => {
+    return await log({
       user_id: userId,
       action,
       action_description: description,
@@ -160,13 +124,10 @@ class AuditLogService {
       tags: ['security', 'monitoring'],
       ...metadata
     });
-  }
+  };
 
-  /**
-   * Log system events
-   */
-  async logSystem(action, description, severity = 'INFO', metadata = {}) {
-    return await this.log({
+  const logSystem = async (action, description, severity = 'INFO', metadata = {}) => {
+    return await log({
       action,
       action_description: description,
       target_type: 'SYSTEM',
@@ -174,86 +135,58 @@ class AuditLogService {
       severity,
       ...metadata
     });
-  }
+  };
 
-  /**
-   * Query audit logs with filters
-   */
-  async query(filters = {}, options = {}) {
-    return await AuditLogModel.query(filters, options);
-  }
+  // --- Read Methods ---
 
-  /**
-   * Get user activity history
-   */
-  async getUserActivity(userId, limit = 50) {
-    return await AuditLogModel.findByUser(userId, limit);
-  }
+  const query = async (filters = {}, options = {}) => {
+    return await Model.query(filters, options);
+  };
 
-  /**
-   * Get recent activity
-   */
-  async getRecentActivity(limit = 100) {
-    return await AuditLogModel.findRecent(limit);
-  }
+  const getUserActivity = async (userId, limit = 50) => {
+    return await Model.findByUser(userId, limit);
+  };
 
-  /**
-   * Get security events in date range
-   */
-  async getSecurityEvents(startDate, endDate, limit = 100) {
-    return await AuditLogModel.findSecurityEvents(startDate, endDate, limit);
-  }
+  const getRecentActivity = async (limit = 100) => {
+    return await Model.findRecent(limit);
+  };
 
-  /**
-   * Get failed actions
-   */
-  async getFailedActions(limit = 100) {
-    return await AuditLogModel.findFailedActions(limit);
-  }
+  const getSecurityEvents = async (startDate, endDate, limit = 100) => {
+    return await Model.findSecurityEvents(startDate, endDate, limit);
+  };
 
-  /**
-   * Get audit statistics
-   */
-  async getStatistics(startDate, endDate) {
-    return await AuditLogModel.getStats(startDate, endDate);
-  }
+  const getFailedActions = async (limit = 100) => {
+    return await Model.findFailedActions(limit);
+  };
 
-  /**
-   * Cleanup old logs based on retention policy
-   */
-  async cleanup(retentionDays = 90) {
+  const getStatistics = async (startDate, endDate) => {
+    return await Model.getStats(startDate, endDate);
+  };
+
+  const cleanup = async (retentionDays = 90) => {
     try {
-      const deleted = await AuditLogModel.deleteOldLogs(retentionDays);
-      
-      await this.logSystem(
+      const deleted = await Model.deleteOldLogs(retentionDays);
+      await logSystem(
         'DATABASE_CLEANUP',
         `Cleaned up ${deleted} audit logs older than ${retentionDays} days`,
         'INFO',
         { deleted_count: deleted, retention_days: retentionDays }
       );
-
       return { deleted };
     } catch (error) {
       console.error('Audit log cleanup error:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Export logs to JSON
-   */
-  async exportLogs(filters = {}, options = {}) {
-    const result = await this.query(filters, { ...options, limit: 10000 });
+  const exportLogs = async (filters = {}, options = {}) => {
+    const result = await query(filters, { ...options, limit: 10000 });
     return result.logs;
-  }
+  };
 
-  /**
-   * Get suspicious activity
-   */
-  async getSuspiciousActivity(hours = 24) {
+  const getSuspiciousActivity = async (hours = 24) => {
     const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-    
-    return await AuditLogModel.query({
+    return await query({
       actions: ['FAILED_LOGIN', 'SUSPICIOUS_ACTIVITY'],
       startDate,
       severity: 'WARNING'
@@ -262,32 +195,49 @@ class AuditLogService {
       sortBy: 'created_at',
       sortOrder: 'DESC'
     });
-  }
+  };
 
-  /**
-   * Track user session activity
-   */
-  async trackSession(sessionId, userId) {
-    return await AuditLogModel.query({
+  const trackSession = async (sessionId, userId) => {
+    return await query({
       session_id: sessionId,
       user_id: userId
     }, {
       sortBy: 'created_at',
       sortOrder: 'ASC'
     });
-  }
+  };
 
-  /**
-   * Get correlated actions
-   */
-  async getCorrelatedActions(correlationId) {
-    return await AuditLogModel.query({
+  const getCorrelatedActions = async (correlationId) => {
+    return await query({
       correlation_id: correlationId
     }, {
       sortBy: 'created_at',
       sortOrder: 'ASC'
     });
-  }
-}
+  };
 
-export default new AuditLogService();
+  return {
+    sanitizeData,
+    calculateChanges,
+    log,
+    logAuth,
+    logDataChange,
+    logSecurity,
+    logSystem,
+    query,
+    getUserActivity,
+    getRecentActivity,
+    getSecurityEvents,
+    getFailedActions,
+    getStatistics,
+    cleanup,
+    exportLogs,
+    getSuspiciousActivity,
+    trackSession,
+    getCorrelatedActions
+  };
+};
+
+// Default Instance
+const defaultInstance = createAuditLogService();
+export default defaultInstance;

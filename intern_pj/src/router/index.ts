@@ -24,11 +24,6 @@ const router = createRouter({
           path: 'company',
           name: 'company',
           component: () => import('@/pages/CompanyPage.vue')
-        },
-        {
-          path: 'invite',
-          name: 'invite',
-          component: () => import('@/pages/InvitePage.vue')
         }
       ]
     },

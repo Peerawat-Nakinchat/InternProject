@@ -3,26 +3,31 @@ import { sequelize } from "../models/dbModels.js";
 import { MemberModel } from "../models/MemberModel.js";
 
 /**
- * MemberService - Business Logic สำหรับการจัดการสมาชิกในองค์กร
+ * Factory for MemberService
+ * @param {Object} deps - Dependencies injection
  */
-class MemberService {
+export const createMemberService = (deps = {}) => {
+  // Inject Dependencies
+  const Member = deps.MemberModel || MemberModel;
+  const db = deps.sequelize || sequelize;
+
   /**
-   * ดึงรายชื่อสมาชิกในองค์กร
+   * Get Members
    */
-  async getMembers(orgId, actorRoleId, filters = {}) {
+  const getMembers = async (orgId, actorRoleId, filters = {}) => {
     // Check permission - role 1, 2, 3 can view members
     if (!actorRoleId || actorRoleId > 3) {
       throw new Error("สิทธิ์ไม่เพียงพอในการดูสมาชิก");
     }
 
-    const members = await MemberModel.findByOrganization(orgId, filters);
+    const members = await Member.findByOrganization(orgId, filters);
     return members;
-  }
+  };
 
   /**
-   * เชิญสมาชิกเข้าองค์กร
+   * Invite Member (Add existing user to org)
    */
-  async inviteMember(orgId, inviterUserId, inviterRoleId, invitedUserId, roleId) {
+  const inviteMember = async (orgId, inviterUserId, inviterRoleId, invitedUserId, roleId) => {
     // Validation
     if (!invitedUserId || !roleId) {
       throw new Error("invitedUserId and roleId required");
@@ -34,34 +39,32 @@ class MemberService {
     }
 
     // Check if user is already a member
-    const isMember = await MemberModel.exists(orgId, invitedUserId);
+    const isMember = await Member.exists(orgId, invitedUserId);
     if (isMember) {
       throw new Error("ผู้ใช้นี้เป็นสมาชิกอยู่แล้ว");
     }
 
     // Add member
-    const newMember = await MemberModel.create(
-      {
-        orgId,
-        userId: invitedUserId,
-        roleId,
-      }
-    );
+    const newMember = await Member.create({
+      orgId,
+      userId: invitedUserId,
+      roleId,
+    });
 
     return newMember;
-  }
+  };
 
   /**
-   * เปลี่ยน role ของสมาชิก
+   * Change Member Role
    */
-  async changeMemberRole(orgId, actorUserId, actorRoleId, targetMemberId, newRoleId) {
+  const changeMemberRole = async (orgId, actorUserId, actorRoleId, targetMemberId, newRoleId) => {
     // Check actor permission - only OWNER or ADMIN can change roles
     if (!actorRoleId || actorRoleId > 2) {
       throw new Error("สิทธิ์ไม่เพียงพอ");
     }
 
     // Check target member exists and get their current role
-    const targetRole = await MemberModel.getRole(orgId, targetMemberId);
+    const targetRole = await Member.getRole(orgId, targetMemberId);
 
     if (!targetRole) {
       throw new Error("ไม่พบสมาชิก");
@@ -73,102 +76,102 @@ class MemberService {
     }
 
     // Update role
-    const updatedMember = await MemberModel.updateRole(
+    const updatedMember = await Member.updateRole(
       orgId,
       targetMemberId,
       newRoleId
     );
 
     return updatedMember;
-  }
+  };
 
   /**
-   * ลบสมาชิกออกจากองค์กร
+   * Remove Member
    */
-  async removeMember(orgId, actorUserId, actorRoleId, targetMemberId) {
+  const removeMember = async (orgId, actorUserId, actorRoleId, targetMemberId) => {
     // Check actor permission
     if (!actorRoleId || actorRoleId > 2) {
       throw new Error("สิทธิ์ไม่เพียงพอ");
     }
 
     // Check target role
-    const targetRole = await MemberModel.getRole(orgId, targetMemberId);
+    const targetRole = await Member.getRole(orgId, targetMemberId);
 
     if (targetRole === 1) {
       throw new Error("ไม่สามารถลบ OWNER ได้");
     }
 
     // Remove member
-    const deleted = await MemberModel.remove(orgId, targetMemberId);
+    const deleted = await Member.remove(orgId, targetMemberId);
 
     if (!deleted) {
       throw new Error("ไม่พบสมาชิก");
     }
 
     return { success: true };
-  }
+  };
 
   /**
-   * โอนความเป็นเจ้าขององค์กร
+   * Transfer Ownership
    */
-  async transferOwner(orgId, currentOwnerId, currentOwnerRoleId, newOwnerUserId) {
+  const transferOwner = async (orgId, currentOwnerId, currentOwnerRoleId, newOwnerUserId) => {
     // Check permission - must be current OWNER
     if (currentOwnerRoleId !== 1) {
       throw new Error("ต้องเป็น OWNER เท่านั้นในการโอนสิทธิ์");
     }
 
     // Check if new owner is a member
-    const isMember = await MemberModel.exists(orgId, newOwnerUserId);
+    const isMember = await Member.exists(orgId, newOwnerUserId);
     if (!isMember) {
       throw new Error("ผู้รับโอนต้องเป็นสมาชิกขององค์กรก่อน");
     }
 
-    const t = await sequelize.transaction();
+    const t = await db.transaction();
 
     try {
-      // Update organization owner
-      await MemberModel.updateOwner(orgId, newOwnerUserId, t);
+      // Update organization owner (assuming MemberModel handles this logic or proxies to OrgModel)
+      // Note: Based on original code, MemberModel.updateOwner is used.
+      await Member.updateOwner(orgId, newOwnerUserId, t);
 
       // Update new owner's role to OWNER (1)
-      await MemberModel.updateRole(orgId, newOwnerUserId, 1, t);
+      await Member.updateRole(orgId, newOwnerUserId, 1, t);
 
       // Update old owner's role to ADMIN (2)
-      await MemberModel.updateRole(orgId, currentOwnerId, 2, t);
+      await Member.updateRole(orgId, currentOwnerId, 2, t);
 
       await t.commit();
 
       return { success: true };
     } catch (error) {
-      await t.rollback();
+      if (!t.finished) await t.rollback();
       throw error;
     }
-  }
+  };
 
   /**
-   * Get members with pagination
+   * Get Members with Pagination
    */
-  async getMembersWithPagination(orgId, actorRoleId, options = {}) {
+  const getMembersWithPagination = async (orgId, actorRoleId, options = {}) => {
     // Check permission
     if (!actorRoleId || actorRoleId > 3) {
       throw new Error("สิทธิ์ไม่เพียงพอในการดูสมาชิก");
     }
 
-    const result = await MemberModel.findByOrganizationPaginated(orgId, options);
+    const result = await Member.findByOrganizationPaginated(orgId, options);
     return result;
-  }
+  };
 
   /**
-   * Get member count
+   * Get Member Count
    */
-  async getMemberCount(orgId) {
-    const count = await MemberModel.countByOrganization(orgId);
-    return count;
-  }
+  const getMemberCount = async (orgId) => {
+    return await Member.countByOrganization(orgId);
+  };
 
   /**
-   * Bulk remove members
+   * Bulk Remove Members
    */
-  async bulkRemoveMembers(orgId, actorRoleId, userIds) {
+  const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
     // Check permission - only OWNER can bulk remove
     if (actorRoleId !== 1) {
       throw new Error("เฉพาะ OWNER เท่านั้นที่สามารถลบสมาชิกหลายคนได้");
@@ -176,31 +179,44 @@ class MemberService {
 
     // Check if trying to remove owner
     for (const userId of userIds) {
-      const role = await MemberModel.getRole(orgId, userId);
+      const role = await Member.getRole(orgId, userId);
       if (role === 1) {
         throw new Error("ไม่สามารถลบ OWNER ได้");
       }
     }
 
-    const deleted = await MemberModel.bulkRemove(orgId, userIds);
+    const deleted = await Member.bulkRemove(orgId, userIds);
     return { deleted, success: true };
-  }
+  };
 
   /**
-   * Check if user is member of organization
+   * Check Membership
    */
-  async checkMembership(orgId, userId) {
-    const isMember = await MemberModel.exists(orgId, userId);
-    return isMember;
-  }
+  const checkMembership = async (orgId, userId) => {
+    return await Member.exists(orgId, userId);
+  };
 
   /**
-   * Get user's memberships
+   * Get User Memberships
    */
-  async getUserMemberships(userId) {
-    const memberships = await MemberModel.findByUser(userId);
-    return memberships;
-  }
-}
+  const getUserMemberships = async (userId) => {
+    return await Member.findByUser(userId);
+  };
 
-export default new MemberService();
+  return {
+    getMembers,
+    inviteMember,
+    changeMemberRole,
+    removeMember,
+    transferOwner,
+    getMembersWithPagination,
+    getMemberCount,
+    bulkRemoveMembers,
+    checkMembership,
+    getUserMemberships
+  };
+};
+
+// Default Instance
+const defaultInstance = createMemberService();
+export default defaultInstance;

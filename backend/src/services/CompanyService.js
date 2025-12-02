@@ -4,95 +4,17 @@ import { OrganizationModel } from "../models/CompanyModel.js";
 import { MemberModel } from "../models/MemberModel.js";
 
 /**
- * CompanyService - Business Logic สำหรับการจัดการบริษัท/องค์กร
+ * Factory for CompanyService
+ * @param {Object} deps - Dependencies injection
  */
-class CompanyService {
-  /**
-   * สร้างบริษัทและกำหนด owner
-   */
-  async createCompany(ownerUserId, companyData) {
-    const {
-      org_name,
-      org_code,
-      org_address_1,
-      org_address_2,
-      org_address_3,
-      org_integrate,
-      org_integrate_url,
-      org_integrate_provider_id,
-      org_integrate_passcode,
-    } = companyData;
+export const createCompanyService = (deps = {}) => {
+  // Inject Dependencies
+  const OrgModel = deps.OrganizationModel || OrganizationModel;
+  const MemModel = deps.MemberModel || MemberModel;
+  const db = deps.sequelize || sequelize;
 
-    // Validation
-    if (!org_name || !org_code) {
-      throw new Error("กรุณากรอกชื่อบริษัทและรหัสบริษัท");
-    }
-
-    // Check if org_code already exists
-    const exists = await OrganizationModel.codeExists(org_code);
-    if (exists) {
-      const error = new Error("รหัสบริษัทซ้ำ");
-      error.code = "23505";
-      throw error;
-    }
-
-    // Use transaction for atomic operation
-    const t = await sequelize.transaction();
-
-    try {
-      // Create organization
-      const company = await OrganizationModel.create(
-        {
-          org_name,
-          org_code,
-          owner_user_id: ownerUserId,
-          org_address_1,
-          org_address_2,
-          org_address_3,
-          org_integrate,
-          org_integrate_url,
-          org_integrate_provider_id,
-          org_integrate_passcode,
-        },
-        t
-      );
-
-      // Add owner as member with role_id = 1 (OWNER)
-      await MemberModel.create(
-        {
-          orgId: company.org_id,
-          userId: ownerUserId,
-          roleId: 1,
-        },
-        t
-      );
-
-      await t.commit();
-
-      return company;
-    } catch (error) {
-      await t.rollback();
-      throw error;
-    }
-  }
-
-  /**
-   * ดึงข้อมูลบริษัทตาม ID
-   */
-  async getCompanyById(orgId) {
-    const company = await OrganizationModel.findById(orgId);
-
-    if (!company) {
-      throw new Error("ไม่พบบริษัทนี้");
-    }
-
-    return company;
-  }
-
-  /**
-   * ดึงรายการบริษัททั้งหมดของ user
-   */
-  mapRoleIdToName(roleId) {
+  // --- Helper: Map Role ID to Name ---
+  const mapRoleIdToName = (roleId) => {
     switch (Number(roleId)) {
       case 1: return 'OWNER';
       case 2: return 'ADMIN';
@@ -101,64 +23,125 @@ class CompanyService {
       case 5: return 'AUDITOR';
       default: return 'UNKNOWN';
     }
-  }
+  };
 
-  async getUserCompanies(userId) {
-    // ดึงบริษัทที่เป็นเจ้าของ (OWNER)
-    const ownedCompanies = await OrganizationModel.findByOwner(userId);
+  /**
+   * Create Company
+   */
+  const createCompany = async (ownerUserId, companyData) => {
+    const {
+      org_name, org_code,
+      org_address_1, org_address_2, org_address_3,
+      org_integrate, org_integrate_url,
+      org_integrate_provider_id, org_integrate_passcode,
+    } = companyData;
+
+    // Validation
+    if (!org_name || !org_code) {
+      throw new Error("กรุณากรอกชื่อบริษัทและรหัสบริษัท");
+    }
+
+    // Check Duplicate Code
+    const exists = await OrgModel.codeExists(org_code);
+    if (exists) {
+      const error = new Error("รหัสบริษัทซ้ำ");
+      error.code = "23505";
+      throw error;
+    }
+
+    const t = await db.transaction();
+
+    try {
+      // Create Org
+      const company = await OrgModel.create(
+        {
+          org_name, org_code, owner_user_id: ownerUserId,
+          org_address_1, org_address_2, org_address_3,
+          org_integrate, org_integrate_url,
+          org_integrate_provider_id, org_integrate_passcode,
+        },
+        t
+      );
+
+      // Add Owner Member
+      await MemModel.create(
+        {
+          orgId: company.org_id,
+          userId: ownerUserId,
+          roleId: 1, // OWNER
+        },
+        t
+      );
+
+      await t.commit();
+      return company;
+    } catch (error) {
+      if (!t.finished) await t.rollback();
+      throw error;
+    }
+  };
+
+  /**
+   * Get Company By ID
+   */
+  const getCompanyById = async (orgId) => {
+    const company = await OrgModel.findById(orgId);
+    if (!company) throw new Error("ไม่พบบริษัทนี้");
+    return company;
+  };
+
+  /**
+   * Get User Companies
+   */
+  const getUserCompanies = async (userId) => {
+    // 1. Owned Companies
+    const ownedCompanies = await OrgModel.findByOwner(userId);
     const formattedOwned = ownedCompanies.map(company => {
-      const plain = company.get({ plain: true }); 
-      return {
-        ...plain,
-        role_id: 1,
-        role_name: 'OWNER',
-      };
+      const plain = company.get ? company.get({ plain: true }) : company;
+      return { ...plain, role_id: 1, role_name: 'OWNER' };
     });
 
-    // ดึงบริษัทที่เป็นสมาชิก (MEMBER)
-    const memberCompanies = await OrganizationModel.findByMember(userId);
+    // 2. Member Companies
+    const memberCompanies = await OrgModel.findByMember(userId);
     const formattedMember = memberCompanies.map(company => {
-      const plain = company.get({ plain: true });
-      const membership = plain.members && plain.members[0] ? plain.members[0].sys_organization_members : null;
-      const roleId = membership ? membership.role_id : 3; 
+      const plain = company.get ? company.get({ plain: true }) : company;
+      // Handle nested join structure safely
+      const membership = plain.members && plain.members[0] ? 
+        (plain.members[0].sys_organization_members || plain.members[0]) : null;
+      
+      const roleId = membership ? membership.role_id : 3;
 
+      const { members, ...rest } = plain; // Remove raw members array
       return {
-        ...plain,
+        ...rest,
         role_id: roleId,
-        role_name: this.mapRoleIdToName(roleId), 
-        members: undefined, 
+        role_name: mapRoleIdToName(roleId),
       };
     });
 
-    // รวมทั้งหมดก่อน
     const companies = [...formattedOwned, ...formattedMember];
 
-    // 3) ดึงจำนวนสมาชิกทั้งหมดของ org เหล่านี้
+    // 3. Get Member Counts
     const orgIds = companies.map(c => c.org_id);
-    const memberCountsMap = await OrganizationModel.getMemberCounts(orgIds);
+    const memberCountsMap = await OrgModel.getMemberCounts(orgIds);
 
-    // 4) ใส่ member_count ให้แต่ละบริษัท
-    const companiesWithCounts = companies.map(c => ({
+    // 4. Merge Counts
+    return companies.map(c => ({
       ...c,
       member_count: memberCountsMap[c.org_id] ?? 0,
     }));
-
-    return companiesWithCounts;
-  }
+  };
 
   /**
-   * อัพเดทข้อมูลบริษัท
+   * Update Company
    */
-  async updateCompany(orgId, userId, userOrgRoleId, updates) {
+  const updateCompany = async (orgId, userId, userOrgRoleId, updates) => {
     if (userOrgRoleId !== 1) {
       throw new Error("เฉพาะ OWNER เท่านั้นที่แก้ไขข้อมูลได้");
     }
 
     if (updates.org_code) {
-      const exists = await OrganizationModel.codeExists(
-        updates.org_code,
-        orgId
-      );
+      const exists = await OrgModel.codeExists(updates.org_code, orgId);
       if (exists) {
         const error = new Error("Org Code ซ้ำ");
         error.code = "23505";
@@ -166,85 +149,82 @@ class CompanyService {
       }
     }
 
-    const updatedCompany = await OrganizationModel.update(
-      orgId,
-      updates
-    );
-
-    if (!updatedCompany) {
-      throw new Error("ไม่พบบริษัทนี้");
-    }
+    const updatedCompany = await OrgModel.update(orgId, updates);
+    if (!updatedCompany) throw new Error("ไม่พบบริษัทนี้");
 
     return updatedCompany;
-  }
+  };
 
   /**
-   * ลบบริษัท
+   * Delete Company
    */
-  async deleteCompany(orgId, userId, userOrgRoleId) {
-    
+  const deleteCompany = async (orgId, userId, userOrgRoleId) => {
     if (userOrgRoleId !== 1) {
       throw new Error("อนุญาตเฉพาะ OWNER เท่านั้น");
     }
 
-    const t = await sequelize.transaction();
+    const t = await db.transaction();
 
     try {
-      // Delete organization
-      const deleted = await OrganizationModel.delete(orgId, t);
-
+      const deleted = await OrgModel.delete(orgId, t);
       if (!deleted) {
-        await t.rollback();
         throw new Error("ไม่พบบริษัทนี้");
       }
 
-      // Remove all members
-      await MemberModel.bulkRemoveMembers(orgId, [], t);
-
+      await MemModel.bulkRemoveMembers(orgId, [], t);
       await t.commit();
 
       return { success: true };
     } catch (error) {
-      await t.rollback();
+      if (!t.finished) await t.rollback();
       throw error;
     }
-  }
+  };
 
   /**
-   * Search organizations
+   * Search Organizations
    */
-  async searchOrganizations(filters = {}, options = {}) {
-    return await OrganizationModel.searchOrganizations(filters, options);
-  }
+  const searchOrganizations = async (filters = {}, options = {}) => {
+    return await OrgModel.searchOrganizations(filters, options);
+  };
 
   /**
-   * Get organization statistics
+   * Get Stats
    */
-  async getOrganizationStats(orgId) {
-    const stats = await OrganizationModel.getOrganizationStats(orgId);
-
-    if (!stats) {
-      throw new Error("ไม่พบบริษัทนี้");
-    }
-
+  const getOrganizationStats = async (orgId) => {
+    const stats = await OrgModel.getOrganizationStats(orgId);
+    if (!stats) throw new Error("ไม่พบบริษัทนี้");
     return stats;
-  }
+  };
 
   /**
-   * Verify user membership in organization
+   * Verify Membership
    */
-  async verifyMembership(orgId, userId) {
-    const isMember = await MemberModel.checkMembership(orgId, userId);
-    return isMember;
-  }
+  const verifyMembership = async (orgId, userId) => {
+    return await MemModel.checkMembership(orgId, userId);
+  };
 
   /**
-   * Get user's role in organization
+   * Get User Role
    */
-  async getUserRoleInOrganization(orgId, userId) {
-    const roleId = await MemberModel.findMemberRole(orgId, userId);
-    return roleId;
-  }
-}
+  const getUserRoleInOrganization = async (orgId, userId) => {
+    return await MemModel.findMemberRole(orgId, userId);
+  };
 
-export default new CompanyService();
+  return {
+    createCompany,
+    getCompanyById,
+    getUserCompanies,
+    updateCompany,
+    deleteCompany,
+    searchOrganizations,
+    getOrganizationStats,
+    verifyMembership,
+    getUserRoleInOrganization,
+    mapRoleIdToName // Exposed for testing if needed
+  };
+};
+
+// Default Instance
+const defaultInstance = createCompanyService();
+export default defaultInstance;
