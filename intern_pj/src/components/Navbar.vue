@@ -82,15 +82,17 @@
     </div>
   </header>
 
-  <ConfirmDialog
-    v-model="showLogoutConfirm"
-    icon="mdi-logout"
-    title="ยืนยันการออกจากระบบ"
-    message="คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?"
-    confirmText="ออกจากระบบ"
-    cancelText="ยกเลิก"
-    @confirm="handleLogout"
-  />
+<ConfirmDialog
+  v-model="showLogoutConfirm"
+  icon="mdi-logout"
+  title="ยืนยันการออกจากระบบ"
+  message="คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?"
+  confirmText="ออกจากระบบ"
+  cancelText="ยกเลิก"
+  
+  :action="handleLogout"
+  loading-title="กำลังออกจากระบบ..." 
+/>
 </template>
 
 <script setup lang="ts">

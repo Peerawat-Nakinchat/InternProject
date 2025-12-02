@@ -425,9 +425,10 @@
     message="เมื่อเปลี่ยนรหัสผ่านสำเร็จ ระบบจะนำคุณออกจากระบบโดยอัตโนมัติ คุณต้องเข้าสู่ระบบด้วยรหัสผ่านใหม่"
     confirmText="เปลี่ยนรหัสผ่าน"
     cancelText="ยกเลิก"
-    @confirm="savePassword"
+    :action="savePassword"
     @cancel="closePasswordConfirm"
     icon="mdi-lock-reset"
+    loading-title="กำลังเปลี่ยนรหัสผ่าน..."
   />
 
   <ConfirmDialog
@@ -449,6 +450,7 @@ import { useAuthStore } from '@/stores/auth'
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import Swal from 'sweetalert2'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -723,7 +725,14 @@ const savePassword = async () => {
   if (result.success) {
     // การเปลี่ยนรหัสผ่านจะทำให้ logout
     closePasswordPopup()
-    alert('เปลี่ยนรหัสผ่านสำเร็จ คุณต้องเข้าสู่ระบบใหม่')
+    await Swal.fire({
+      icon: 'success',
+      title: 'เปลี่ยนรหัสผ่านสำเร็จ',
+      text: 'คุณต้องเข้าสู่ระบบใหม่อีกครั้ง',
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#01E184', 
+      allowOutsideClick: false,      
+    })
     router.push('/login') 
   } else {
     passwordError.value = result.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
