@@ -5,8 +5,20 @@ import { securityLogger } from '../utils/logger.js';
  * Middleware to extract client information
  */
 export const extractClientInfo = (req, res, next) => {
+  let ip = req.ip || req.connection.remoteAddress || 'unknown';
+
+  // Clean up IPv4-mapped IPv6 addresses
+  if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+  
+  // Normalize Localhost
+  if (ip === '::1') {
+    ip = '127.0.0.1';
+  }
+
   req.clientInfo = {
-    ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+    ipAddress: ip,
     userAgent: req.headers['user-agent'] || 'unknown',
   };
   next();
@@ -116,7 +128,7 @@ export const detectSuspiciousPatterns = (req, res, next) => {
   const userAgent = clientInfo?.userAgent || headers['user-agent'];
   
   // Check for SQL injection patterns in body
-  const sqlPatterns = /'|--|;|\/\*|\*\/|xp_|sp_|exec|execute|union|select|insert|update|delete|drop|create|alter/i;
+  const sqlPatterns = /('[\s\S]*--)|(\s+OR\s+[\w\s]+=)|(;\s*DROP\s+TABLE)|(UNION\s+SELECT)/i;
   const bodyStr = JSON.stringify(body);
   
   if (sqlPatterns.test(bodyStr)) {
@@ -129,7 +141,7 @@ export const detectSuspiciousPatterns = (req, res, next) => {
   }
   
   // Check for XSS patterns
-  const xssPatterns = /<script|javascript:|onerror=|onload=/i;
+  const xssPatterns = /<script|javascript:|onerror=|onload=|onclick=|onmouseover=/i;
   
   if (xssPatterns.test(bodyStr)) {
     securityLogger.suspiciousActivity(
@@ -141,7 +153,7 @@ export const detectSuspiciousPatterns = (req, res, next) => {
   }
   
   // Check for missing or suspicious user agent
-  if (!userAgent || userAgent.length < 10) {
+  if (!userAgent || userAgent.length < 5) {
     securityLogger.suspiciousActivity(
       'Suspicious or missing user agent',
       ip,
