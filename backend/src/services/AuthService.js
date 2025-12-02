@@ -322,15 +322,19 @@ export const createAuthService = (deps = {}) => {
       if (typeof data[key] === "string") data[key] = data[key].trim();
     }
 
+    if (data.name !== undefined && data.name === "") {
+        throw new Error("ชื่อต้องไม่เป็นค่าว่าง");
+    }
+    if (data.surname !== undefined && data.surname === "") {
+        throw new Error("นามสกุลต้องไม่เป็นค่าว่าง");
+    }
+
     const cleanData = {};
     for (const key in data) {
       if (data[key] !== undefined && data[key] !== null && data[key] !== "") {
         cleanData[key] = data[key];
       }
     }
-
-    if (cleanData.name === "") throw new Error("ชื่อต้องไม่เป็นค่าว่าง");
-    if (cleanData.surname === "") throw new Error("นามสกุลต้องไม่เป็นค่าว่าง");
 
     if (cleanData.name || cleanData.surname) {
       const currentUser = await User.findById(userId);

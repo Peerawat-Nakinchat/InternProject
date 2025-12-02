@@ -8,17 +8,20 @@ import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import MemberModel from "../models/MemberModel.js";
 import OrganizationModel from "../models/CompanyModel.js";
 
-const router = express.Router();
+export const createMemberRoutes = (deps = {}) => {
+  const router = express.Router();
 
-// All routes require authentication
-router.use(protect);
+  const controller = deps.controller || MemberController;
+  const authMw = deps.authMiddleware || { protect };
+  const companyMw = deps.companyMiddleware || { requireOrganization, requireOrgRole };
+  const auditMw = deps.auditMiddleware || { auditLog, auditChange };
+  const MemModel = deps.MemberModel || MemberModel;
+  const OrgModel = deps.OrganizationModel || OrganizationModel;
 
-// All routes require organization context
-router.use(requireOrganization);
+  router.use(authMw.protect);
+  router.use(companyMw.requireOrganization);
 
-// ==================== MEMBER MANAGEMENT ROUTES ====================
-
-/**
+  /**
  * @swagger
  * /members/{orgId}:
  *   get:
@@ -91,13 +94,13 @@ router.use(requireOrganization);
  *       403:
  *         description: Insufficient permissions
  */
-router.get(
-  "/:orgId",
-  auditLog(AUDIT_ACTIONS.MEMBER.VIEW_ALL, "MEMBER", { severity: "LOW", category: "MEMBERSHIP" }),
-  MemberController.listMembers
-);
+  router.get(
+    "/:orgId",
+    auditMw.auditLog(AUDIT_ACTIONS.MEMBER.VIEW_ALL, "MEMBER", { severity: "LOW", category: "MEMBERSHIP" }),
+    controller.listMembers
+  );
 
-/**
+  /**
  * @swagger
  * /members/{orgId}/invite:
  *   post:
@@ -147,13 +150,13 @@ router.get(
  *       409:
  *         description: User is already a member
  */
-router.post(
-  "/:orgId/invite",
-  auditLog(AUDIT_ACTIONS.MEMBER.INVITE, "MEMBER", { severity: "MEDIUM", category: "MEMBERSHIP" }),
-  MemberController.inviteMemberToCompany
-);
+  router.post(
+    "/:orgId/invite",
+    auditMw.auditLog(AUDIT_ACTIONS.MEMBER.INVITE, "MEMBER", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+    controller.inviteMemberToCompany
+  );
 
-/**
+  /**
  * @swagger
  * /members/{orgId}/{memberId}/role:
  *   patch:
@@ -203,14 +206,14 @@ router.post(
  *       404:
  *         description: Member not found
  */
-router.patch(
-  "/:orgId/:memberId/role",
-  auditChange("MEMBER", (id) => MemberModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.MEMBER.CHANGE_ROLE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
-  MemberController.changeMemberRole
-);
+  router.patch(
+    "/:orgId/:memberId/role",
+    auditMw.auditChange("MEMBER", (id) => MemModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.MEMBER.CHANGE_ROLE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
+    controller.changeMemberRole
+  );
 
-/**
+  /**
  * @swagger
  * /members/{orgId}/{memberId}:
  *   delete:
@@ -247,14 +250,14 @@ router.patch(
  *       404:
  *         description: Member not found
  */
-router.delete(
-  "/:orgId/:memberId",
-  auditChange("MEMBER", (id) => MemberModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.MEMBER.REMOVE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
-  MemberController.removeMember
-);
+  router.delete(
+    "/:orgId/:memberId",
+    auditMw.auditChange("MEMBER", (id) => MemModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.MEMBER.REMOVE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
+    controller.removeMember
+  );
 
-/**
+  /**
  * @swagger
  * /members/{orgId}/transfer-owner:
  *   post:
@@ -299,11 +302,14 @@ router.delete(
  *       404:
  *         description: New owner user not found or not a member
  */
-router.post(
-  "/:orgId/transfer-owner",
-  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.MEMBER.TRANSFER_OWNERSHIP, "COMPANY", { severity: "CRITICAL", category: "SECURITY" }),
-  MemberController.transferOwner
-);
+  router.post(
+    "/:orgId/transfer-owner",
+    auditMw.auditChange("COMPANY", (id) => OrgModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.MEMBER.TRANSFER_OWNERSHIP, "COMPANY", { severity: "CRITICAL", category: "SECURITY" }),
+    controller.transferOwner
+  );
 
-export default router;
+  return router;
+};
+
+export default createMemberRoutes();

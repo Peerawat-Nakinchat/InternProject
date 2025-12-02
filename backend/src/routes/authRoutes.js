@@ -1,41 +1,41 @@
 // src/routes/authRoutes.js
 import express from "express";
 import {
-  registerUser,
-  loginUser,
-  getProfile,
-  logoutUser,
-  refreshToken,
-  logoutAllUser,
-  googleAuthCallback,
-  forgotPassword,
-  verifyResetToken,
-  resetPassword,
-  changeEmail,
-  changePassword,
-  updateProfile,
+  registerUser, loginUser, getProfile, logoutUser, refreshToken, logoutAllUser,
+  googleAuthCallback, forgotPassword, verifyResetToken, resetPassword,
+  changeEmail, changePassword, updateProfile,
 } from "../controllers/AuthController.js";
 import passport from "passport";
 import { refreshAccessToken } from "../middleware/refreshTokenMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
 import {
-  validateRegister,
-  validateLogin,
-  validateForgotPassword,
-  validateResetPassword,
-  validateChangeEmail,
-  validateChangePassword,
-  validateUpdateProfile,
+  validateRegister, validateLogin, validateForgotPassword, validateResetPassword,
+  validateChangeEmail, validateChangePassword, validateUpdateProfile,
 } from "../middleware/validation.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import UserModel from "../models/UserModel.js";
 
-const router = express.Router();
+export const createAuthRoutes = (deps = {}) => {
+  const router = express.Router();
 
-// ==================== PUBLIC ROUTES ====================
+  const controller = deps.controller || {
+    registerUser, loginUser, getProfile, logoutUser, refreshToken, logoutAllUser,
+    googleAuthCallback, forgotPassword, verifyResetToken, resetPassword,
+    changeEmail, changePassword, updateProfile
+  };
+  const authMw = deps.authMiddleware || { protect };
+  const refreshMw = deps.refreshMiddleware || { refreshAccessToken };
+  const valMw = deps.validationMiddleware || {
+    validateRegister, validateLogin, validateForgotPassword, validateResetPassword,
+    validateChangeEmail, validateChangePassword, validateUpdateProfile
+  };
+  const auditMw = deps.auditMiddleware || { auditLog, auditChange };
+  const userModel = deps.UserModel || UserModel;
+  const passportAuth = deps.passport || passport;
 
-/**
+  // Public
+  /**
  * @swagger
  * /auth/register:
  *   post:
@@ -84,14 +84,9 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post(
-  "/register",
-  validateRegister,
-  auditLog(AUDIT_ACTIONS.AUTH.REGISTER, "USER", { severity: "INFO", category: "AUTH" }),
-  registerUser
-);
+  router.post("/register", valMw.validateRegister, auditMw.auditLog(AUDIT_ACTIONS.AUTH.REGISTER, "USER", { severity: "INFO", category: "AUTH" }), controller.registerUser);
 
-/**
+  /**
  * @swagger
  * /auth/login:
  *   post:
@@ -133,14 +128,10 @@ router.post(
  *       401:
  *         description: Invalid credentials
  */
-router.post(
-  "/login",
-  validateLogin,
-  auditLog(AUDIT_ACTIONS.AUTH.LOGIN, "USER", { severity: "INFO", category: "AUTH" }),
-  loginUser
-);
+  router.post("/login", valMw.validateLogin, auditMw.auditLog(AUDIT_ACTIONS.AUTH.LOGIN, "USER", { severity: "INFO", category: "AUTH" }), controller.loginUser);
 
-/**
+  // Protected Logout
+  /**
  * @swagger
  * /auth/logout:
  *   post:
@@ -163,14 +154,10 @@ router.post(
  *       400:
  *         description: Missing refresh token
  */
-router.post(
-  "/logout",
-  protect,
-  auditLog(AUDIT_ACTIONS.AUTH.LOGOUT, "USER", { severity: "INFO", category: "AUTH" }),
-  logoutUser
-);
+  router.post("/logout", authMw.protect, auditMw.auditLog(AUDIT_ACTIONS.AUTH.LOGOUT, "USER", { severity: "INFO", category: "AUTH" }), controller.logoutUser);
 
-/**
+  // Password Reset
+  /**
  * @swagger
  * /auth/forgot-password:
  *   post:
@@ -194,14 +181,9 @@ router.post(
  *       500:
  *         description: Internal server error
  */
-router.post(
-  "/forgot-password",
-  validateForgotPassword,
-  auditLog(AUDIT_ACTIONS.AUTH.FORGOT_PASSWORD, "USER", { severity: "MEDIUM", category: "SECURITY" }),
-  forgotPassword
-);
+  router.post("/forgot-password", valMw.validateForgotPassword, auditMw.auditLog(AUDIT_ACTIONS.AUTH.FORGOT_PASSWORD, "USER", { severity: "MEDIUM", category: "SECURITY" }), controller.forgotPassword);
 
-/**
+  /**
  * @swagger
  * /auth/verify-reset-token:
  *   get:
@@ -220,13 +202,9 @@ router.post(
  *       400:
  *         description: Invalid or expired token
  */
-router.get(
-  "/verify-reset-token",
-  auditLog(AUDIT_ACTIONS.AUTH.VERIFY_RESET_TOKEN, "USER", { severity: "MEDIUM", category: "SECURITY" }),
-  verifyResetToken
-);
+  router.get("/verify-reset-token", auditMw.auditLog(AUDIT_ACTIONS.AUTH.VERIFY_RESET_TOKEN, "USER", { severity: "MEDIUM", category: "SECURITY" }), controller.verifyResetToken);
 
-/**
+  /**
  * @swagger
  * /auth/reset-password:
  *   post:
@@ -253,16 +231,10 @@ router.get(
  *       400:
  *         description: Invalid token or validation error
  */
-router.post(
-  "/reset-password",
-  validateResetPassword,
-  auditLog(AUDIT_ACTIONS.AUTH.RESET_PASSWORD, "USER", { severity: "HIGH", category: "SECURITY" }),
-  resetPassword
-);
+  router.post("/reset-password", valMw.validateResetPassword, auditMw.auditLog(AUDIT_ACTIONS.AUTH.RESET_PASSWORD, "USER", { severity: "HIGH", category: "SECURITY" }), controller.resetPassword);
 
-// ==================== OAUTH ROUTES ====================
-
-/**
+  // OAuth
+  /**
  * @swagger
  * /auth/google:
  *   get:
@@ -272,13 +244,9 @@ router.post(
  *       302:
  *         description: Redirect to Google authentication
  */
-router.get(
-  "/google",
-  auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_START, "USER"),
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
+  router.get("/google", auditMw.auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_START, "USER"), passportAuth.authenticate("google", { scope: ["profile", "email"] }));
 
-/**
+  /**
  * @swagger
  * /auth/google/callback:
  *   get:
@@ -288,19 +256,10 @@ router.get(
  *       302:
  *         description: Redirect to frontend with tokens
  */
-router.get(
-  "/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: "/login",
-  }),
-  auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_CALLBACK, "USER"),
-  googleAuthCallback
-);
+  router.get("/google/callback", passportAuth.authenticate("google", { session: false, failureRedirect: "/login" }), auditMw.auditLog(AUDIT_ACTIONS.AUTH.GOOGLE_OAUTH_CALLBACK, "USER"), controller.googleAuthCallback);
 
-// ==================== TOKEN MANAGEMENT ====================
-
-/**
+  // Tokens
+  /**
  * @swagger
  * /auth/refresh:
  *   post:
@@ -323,13 +282,9 @@ router.get(
  *       401:
  *         description: Invalid or expired refresh token
  */
-router.post(
-  "/refresh",
-  auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN, "USER", { category: "AUTH" }),
-  refreshToken
-);
+  router.post("/refresh", auditMw.auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN, "USER", { category: "AUTH" }), controller.refreshToken);
 
-/**
+  /**
  * @swagger
  * /auth/token:
  *   post:
@@ -350,16 +305,10 @@ router.post(
  *       200:
  *         description: New access token generated
  */
-router.post(
-  "/token",
-  auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN_ALT, "USER", { category: "AUTH" }),
-  refreshAccessToken
-);
+  router.post("/token", auditMw.auditLog(AUDIT_ACTIONS.AUTH.REFRESH_TOKEN_ALT, "USER", { category: "AUTH" }), refreshMw.refreshAccessToken);
 
-// ==================== PROTECTED ROUTES ====================
-// All routes below require authentication
-
-/**
+  // Profile
+  /**
  * @swagger
  * /auth/profile:
  *   get:
@@ -375,14 +324,9 @@ router.post(
  *       404:
  *         description: User not found
  */
-router.get(
-  "/profile",
-  protect,
-  auditLog(AUDIT_ACTIONS.AUTH.GET_PROFILE, "USER"),
-  getProfile
-);
+  router.get("/profile", authMw.protect, auditMw.auditLog(AUDIT_ACTIONS.AUTH.GET_PROFILE, "USER"), controller.getProfile);
 
-/**
+  /**
  * @swagger
  * /auth/update-profile:
  *   put:
@@ -424,16 +368,16 @@ router.get(
  *       401:
  *         description: Unauthorized
  */
-router.put(
-  "/update-profile",
-  protect,
-  validateUpdateProfile,
-  auditChange("USER", (id) => UserModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.AUTH.UPDATE_PROFILE, "USER", { severity: "LOW", category: "PROFILE" }),
-  updateProfile
-);
+  router.put(
+    "/update-profile",
+    authMw.protect,
+    valMw.validateUpdateProfile,
+    auditMw.auditChange("USER", (id) => userModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.UPDATE_PROFILE, "USER", { severity: "LOW", category: "PROFILE" }),
+    controller.updateProfile
+  );
 
-/**
+  /**
  * @swagger
  * /auth/change-email:
  *   put:
@@ -465,9 +409,16 @@ router.put(
  *       409:
  *         description: Email already in use
  */
-router.put("/change-email", protect, auditChange("USER", (id) => UserModel.findById(id)), auditLog(AUDIT_ACTIONS.AUTH.CHANGE_EMAIL, "USER", { severity: "HIGH", category: "SECURITY" }), validateChangeEmail, changeEmail);
+  router.put(
+    "/change-email",
+    authMw.protect,
+    auditMw.auditChange("USER", (id) => userModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.CHANGE_EMAIL, "USER", { severity: "HIGH", category: "SECURITY" }),
+    valMw.validateChangeEmail,
+    controller.changeEmail
+  );
 
-/**
+  /**
  * @swagger
  * /auth/change-password:
  *   put:
@@ -496,9 +447,9 @@ router.put("/change-email", protect, auditChange("USER", (id) => UserModel.findB
  *       401:
  *         description: Invalid old password
  */
-router.put("/change-password", protect, auditLog(AUDIT_ACTIONS.AUTH.CHANGE_PASSWORD, "USER", { severity: "MEDIUM", category: "AUTH" }), validateChangePassword, changePassword);
+  router.put("/change-password", authMw.protect, auditMw.auditLog(AUDIT_ACTIONS.AUTH.CHANGE_PASSWORD, "USER", { severity: "MEDIUM", category: "AUTH" }), valMw.validateChangePassword, controller.changePassword);
 
-/**
+  /**
  * @swagger
  * /auth/logout-all:
  *   post:
@@ -513,6 +464,9 @@ router.put("/change-password", protect, auditLog(AUDIT_ACTIONS.AUTH.CHANGE_PASSW
  *       401:
  *         description: Unauthorized
  */
-router.post("/logout-all", protect, auditLog(AUDIT_ACTIONS.AUTH.LOGOUT_ALL, "USER", { severity: "MEDIUM", category: "AUTH" }), logoutAllUser);
+  router.post("/logout-all", authMw.protect, auditMw.auditLog(AUDIT_ACTIONS.AUTH.LOGOUT_ALL, "USER", { severity: "MEDIUM", category: "AUTH" }), controller.logoutAllUser);
 
-export default router;
+  return router;
+};
+
+export default createAuthRoutes();

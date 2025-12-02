@@ -2,21 +2,23 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import {
-  sendInvitation,
-  getInvitationInfo,
-  acceptInvitation,
-  cancelInvitation,
-  resendInvitation,
+  sendInvitation, getInvitationInfo, acceptInvitation, cancelInvitation, resendInvitation,
 } from "../controllers/InvitationController.js";
 import { validateEmail } from "../middleware/validation.js";
 import { auditLog } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 
-const router = express.Router();
+export const createInvitationRoutes = (deps = {}) => {
+  const router = express.Router();
 
-// ==================== INVITATION MANAGEMENT ROUTES ====================
+  const controller = deps.controller || {
+    sendInvitation, getInvitationInfo, acceptInvitation, cancelInvitation, resendInvitation
+  };
+  const authMw = deps.authMiddleware || { protect };
+  const valMw = deps.validationMiddleware || { validateEmail };
+  const auditMw = deps.auditMiddleware || { auditLog };
 
-/**
+  /**
  * @swagger
  * /invitations/send:
  *   post:
@@ -77,15 +79,15 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post(
-  "/send",
-  protect,
-  validateEmail,
-  auditLog(AUDIT_ACTIONS.INVITATION.SEND, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
-  sendInvitation
-);
+  router.post(
+    "/send",
+    authMw.protect,
+    valMw.validateEmail,
+    auditMw.auditLog(AUDIT_ACTIONS.INVITATION.SEND, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+    controller.sendInvitation
+  );
 
-/**
+  /**
  * @swagger
  * /invitations/resend:
  *   post:
@@ -121,15 +123,15 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.post(
-  "/resend",
-  protect,
-  validateEmail,
-  auditLog(AUDIT_ACTIONS.INVITATION.RESEND, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
-  resendInvitation
-);
+  router.post(
+    "/resend",
+    authMw.protect,
+    valMw.validateEmail,
+    auditMw.auditLog(AUDIT_ACTIONS.INVITATION.RESEND, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+    controller.resendInvitation
+  );
 
-/**
+  /**
  * @swagger
  * /invitations/{token}:
  *   get:
@@ -170,9 +172,9 @@ router.post(
  *       500:
  *         description: Internal server error
  */
-router.get("/:token", getInvitationInfo);
+  router.get("/:token", controller.getInvitationInfo);
 
-/**
+  /**
  * @swagger
  * /invitations/accept:
  *   post:
@@ -214,14 +216,14 @@ router.get("/:token", getInvitationInfo);
  *       500:
  *         description: Internal server error
  */
-router.post(
-  "/accept",
-  protect,
-  auditLog(AUDIT_ACTIONS.INVITATION.ACCEPT, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
-  acceptInvitation
-);
+  router.post(
+    "/accept",
+    authMw.protect,
+    auditMw.auditLog(AUDIT_ACTIONS.INVITATION.ACCEPT, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
+    controller.acceptInvitation
+  );
 
-/**
+  /**
  * @swagger
  * /invitations/cancel:
  *   post:
@@ -247,11 +249,14 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.post(
-  "/cancel",
-  protect,
-  auditLog(AUDIT_ACTIONS.INVITATION.CANCEL, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
-  cancelInvitation
-);
+  router.post(
+    "/cancel",
+    authMw.protect,
+    auditMw.auditLog(AUDIT_ACTIONS.INVITATION.CANCEL, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
+    controller.cancelInvitation
+  );
 
-export default router;
+  return router;
+};
+
+export default createInvitationRoutes();

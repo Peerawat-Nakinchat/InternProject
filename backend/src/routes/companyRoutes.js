@@ -13,14 +13,20 @@ import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import OrganizationModel from "../models/CompanyModel.js";
 
-const router = express.Router();
+export const createCompanyRoutes = (deps = {}) => {
+  const router = express.Router();
 
-// All routes require authentication
-router.use(protect);
+  const controller = deps.controller || {
+    createCompany, getUserCompanies, getCompanyById, updateCompany, deleteCompany
+  };
+  const authMw = deps.authMiddleware || { protect };
+  const companyMw = deps.companyMiddleware || { requireOrganization, requireOrgRole };
+  const auditMw = deps.auditMiddleware || { auditLog, auditChange };
+  const OrgModel = deps.OrganizationModel || OrganizationModel;
 
-// ==================== PUBLIC COMPANY ROUTES (authenticated users only) ====================
+  router.use(authMw.protect);
 
-/**
+  /**
  * @swagger
  * /company:
  *   post:
@@ -85,13 +91,13 @@ router.use(protect);
  *       401:
  *         description: Unauthorized
  */
-router.post(
-  "/",
-  auditLog(AUDIT_ACTIONS.COMPANY.CREATE, "COMPANY", { severity: "HIGH", category: "COMPANY" }),
-  createCompany
-);
+  router.post(
+    "/",
+    auditMw.auditLog(AUDIT_ACTIONS.COMPANY.CREATE, "COMPANY", { severity: "HIGH", category: "COMPANY" }),
+    controller.createCompany
+  );
 
-/**
+  /**
  * @swagger
  * /company:
  *   get:
@@ -130,15 +136,13 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get(
-  "/",
-  auditLog(AUDIT_ACTIONS.COMPANY.VIEW_MY_COMPANIES, "COMPANY", { severity: "LOW", category: "COMPANY" }),
-  getUserCompanies
-);
+  router.get(
+    "/",
+    auditMw.auditLog(AUDIT_ACTIONS.COMPANY.VIEW_MY_COMPANIES, "COMPANY", { severity: "LOW", category: "COMPANY" }),
+    controller.getUserCompanies
+  );
 
-// ==================== ORGANIZATION-SPECIFIC ROUTES ====================
-// These routes require organization context (x-org-id header)
-
+  
 /**
  * @swagger
  * /company/{orgId}:
@@ -172,14 +176,14 @@ router.get(
  *       404:
  *         description: Company not found
  */
-router.get(
-  "/:orgId",
-  requireOrganization,
-  auditLog(AUDIT_ACTIONS.COMPANY.VIEW_DETAIL, "COMPANY", { severity: "LOW", category: "COMPANY" }),
-  getCompanyById
-);
+  router.get(
+    "/:orgId",
+    companyMw.requireOrganization,
+    auditMw.auditLog(AUDIT_ACTIONS.COMPANY.VIEW_DETAIL, "COMPANY", { severity: "LOW", category: "COMPANY" }),
+    controller.getCompanyById
+  );
 
-/**
+  /**
  * @swagger
  * /company/{orgId}:
  *   put:
@@ -240,16 +244,16 @@ router.get(
  *       409:
  *         description: Org code already exists
  */
-router.put(
-  "/:orgId",
-  requireOrganization,
-  requireOrgRole([1]),
-  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.COMPANY.UPDATE, "COMPANY", { severity: "MEDIUM", category: "COMPANY" }),
-  updateCompany
-);
+  router.put(
+    "/:orgId",
+    companyMw.requireOrganization,
+    companyMw.requireOrgRole([1]),
+    auditMw.auditChange("COMPANY", (id) => OrgModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.COMPANY.UPDATE, "COMPANY", { severity: "MEDIUM", category: "COMPANY" }),
+    controller.updateCompany
+  );
 
-/**
+  /**
  * @swagger
  * /company/{orgId}:
  *   delete:
@@ -281,13 +285,16 @@ router.put(
  *       404:
  *         description: Company not found
  */
-router.delete(
-  "/:orgId",
-  requireOrganization,
-  requireOrgRole([1]),
-  auditChange("COMPANY", (id) => OrganizationModel.findById(id)),
-  auditLog(AUDIT_ACTIONS.COMPANY.DELETE, "COMPANY", { severity: "CRITICAL", category: "COMPANY" }),
-  deleteCompany
-);
+  router.delete(
+    "/:orgId",
+    companyMw.requireOrganization,
+    companyMw.requireOrgRole([1]),
+    auditMw.auditChange("COMPANY", (id) => OrgModel.findById(id)),
+    auditMw.auditLog(AUDIT_ACTIONS.COMPANY.DELETE, "COMPANY", { severity: "CRITICAL", category: "COMPANY" }),
+    controller.deleteCompany
+  );
 
-export default router;
+  return router;
+};
+
+export default createCompanyRoutes();

@@ -14,15 +14,29 @@ import {
   cleanupLogs
 } from '../controllers/AuditLogController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
-
-const router = express.Router();
-
-// All routes require authentication
-router.use(protect);
-
-// ==================== USER ROUTES ====================
+import { auditLog } from '../middleware/auditLogMiddleware.js';
 
 /**
+ * Factory for Audit Log Routes
+ * @param {Object} deps - Dependencies injection
+ */
+export const createAuditLogRoutes = (deps = {}) => {
+  const router = express.Router();
+
+  // Inject dependencies or use defaults
+  const authMiddleware = deps.authMiddleware || { protect, authorize };
+  const auditMiddleware = deps.auditMiddleware || { auditLog };
+  const controller = deps.controller || {
+    queryAuditLogs, getUserActivity, getMyActivity, getRecentActivity,
+    getSecurityEvents, getFailedActions, getSuspiciousActivity,
+    getStatistics, getCorrelatedActions, exportLogs, cleanupLogs
+  };
+
+  // Global protection
+  router.use(authMiddleware.protect);
+
+  // --- USER ROUTES ---
+  /**
  * @swagger
  * /audit-logs/me:
  *   get:
@@ -40,16 +54,43 @@ router.use(protect);
  *       200:
  *         description: User activity logs
  */
-router.get(
-  '/me',
-  auditLog("VIEW_MY_ACTIVITY", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
-  getMyActivity
-);
 
-// ==================== ADMIN ROUTES ====================
-// These routes require ADMIN role (role_id = 1 or 2)
+  router.get(
+    '/me',
+    auditMiddleware.auditLog("VIEW_MY_ACTIVITY", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
+    controller.getMyActivity
+  );
 
-/**
+  /**
+ * @swagger
+ * /audit-logs/user/{userId}:
+ *   get:
+ *     summary: Get user activity history (Admin or self only)
+ *     tags: [Audit Logs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User activity logs
+ */
+  router.get(
+    '/user/:userId',
+    auditMiddleware.auditLog("VIEW_USER_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "AUDIT" }),
+    controller.getUserActivity
+  );
+
+  // --- ADMIN ROUTES ---
+  /**
  * @swagger
  * /audit-logs:
  *   get:
@@ -100,14 +141,15 @@ router.get(
  *       200:
  *         description: Audit logs with pagination
  */
-router.get(
-  '/',
-  authorize([1, 2]),
-  auditLog("VIEW_ALL_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "AUDIT" }),
-  queryAuditLogs
-);
 
-/**
+  router.get(
+    '/',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_ALL_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "AUDIT" }),
+    controller.queryAuditLogs
+  );
+
+  /**
  * @swagger
  * /audit-logs/recent:
  *   get:
@@ -124,14 +166,14 @@ router.get(
  *       200:
  *         description: Recent audit logs
  */
-router.get(
-  '/recent',
-  authorize([1, 2]),
-  auditLog("VIEW_RECENT_LOGS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
-  getRecentActivity
-);
+  router.get(
+    '/recent',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_RECENT_LOGS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
+    controller.getRecentActivity
+  );
 
-/**
+  /**
  * @swagger
  * /audit-logs/security:
  *   get:
@@ -158,12 +200,12 @@ router.get(
  *       200:
  *         description: Security event logs
  */
-router.get(
-  '/security',
-  authorize([1, 2]),
-  auditLog("VIEW_SECURITY_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "SECURITY" }),
-  getSecurityEvents
-);
+  router.get(
+    '/security',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_SECURITY_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "SECURITY" }),
+    controller.getSecurityEvents
+  );
 
 /**
  * @swagger
@@ -182,12 +224,12 @@ router.get(
  *       200:
  *         description: Failed action logs
  */
-router.get(
-  '/failed',
-  authorize([1, 2]),
-  auditLog("VIEW_FAILED_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "SECURITY" }),
-  getFailedActions
-);
+  router.get(
+    '/failed',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_FAILED_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "SECURITY" }),
+    controller.getFailedActions
+  );
 
 /**
  * @swagger
@@ -207,14 +249,14 @@ router.get(
  *       200:
  *         description: Suspicious activity logs
  */
-router.get(
-  '/suspicious',
-  authorize([1, 2]),
-  auditLog("VIEW_SUSPICIOUS_LOGS", "AUDIT_LOG", { severity: "HIGH", category: "SECURITY" }),
-  getSuspiciousActivity
-);
+  router.get(
+    '/suspicious',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_SUSPICIOUS_LOGS", "AUDIT_LOG", { severity: "HIGH", category: "SECURITY" }),
+    controller.getSuspiciousActivity
+  );
 
-/**
+ /**
  * @swagger
  * /audit-logs/stats:
  *   get:
@@ -237,12 +279,12 @@ router.get(
  *       200:
  *         description: Audit statistics
  */
-router.get(
-  '/stats',
-  authorize([1, 2]),
-  auditLog("VIEW_LOG_STATS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
-  getStatistics
-);
+  router.get(
+    '/stats',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_LOG_STATS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
+    controller.getStatistics
+  );
 
 /**
  * @swagger
@@ -267,40 +309,12 @@ router.get(
  *       200:
  *         description: JSON file download
  */
-router.get(
-  '/export',
-  authorize([1, 2]),
-  auditLog("EXPORT_LOGS", "AUDIT_LOG", { severity: "HIGH", category: "SECURITY" }),
-  exportLogs
-);
-
-/**
- * @swagger
- * /audit-logs/user/{userId}:
- *   get:
- *     summary: Get user activity history (Admin or self only)
- *     tags: [Audit Logs]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: User activity logs
- */
-router.get(
-  '/user/:userId',
-  auditLog("VIEW_USER_LOGS", "AUDIT_LOG", { severity: "MEDIUM", category: "AUDIT" }),
-  getUserActivity
-);
+  router.get(
+    '/export',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("EXPORT_LOGS", "AUDIT_LOG", { severity: "HIGH", category: "SECURITY" }),
+    controller.exportLogs
+  );
 
 /**
  * @swagger
@@ -320,12 +334,12 @@ router.get(
  *       200:
  *         description: Correlated audit logs
  */
-router.get(
-  '/correlation/:correlationId',
-  authorize([1, 2]),
-  auditLog("VIEW_CORRELATED_LOGS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
-  getCorrelatedActions
-);
+  router.get(
+    '/correlation/:correlationId',
+    authMiddleware.authorize([1, 2]),
+    auditMiddleware.auditLog("VIEW_CORRELATED_LOGS", "AUDIT_LOG", { severity: "LOW", category: "AUDIT" }),
+    controller.getCorrelatedActions
+  );
 
 /**
  * @swagger
@@ -348,11 +362,15 @@ router.get(
  *       200:
  *         description: Cleanup completed
  */
-router.post(
-  '/cleanup',
-  authorize([1]),
-  auditLog("CLEANUP_LOGS", "AUDIT_LOG", { severity: "CRITICAL", category: "SECURITY" }),
-  cleanupLogs
-);
+  router.post(
+    '/cleanup',
+    authMiddleware.authorize([1]),
+    auditMiddleware.auditLog("CLEANUP_LOGS", "AUDIT_LOG", { severity: "CRITICAL", category: "SECURITY" }),
+    controller.cleanupLogs
+  );
 
-export default router;
+  return router;
+};
+
+// Default Export
+export default createAuditLogRoutes();
