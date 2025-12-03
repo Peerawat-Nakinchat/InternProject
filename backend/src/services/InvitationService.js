@@ -53,6 +53,7 @@ export const createInvitationService = (deps = {}) => {
 
       const company = await Org.findById(org_id);
       const companyName = company ? company.org_name : "บริษัทของเรา";
+      
       const frontendUrl = (env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
       const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
       
@@ -82,21 +83,12 @@ export const createInvitationService = (deps = {}) => {
           <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; background-color: #f0f3ff; padding: 20px; border-radius: 50%; margin-bottom: 20px;">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-              </div>
-              
               <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 22px; font-weight: 600; text-align: center;">
                 คุณได้รับคำเชิญจาก
               </h2>
               
               <div style="background-color: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 30px; border-radius: 6px;">
-                <p style="margin: 0; color: #2d3748; font-size: 18px; font-weight: 600; text-align: center;">
+                <p style="margin: 0; color: #2d3748; font-size: 20px; font-weight: 600; text-align: center;">
                   ${companyName}
                 </p>
               </div>
