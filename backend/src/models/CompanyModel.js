@@ -270,11 +270,11 @@ const search = async (filters = {}, options = {}) => {
   const where = {};
   
   if (filters.org_name) {
-    where.org_name = { [Op.iLike]: `%${filters.org_name}%` };
+    where.org_name = { [Op.iLike]: `${filters.org_name}%` };
   }
   
   if (filters.org_code) {
-    where.org_code = { [Op.iLike]: `%${filters.org_code}%` };
+    where.org_code = { [Op.iLike]: `${filters.org_code}%` };
   }
   
   if (filters.owner_user_id) {

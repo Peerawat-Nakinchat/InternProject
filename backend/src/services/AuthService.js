@@ -7,18 +7,11 @@ import { RefreshTokenModel } from "../models/TokenModel.js";
 import { InvitationModel } from "../models/InvitationModel.js";
 import InvitationService from "./InvitationService.js";
 import { sequelize } from "../models/dbModels.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from "../utils/token.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/token.js";
 import { sendEmail } from "../utils/mailer.js";
+import { createError } from "../middleware/errorHandler.js"; // ✅ Import Helper
 
-/**
- * Factory for AuthService
- */
 export const createAuthService = (deps = {}) => {
-  // Inject Dependencies (Default to real implementations)
   const User = deps.UserModel || UserModel;
   const Member = deps.MemberModel || MemberModel;
   const Token = deps.RefreshTokenModel || RefreshTokenModel;
@@ -28,20 +21,14 @@ export const createAuthService = (deps = {}) => {
   const hasher = deps.bcrypt || bcrypt;
   const random = deps.crypto || crypto;
   const mailer = deps.sendEmail || sendEmail;
-  const tokenUtils = deps.tokenUtils || {
-    generateAccessToken,
-    generateRefreshToken,
-    verifyRefreshToken
-  };
-  const env = deps.env || process.env; // Inject process.env for easier testing
+  const tokenUtils = deps.tokenUtils || { generateAccessToken, generateRefreshToken, verifyRefreshToken };
+  const env = deps.env || process.env;
 
-  // --- Internal Helper ---
   const processInviteToken = async (userId, inviteToken, invitationInfo, transaction) => {
     try {
       const invitation = await Invitation.findByToken(inviteToken);
-
       if (!invitation || invitation.status !== 'pending') {
-        throw new Error("Invitation is not valid or has been used");
+        throw createError.badRequest("Invitation is not valid or has been used");
       }
 
       await Member.create({
@@ -50,13 +37,7 @@ export const createAuthService = (deps = {}) => {
         roleId: parseInt(invitationInfo.role_id, 10),
       }, transaction);
 
-      await Invitation.updateStatus(
-        invitationInfo.invitation_id,
-        'accepted',
-        transaction
-      );
-
-      console.log('✅ Member added and invitation accepted');
+      await Invitation.updateStatus(invitationInfo.invitation_id, 'accepted', transaction);
       return invitationInfo.org_id;
     } catch (error) {
       console.error("❌ Process invite token error:", error);
@@ -64,39 +45,30 @@ export const createAuthService = (deps = {}) => {
     }
   };
 
-  // --- Main Methods ---
-
   const register = async (userData) => {
-    const {
-      email, password, name, surname, sex,
-      user_address_1, user_address_2, user_address_3, inviteToken
-    } = userData;
+    const { email, password, name, surname, sex, user_address_1, user_address_2, user_address_3, inviteToken } = userData;
 
     if (!email || !password || !name || !surname || !sex) {
-      throw new Error("กรุณากรอกข้อมูลที่จำเป็น");
+      throw createError.badRequest("กรุณากรอกข้อมูลที่จำเป็น"); // ✅ 400
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-
-    // Check invite token validity first
     let invitationInfo = null;
+
     if (inviteToken) {
       try {
         invitationInfo = await InviteService.getInvitationInfo(inviteToken);
         if (invitationInfo.email.toLowerCase() !== normalizedEmail) {
-          throw new Error("อีเมลไม่ตรงกับคำเชิญ กรุณาใช้อีเมล " + invitationInfo.email);
+          throw createError.badRequest("อีเมลไม่ตรงกับคำเชิญ กรุณาใช้อีเมล " + invitationInfo.email); // ✅ 400
         }
       } catch (error) {
-        console.error("Invitation validation error:", error);
         throw error;
       }
     }
 
     const existingUser = await User.findByEmail(normalizedEmail);
     if (existingUser) {
-      const error = new Error("ไม่สามารถลงทะเบียนได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง");
-      error.code = "USER_EXISTS";
-      throw error;
+      throw createError.conflict("อีเมลนี้ถูกใช้งานแล้ว"); // ✅ 409 Conflict
     }
 
     const t = await db.transaction();
@@ -106,193 +78,135 @@ export const createAuthService = (deps = {}) => {
       const salt = await hasher.genSalt(saltRounds);
       const hashedPassword = await hasher.hash(password, salt);
 
-      const created = await User.create(
-        {
-          email: normalizedEmail,
-          passwordHash: hashedPassword,
-          name, surname, sex,
+      const created = await User.create({
+          email: normalizedEmail, passwordHash: hashedPassword, name, surname, sex,
           user_address_1, user_address_2, user_address_3,
-        },
-        t
-      );
+      }, t);
 
       const userId = created.user_id;
       const accessToken = tokenUtils.generateAccessToken(userId);
       const refreshToken = tokenUtils.generateRefreshToken(userId);
 
       const expiresAt = new Date();
-      const expiryDays = parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7;
-      expiresAt.setDate(expiresAt.getDate() + expiryDays);
+      expiresAt.setDate(expiresAt.getDate() + (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7));
 
-      await Token.create(
-        { userId, refreshToken, expiresAt },
-        t
-      );
+      await Token.create({ userId, refreshToken, expiresAt }, t);
 
       let orgId = null;
       if (inviteToken && invitationInfo) {
-        try {
-          orgId = await processInviteToken(userId, inviteToken, invitationInfo, t);
-          console.log('✅ Invitation accepted during registration:', orgId);
-        } catch (error) {
-          console.error("❌ Process invitation error:", error);
-          throw new Error("ไม่สามารถประมวลผลคำเชิญได้: " + error.message);
-        }
+        orgId = await processInviteToken(userId, inviteToken, invitationInfo, t);
       }
 
       await t.commit();
 
       return {
-        success: true,
-        accessToken,
-        refreshToken,
-        user: {
-          user_id: userId,
-          email: normalizedEmail,
-          name,
-          surname,
-          full_name: `${name} ${surname}`,
-        },
+        success: true, accessToken, refreshToken,
+        user: { user_id: userId, email: normalizedEmail, name, surname, full_name: `${name} ${surname}` },
         ...(orgId && { org_id: orgId, invitation_accepted: true })
       };
     } catch (error) {
-      console.error("Register transaction error:", error);
       if (!t.finished) await t.rollback();
       throw error;
     }
   };
 
   const login = async (email, password) => {
-    if (!email || !password) throw new Error("กรุณากรอกอีเมลและรหัสผ่าน");
+    if (!email || !password) throw createError.badRequest("กรุณากรอกอีเมลและรหัสผ่าน"); // ✅ 400
 
     const normalizedEmail = email.toLowerCase().trim();
     const user = await User.findByEmailWithPassword(normalizedEmail);
 
     if (!user || !user.password_hash || !user.is_active) {
-      throw new Error("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      throw createError.unauthorized("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); // ✅ 401 Unauthorized
     }
 
     const isPasswordValid = await hasher.compare(password, user.password_hash);
-    if (!isPasswordValid) throw new Error("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    if (!isPasswordValid) throw createError.unauthorized("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); // ✅ 401
 
     const accessToken = tokenUtils.generateAccessToken(user.user_id);
     const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
-
+    
     const expiresAt = new Date();
-    const expiryDays = parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7;
-    expiresAt.setDate(expiresAt.getDate() + expiryDays);
+    expiresAt.setDate(expiresAt.getDate() + (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7));
 
-    await Token.create({
-      userId: user.user_id,
-      refreshToken: refreshToken,
-      expiresAt: expiresAt
-    });
+    await Token.create({ userId: user.user_id, refreshToken, expiresAt });
 
     return {
-      accessToken,
-      refreshToken,
-      user: {
-        user_id: user.user_id,
-        email: user.email,
-        name: user.name,
-        surname: user.surname,
-        full_name: user.full_name,
-        role: user.role,
-      }
+      accessToken, refreshToken,
+      user: { user_id: user.user_id, email: user.email, name: user.name, surname: user.surname, full_name: user.full_name, role: user.role }
     };
   };
 
   const refreshToken = async (tokenStr) => {
-    try {
-      if (!tokenStr) throw new Error('Refresh token is required');
+    if (!tokenStr) throw createError.badRequest('Refresh token is required'); // ✅ 400
 
-      const decoded = tokenUtils.verifyRefreshToken(tokenStr);
-      if (!decoded || !decoded.user_id) throw new Error('Invalid refresh token');
+    const decoded = tokenUtils.verifyRefreshToken(tokenStr);
+    if (!decoded || !decoded.user_id) throw createError.unauthorized('Invalid refresh token'); // ✅ 401
 
-      const tokenRecord = await Token.findOne(tokenStr);
-      if (!tokenRecord) throw new Error('Invalid or expired refresh token');
+    const tokenRecord = await Token.findByToken(tokenStr); // แก้เป็น findByToken เพื่อความชัวร์ (หรือ findOne ตามเดิมถ้า model รับ string)
+    if (!tokenRecord) throw createError.unauthorized('Invalid or expired refresh token'); // ✅ 401
 
-      const user = await User.findById(tokenRecord.user_id);
-      if (!user) throw new Error('User not found');
-      if (!user.is_active) throw new Error('Account is deactivated');
+    const user = await User.findById(tokenRecord.user_id);
+    if (!user) throw createError.notFound('User not found');
+    if (!user.is_active) throw createError.unauthorized('Account is deactivated');
 
-      const newAccessToken = tokenUtils.generateAccessToken(user.user_id);
-      const newRefreshToken = tokenUtils.generateRefreshToken(user.user_id);
+    const newAccessToken = tokenUtils.generateAccessToken(user.user_id);
+    const newRefreshToken = tokenUtils.generateRefreshToken(user.user_id);
+    
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7));
 
-      const expiresAt = new Date();
-      const expiryDays = parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7;
-      expiresAt.setDate(expiresAt.getDate() + expiryDays);
+    await Token.deleteOne(tokenStr);
+    await Token.create({ userId: user.user_id, refreshToken: newRefreshToken, expiresAt });
 
-      await Token.deleteOne(tokenStr);
-      await Token.create({
-        userId: user.user_id,
-        refreshToken: newRefreshToken,
-        expiresAt: expiresAt
-      });
-
-      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
-    } catch (error) {
-      console.error('Refresh token error:', error);
-      throw error;
-    }
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   };
 
   const forgotPassword = async (email) => {
-    if (!email) throw new Error("กรุณากรอกอีเมล");
-
+    if (!email) throw createError.badRequest("กรุณากรอกอีเมล");
     const user = await User.findByEmail(email);
-    if (!user) return { success: true };
+    if (!user) return { success: true }; // Security: ไม่บอกว่าไม่มีอีเมล
 
     const token = random.randomUUID();
     const expire = new Date(Date.now() + 1000 * 60 * 15);
-
     await User.setResetToken(user.user_id, token, expire);
 
     const link = `${env.FRONTEND_URL}/reset-password?token=${token}`;
-    const html = `
-      <h2>รีเซ็ตรหัสผ่าน</h2>
-      <p>คุณได้ขอรีเซ็ตรหัสผ่าน กรุณาคลิกลิงก์ด้านล่างเพื่อดำเนินการต่อ:</p>
-      <a href="${link}" style="...">รีเซ็ตรหัสผ่าน</a>
-      <p>ลิงก์นี้จะหมดอายุใน 15 นาที</p>
-    `;
-
+    const html = `<h2>รีเซ็ตรหัสผ่าน</h2><p>คลิกลิงก์: <a href="${link}">รีเซ็ตรหัสผ่าน</a></p>`;
     await mailer(email, "รีเซ็ตรหัสผ่าน", html);
     return { success: true };
   };
 
   const verifyResetToken = async (token) => {
-    if (!token) throw new Error("token หาย");
+    if (!token) throw createError.badRequest("Token required");
     const user = await User.findByResetToken(token);
-    if (!user) throw new Error("token ไม่ถูกต้องหรือหมดอายุ");
+    if (!user) throw createError.badRequest("Token ไม่ถูกต้องหรือหมดอายุ");
     return { valid: true };
   };
 
   const resetPassword = async (token, password) => {
-    if (!token || !password) throw new Error("ข้อมูลไม่ครบ");
-    if (password.length < 6) throw new Error("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    if (!token || !password) throw createError.badRequest("ข้อมูลไม่ครบ");
+    if (password.length < 6) throw createError.badRequest("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
 
     const user = await User.findByResetToken(token);
-    if (!user) throw new Error("token ไม่ถูกต้อง หรือหมดอายุ");
+    if (!user) throw createError.badRequest("Token ไม่ถูกต้อง หรือหมดอายุ");
 
     const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS, 10) || 10;
     const hash = await hasher.hash(password, saltRounds);
-
     await User.updatePassword(user.user_id, hash);
     return { success: true };
   };
 
   const changeEmail = async (userId, newEmail, password) => {
     const user = await User.findById(userId);
-    if (!user) throw new Error("ไม่พบผู้ใช้");
+    if (!user) throw createError.notFound("ไม่พบผู้ใช้");
 
     const userWithPassword = await User.findByEmailWithPassword(user.email);
-    if (!userWithPassword?.password_hash) throw new Error("ไม่สามารถตรวจสอบรหัสผ่านได้");
-
     const isPasswordValid = await hasher.compare(password, userWithPassword.password_hash);
-    if (!isPasswordValid) throw new Error("รหัสผ่านไม่ถูกต้อง");
+    if (!isPasswordValid) throw createError.unauthorized("รหัสผ่านไม่ถูกต้อง"); // ✅ 401
 
     const existing = await User.findByEmail(newEmail);
-    if (existing && existing.user_id !== user.user_id) throw new Error("อีเมลใหม่นี้ถูกใช้งานแล้ว");
+    if (existing && existing.user_id !== user.user_id) throw createError.conflict("อีเมลใหม่นี้ถูกใช้งานแล้ว"); // ✅ 409
 
     await User.updateEmail(user.user_id, newEmail);
     return { user_id: user.user_id, email: newEmail };
@@ -300,59 +214,38 @@ export const createAuthService = (deps = {}) => {
 
   const changePassword = async (userId, oldPassword, newPassword) => {
     const user = await User.findById(userId);
-    if (!user) throw new Error("ไม่พบผู้ใช้");
+    if (!user) throw createError.notFound("ไม่พบผู้ใช้");
 
     const userWithPass = await User.findByEmailWithPassword(user.email);
-    if (!userWithPass?.password_hash) throw new Error("ไม่สามารถตรวจสอบรหัสผ่านได้");
-
     const isPasswordValid = await hasher.compare(oldPassword, userWithPass.password_hash);
-    if (!isPasswordValid) throw new Error("รหัสผ่านเดิมไม่ถูกต้อง");
+    if (!isPasswordValid) throw createError.unauthorized("รหัสผ่านเดิมไม่ถูกต้อง"); // ✅ 401
 
     const salt = await hasher.genSalt(parseInt(env.BCRYPT_SALT_ROUNDS) || 10);
     const newHashedPassword = await hasher.hash(newPassword, salt);
 
     await User.updatePassword(user.user_id, newHashedPassword);
     await Token.deleteAllByUser(user.user_id);
-
     return { success: true };
   };
 
   const updateProfile = async (userId, data) => {
-    for (const key in data) {
-      if (typeof data[key] === "string") data[key] = data[key].trim();
-    }
-
-    if (data.name !== undefined && data.name === "") {
-        throw new Error("ชื่อต้องไม่เป็นค่าว่าง");
-    }
-    if (data.surname !== undefined && data.surname === "") {
-        throw new Error("นามสกุลต้องไม่เป็นค่าว่าง");
-    }
+    for (const key in data) if (typeof data[key] === "string") data[key] = data[key].trim();
+    if (data.name === "" || data.surname === "") throw createError.badRequest("ชื่อ-นามสกุล ต้องไม่เป็นค่าว่าง");
 
     const cleanData = {};
     for (const key in data) {
-      if (data[key] !== undefined && data[key] !== null && data[key] !== "") {
-        cleanData[key] = data[key];
-      }
-    }
-
-    if (cleanData.name || cleanData.surname) {
-      const currentUser = await User.findById(userId);
-      const newName = cleanData.name || currentUser.name;
-      const newSurname = cleanData.surname || currentUser.surname;
-      cleanData.full_name = `${newName} ${newSurname}`;
+      if (data[key] !== undefined && data[key] !== null && data[key] !== "") cleanData[key] = data[key];
     }
 
     try {
       return await User.updateProfile(userId, cleanData);
     } catch (error) {
-      console.error("🔥 UPDATE FAILED:", error.message);
       throw error;
     }
   };
 
   const logout = async (refreshToken) => {
-    if (!refreshToken) throw new Error("ไม่พบ refresh token");
+    if (!refreshToken) throw createError.badRequest("ไม่พบ refresh token");
     await Token.deleteOne(refreshToken);
     return { success: true };
   };
@@ -364,51 +257,26 @@ export const createAuthService = (deps = {}) => {
 
   const getProfile = async (userId) => {
     const user = await User.findById(userId);
-    if (!user) throw new Error("ไม่พบข้อมูลผู้ใช้");
-
+    if (!user) throw createError.notFound("ไม่พบข้อมูลผู้ใช้");
+    
     const userJson = user.toJSON ? user.toJSON() : user;
     delete userJson.password_hash;
     delete userJson.reset_token;
-    delete userJson.reset_token_expire;
-
     return userJson;
   };
 
   const googleAuthCallback = async (user) => {
+    // Implement Google Auth Logic similar to login/register
     const accessToken = tokenUtils.generateAccessToken(user.user_id);
     const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
-
     const expiresAt = new Date();
-    const expiryDays = parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7;
-    expiresAt.setDate(expiresAt.getDate() + expiryDays);
-
-    await Token.create({
-      userId: user.user_id,
-      refreshToken: refreshToken,
-      expiresAt: expiresAt
-    });
-
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    await Token.create({ userId: user.user_id, refreshToken, expiresAt });
     return { accessToken, refreshToken };
   };
 
-  return {
-    register,
-    login,
-    refreshToken,
-    forgotPassword,
-    verifyResetToken,
-    resetPassword,
-    changeEmail,
-    changePassword,
-    updateProfile,
-    logout,
-    logoutAll,
-    getProfile,
-    googleAuthCallback,
-    processInviteToken
-  };
+  return { register, login, refreshToken, forgotPassword, verifyResetToken, resetPassword, changeEmail, changePassword, updateProfile, logout, logoutAll, getProfile, googleAuthCallback, processInviteToken };
 };
 
-// Default Instance
 const defaultInstance = createAuthService();
 export default defaultInstance;

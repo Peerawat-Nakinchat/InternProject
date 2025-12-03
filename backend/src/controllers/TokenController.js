@@ -1,51 +1,24 @@
-import { User } from '../models/dbModels.js'; 
-import { generateAccessToken } from '../utils/token.js';
+// src/controllers/TokenController.js
+import { asyncHandler } from '../middleware/errorHandler.js';
+import AuthService from '../services/AuthService.js'; // ✅ Import Service
 
-/**
- * Factory function for creating TokenController with dependency injection
- * @param {Object} deps - Dependencies
- * @param {Object} deps.userModel - The User model (default: User)
- * @param {Function} deps.tokenGenerator - Function to generate access tokens (default: generateAccessToken)
- * @returns {Object} Controller methods
- */
 export const createTokenController = (deps = {}) => {
-  const userModel = deps.userModel || User;
-  const tokenGenerator = deps.tokenGenerator || generateAccessToken;
+  const authService = deps.authService || AuthService;
 
-  const createNewAccessToken = async (req, res) => {
-    try {
-      const userId = req.refreshUserId;
+  // POST /api/token/refresh
+  const createNewAccessToken = asyncHandler(async (req, res) => {
+    // Logic การเช็ค Token และ Refresh จะถูกโยนให้ Service จัดการ
+    // ถ้า Token ไม่ผ่าน Service จะ throw error เอง
+    const result = await authService.refreshToken(req.body.token || req.query.token);
 
-      const user = await userModel.findByPk(userId);
+    res.json({
+      success: true,
+      ...result
+    });
+  });
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          error: "ไม่พบผู้ใช้งาน"
-        });
-      }
-
-      const newAccessToken = tokenGenerator(user.id); 
-
-      res.json({
-        success: true,
-        accessToken: newAccessToken
-      });
-    } catch (error) {
-      console.error("Refresh token creation error:", error);
-      res.status(500).json({
-        success: false,
-        error: "เกิดข้อผิดพลาดในการออก access token ใหม่"
-      });
-    }
-  };
-
-  return {
-    createNewAccessToken
-  };
+  return { createNewAccessToken };
 };
 
-// Create default instance for backward compatibility
 const defaultController = createTokenController();
-
 export const createNewAccessToken = defaultController.createNewAccessToken;

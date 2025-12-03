@@ -85,8 +85,8 @@ Invitation.belongsTo(Role, {
 // ==================== SYNC DATABASE ====================
 const syncDatabase = async () => {
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: true });
+    if (process.env.NODE_ENV !== 'development') {
+      // await sequelize.sync({ alter: true });
       console.log('✅ Database synced successfully');
       
       await seedRoles();

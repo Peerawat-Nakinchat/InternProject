@@ -282,10 +282,10 @@ const findByOrganizationPaginated = async (orgId, options = {}) => {
       ],
       where: search ? {
         [Op.or]: [
-          { email: { [Op.iLike]: `%${search}%` } },
-          { name: { [Op.iLike]: `%${search}%` } },
-          { surname: { [Op.iLike]: `%${search}%` } },
-          { full_name: { [Op.iLike]: `%${search}%` } }
+          { email: { [Op.iLike]: `${search}%` } },
+          { name: { [Op.iLike]: `${search}%` } },
+          { surname: { [Op.iLike]: `${search}%` } },
+          { full_name: { [Op.iLike]: `${search}%` } }
         ]
       } : undefined
     },

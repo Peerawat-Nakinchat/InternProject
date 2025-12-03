@@ -208,7 +208,7 @@ export const createMemberRoutes = (deps = {}) => {
  */
   router.patch(
     "/:orgId/:memberId/role",
-    auditMw.auditChange("MEMBER", (id) => MemModel.findById(id)),
+    auditMw.auditChange("MEMBER", (id) => MemModel.findByMembershipId(id)),
     auditMw.auditLog(AUDIT_ACTIONS.MEMBER.CHANGE_ROLE, "MEMBER", { severity: "HIGH", category: "MEMBERSHIP" }),
     controller.changeMemberRole
   );

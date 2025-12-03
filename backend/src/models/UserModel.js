@@ -377,14 +377,14 @@ const search = async (filters = {}, options = {}) => {
   const where = {};
 
   if (filters.email) {
-    where.email = { [Op.iLike]: `%${filters.email}%` };
+    where.email = { [Op.iLike]: `${filters.email}%` };
   }
 
   if (filters.name) {
     where[Op.or] = [
-      { name: { [Op.iLike]: `%${filters.name}%` } },
-      { surname: { [Op.iLike]: `%${filters.name}%` } },
-      { full_name: { [Op.iLike]: `%${filters.name}%` } }
+      { name: { [Op.iLike]: `${filters.name}%` } },
+      { surname: { [Op.iLike]: `${filters.name}%` } },
+      { full_name: { [Op.iLike]: `${filters.name}%` } }
     ];
   }
 

@@ -2,243 +2,86 @@
 import { MemberModel } from '../models/MemberModel.js';
 import { OrganizationModel } from '../models/CompanyModel.js';
 import { securityLogger } from '../utils/logger.js';
+import { createError, asyncHandler } from './errorHandler.js';
 
-// --- Pure Helper Functions ---
+export const isUUID = (v) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
 
-export const isUUID = (v) => {
-  if (!v || typeof v !== 'string') return false;
-  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
-};
-
-// --- Factory Function ---
-
-/**
- * Factory for Company Middleware
- */
 export const createCompanyMiddleware = (deps = {}) => {
-  // Inject Dependencies (Default to real implementation)
   const Member = deps.MemberModel || MemberModel;
   const Org = deps.OrganizationModel || OrganizationModel;
   const logger = deps.securityLogger || securityLogger;
 
   /**
    * Middleware: Require Organization Context
+   * เช็คว่า User เป็นสมาชิกของบริษัทนี้หรือไม่
    */
-  const requireOrganization = async (req, res, next) => {
-    try {
-      const orgId =
-        req.headers['x-org-id']?.trim() ||
-        req.body.orgId?.trim() ||
-        req.params.orgId?.trim() ||
-        req.query.orgId?.trim();
+  const requireOrganization = asyncHandler(async (req, res, next) => {
+    const orgId = req.headers['x-org-id']?.trim() || req.body.orgId?.trim() || req.params.orgId?.trim() || req.query.orgId?.trim();
 
-      if (!orgId) {
-        logger.suspiciousActivity('Missing org ID', req.ip, req.headers['user-agent'], {
-          path: req.path,
-          method: req.method,
-          userId: req.user?.user_id,
-        });
+    if (!orgId) throw createError.badRequest('Organization ID required');
+    if (!isUUID(orgId)) throw createError.badRequest('Invalid organization ID format');
 
-        return res.status(400).json({
-          success: false,
-          message: 'Organization ID required.',
-        });
-      }
+    const userId = req.user?.user_id;
+    if (!userId) throw createError.unauthorized('Authentication required');
 
-      if (!isUUID(orgId)) {
-        logger.suspiciousActivity('Invalid org ID format', req.ip, req.headers['user-agent'], {
-          orgId,
-          path: req.path,
-          userId: req.user?.user_id,
-        });
+    const organization = await Org.findById(orgId);
+    if (!organization) throw createError.notFound('Organization not found');
 
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid organization ID format',
-        });
-      }
+    const member = await Member.findOne(orgId, userId);
 
-      const userId = req.user?.user_id;
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required',
-        });
-      }
-
-      // Check organization exists
-      const organization = await Org.findOrganizationById(orgId);
-
-      if (!organization) {
-        logger.suspiciousActivity('Access to non-existent org', req.ip, req.headers['user-agent'], {
-          orgId,
-          userId,
-        });
-
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found',
-        });
-      }
-
-      // Check membership
-      const member = await Member.findOne({
-        where: {
-          org_id: orgId,
-          user_id: userId,
-        },
-      });
-
-      if (!member) {
-        logger.suspiciousActivity('Unauthorized org access', req.ip, req.headers['user-agent'], {
-          orgId,
-          userId,
-        });
-
-        return res.status(403).json({
-          success: false,
-          message: 'You are not a member of this organization',
-        });
-      }
-
-      req.user.current_org_id = orgId;
-      req.user.org_role_id = member.role_id;
-      req.organization = organization;
-
-      next();
-    } catch (err) {
-      console.error('❌ Organization middleware error:', err);
-
-      logger.suspiciousActivity('Org middleware error', req.ip, req.headers['user-agent'], {
-        error: err.message,
-        path: req.path,
-        userId: req.user?.user_id,
-      });
-
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error validating organization',
-      });
+    if (!member) {
+      logger.suspiciousActivity('Unauthorized org access', req.ip, req.headers['user-agent'], { orgId, userId });
+      throw createError.forbidden('You are not a member of this organization');
     }
-  };
+
+    // Save context to request
+    req.user.current_org_id = orgId;
+    req.user.org_role_id = member.role_id;
+    req.organization = organization;
+
+    next();
+  });
 
   /**
    * Middleware: Require Ownership
+   * เช็คว่าเป็นเจ้าของบริษัท (OWNER) เท่านั้น
    */
-  const requireOwnership = async (req, res, next) => {
-    try {
-      const userId = req.user?.user_id;
-      const orgId = req.user?.current_org_id;
+  const requireOwnership = asyncHandler(async (req, res, next) => {
+    const userId = req.user?.user_id;
+    const orgId = req.user?.current_org_id;
 
-      if (!orgId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Organization context missing',
-        });
-      }
+    if (!orgId) throw createError.badRequest('Organization context missing');
 
-      const organization = await Org.findOrganizationById(orgId);
-
-      if (!organization || organization.owner_user_id !== userId) {
-        logger.suspiciousActivity('Non-owner attempting owner-only action', req.ip, req.headers['user-agent'], {
-          orgId,
-          userId,
-          actualOwner: organization?.owner_user_id,
-        });
-
-        return res.status(403).json({
-          success: false,
-          message: 'Only organization owner can perform this action',
-        });
-      }
-
-      next();
-    } catch (err) {
-      console.error('❌ requireOwnership error:', err);
-
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
+    const isOwner = await Org.isOwner(orgId, userId);
+    if (!isOwner) {
+       throw createError.forbidden('Only organization owner can perform this action');
     }
-  };
+    next();
+  });
 
   /**
    * Middleware: Require Specific Org Role
+   * เช็คว่ามี Role ในบริษัทตรงตามที่กำหนดหรือไม่ (เช่น [1, 2] คือ OWNER หรือ ADMIN)
    */
   const requireOrgRole = (allowedRoles = []) => {
     return (req, res, next) => {
       const roleId = req.user?.org_role_id;
-      const userId = req.user?.user_id;
-      const orgId = req.user?.current_org_id;
 
       if (!roleId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Organization role not found',
-        });
+        return next(createError.forbidden('Organization role not found'));
       }
 
       if (!allowedRoles.includes(roleId)) {
-        logger.suspiciousActivity('Insufficient org permissions', req.ip, req.headers['user-agent'], {
-          userId,
-          orgId,
-          roleId,
-          required: allowedRoles,
-        });
-
-        return res.status(403).json({
-          success: false,
-          message: 'Insufficient permissions for this action',
-        });
+        return next(createError.forbidden('Insufficient permissions for this action'));
       }
 
       next();
     };
   };
 
-  /**
-   * Middleware: Prevent Owner Modification
-   */
-  const preventOwnerModification = async (req, res, next) => {
-    try {
-      const targetUserId = req.params.memberId || req.body.userId;
-      const orgId = req.user?.current_org_id;
-
-      if (!targetUserId || !orgId) return next();
-
-      const org = await Org.findOrganizationById(orgId);
-
-      if (org && org.owner_user_id === targetUserId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Cannot modify organization owner. Use transfer ownership.',
-        });
-      }
-
-      next();
-    } catch (err) {
-      console.error('❌ preventOwnerModification error:', err);
-
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
-  };
-
-  return {
-    requireOrganization,
-    requireOwnership,
-    requireOrgRole,
-    preventOwnerModification
-  };
+  return { requireOrganization, requireOwnership, requireOrgRole };
 };
 
-// Default Export
 const defaultInstance = createCompanyMiddleware();
-export const requireOrganization = defaultInstance.requireOrganization;
-export const requireOwnership = defaultInstance.requireOwnership;
-export const requireOrgRole = defaultInstance.requireOrgRole;
-export const preventOwnerModification = defaultInstance.preventOwnerModification;
+export const { requireOrganization, requireOwnership, requireOrgRole } = defaultInstance;
 export default defaultInstance;

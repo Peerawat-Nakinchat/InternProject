@@ -1,201 +1,72 @@
 // src/controllers/MemberController.js
 import MemberService from "../services/MemberService.js";
+import { asyncHandler, createError } from "../middleware/errorHandler.js";
 
-/**
- * Factory function for creating MemberController with dependency injection
- * @param {Object} service - The member service (default: MemberService)
- * @returns {Object} Controller methods
- */
 export const createMemberController = (service = MemberService) => {
-  /**
-   * GET /api/members/:orgId
-   */
-  const listMembers = async (req, res) => {
-    try {
-      const orgId = req.params.orgId || req.user?.current_org_id;
+  
+  // GET /api/members/:orgId?
+  const listMembers = asyncHandler(async (req, res) => {
+    const orgId = req.params.orgId || req.user?.current_org_id;
 
-      if (!orgId) {
-        return res.status(400).json({
-          success: false,
-          message: "orgId required",
-        });
-      }
+    if (!orgId) throw createError.badRequest("orgId required");
 
-      const roleId = req.user?.org_role_id;
-      const members = await service.getMembers(orgId, roleId);
+    const roleId = req.user?.org_role_id;
+    const members = await service.getMembers(orgId, roleId);
 
-      res.json({
-        success: true,
-        data: members,
-      });
-    } catch (error) {
-      console.error("List members error:", error);
+    res.json({ success: true, data: members });
+  });
 
-      const statusCode = error.message.includes("สิทธิ์") ? 403 : 500;
+  // POST /api/members/:orgId?/invite
+  const inviteMemberToCompany = asyncHandler(async (req, res) => {
+    const orgId = req.params.orgId || req.user?.current_org_id;
+    const { invitedUserId, roleId } = req.body;
 
-      res.status(statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
+    const newMember = await service.inviteMember(
+      orgId, req.user.user_id, req.user.org_role_id, invitedUserId, roleId
+    );
 
-  /**
-   * POST /api/members/:orgId/invite
-   */
-  const inviteMemberToCompany = async (req, res) => {
-    try {
-      const orgId = req.params.orgId || req.user?.current_org_id;
-      const { invitedUserId, roleId } = req.body;
+    res.status(201).json({ success: true, message: "เชิญสมาชิกสำเร็จ", member: newMember });
+  });
 
-      const newMember = await service.inviteMember(
-        orgId,
-        req.user.user_id,
-        req.user.org_role_id,
-        invitedUserId,
-        roleId
-      );
+  // PUT /api/members/:orgId?/change-role/:memberId
+  const changeMemberRole = asyncHandler(async (req, res) => {
+    const orgId = req.params.orgId || req.user?.current_org_id;
+    const memberId = req.params.memberId;
+    const { newRoleId } = req.body;
 
-      res.status(201).json({
-        success: true,
-        message: "เชิญสมาชิกสำเร็จ",
-        member: newMember,
-      });
-    } catch (error) {
-      console.error("Invite member error:", error);
+    const updatedMember = await service.changeMemberRole(
+      orgId, req.user.user_id, req.user.org_role_id, memberId, newRoleId
+    );
 
-      const statusCode = error.message.includes("สิทธิ์")
-        ? 403
-        : error.message.includes("อยู่แล้ว")
-        ? 409
-        : error.message.includes("required")
-        ? 400
-        : 500;
+    res.json({ success: true, message: "เปลี่ยนสิทธิ์สำเร็จ", member: updatedMember });
+  });
 
-      res.status(statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
+  // DELETE /api/members/:orgId?/remove/:memberId
+  const removeMember = asyncHandler(async (req, res) => {
+    const orgId = req.params.orgId || req.user?.current_org_id;
+    const memberId = req.params.memberId;
 
-  /**
-   * PATCH /api/members/:orgId/:memberId/role
-   */
-  const changeMemberRole = async (req, res) => {
-    try {
-      const orgId = req.params.orgId || req.user?.current_org_id;
-      const memberId = req.params.memberId;
-      const { newRoleId } = req.body;
+    await service.removeMember(orgId, req.user.user_id, req.user.org_role_id, memberId);
 
-      const updatedMember = await service.changeMemberRole(
-        orgId,
-        req.user.user_id,
-        req.user.org_role_id,
-        memberId,
-        newRoleId
-      );
+    res.json({ success: true, message: "ลบสมาชิกสำเร็จ" });
+  });
 
-      res.json({
-        success: true,
-        message: "เปลี่ยนสิทธิ์สำเร็จ",
-        member: updatedMember,
-      });
-    } catch (error) {
-      console.error("Change role error:", error);
+  // POST /api/members/:orgId?/transfer-ownership
+  const transferOwner = asyncHandler(async (req, res) => {
+    const orgId = req.params.orgId || req.user?.current_org_id;
+    const { newOwnerUserId } = req.body;
 
-      const statusCode = error.message.includes("สิทธิ์")
-        ? 403
-        : error.message.includes("ไม่พบ")
-        ? 404
-        : 500;
+    await service.transferOwner(orgId, req.user.user_id, req.user.org_role_id, newOwnerUserId);
 
-      res.status(statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
-
-  /**
-   * DELETE /api/members/:orgId/:memberId
-   */
-  const removeMember = async (req, res) => {
-    try {
-      const orgId = req.params.orgId || req.user?.current_org_id;
-      const memberId = req.params.memberId;
-
-      await service.removeMember(
-        orgId,
-        req.user.user_id,
-        req.user.org_role_id,
-        memberId
-      );
-
-      res.json({
-        success: true,
-        message: "ลบสมาชิกสำเร็จ",
-      });
-    } catch (error) {
-      console.error("Remove member error:", error);
-
-      const statusCode = error.message.includes("สิทธิ์")
-        ? 403
-        : error.message.includes("ไม่พบ")
-        ? 404
-        : 500;
-
-      res.status(statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
-
-  /**
-   * POST /api/members/:orgId/transfer-owner
-   */
-  const transferOwner = async (req, res) => {
-    try {
-      const orgId = req.params.orgId || req.user?.current_org_id;
-      const { newOwnerUserId } = req.body;
-
-      await service.transferOwner(
-        orgId,
-        req.user.user_id,
-        req.user.org_role_id,
-        newOwnerUserId
-      );
-
-      res.json({
-        success: true,
-        message: "โอนสิทธิ์เจ้าของสำเร็จ",
-      });
-    } catch (error) {
-      console.error("Transfer owner error:", error);
-
-      const statusCode = error.message.includes("สิทธิ์") ||
-        error.message.includes("OWNER")
-        ? 403
-        : 500;
-
-      res.status(statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
+    res.json({ success: true, message: "โอนสิทธิ์เจ้าของสำเร็จ" });
+  });
 
   return {
-    listMembers,
-    inviteMemberToCompany,
-    changeMemberRole,
-    removeMember,
-    transferOwner,
+    listMembers, inviteMemberToCompany, changeMemberRole,
+    removeMember, transferOwner
   };
 };
 
-// Create default instance for backward compatibility
 const defaultController = createMemberController();
 
 export const MemberController = {
@@ -205,3 +76,5 @@ export const MemberController = {
   removeMember: defaultController.removeMember,
   transferOwner: defaultController.transferOwner,
 };
+
+export default MemberController;
