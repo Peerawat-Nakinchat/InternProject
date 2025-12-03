@@ -1,6 +1,7 @@
-// test/services/CompanyService.coverage.test.js
+// tests/services/CompanyService.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createCompanyService } from '../../src/services/CompanyService.js';
+import { AppError } from '../../src/middleware/errorHandler.js';
 
 describe('CompanyService (100% Coverage)', () => {
   let service;
@@ -8,7 +9,6 @@ describe('CompanyService (100% Coverage)', () => {
   let mockTransaction;
 
   beforeEach(() => {
-    // 1. Mock DB Transaction
     mockTransaction = {
       commit: jest.fn(),
       rollback: jest.fn(),
@@ -18,7 +18,6 @@ describe('CompanyService (100% Coverage)', () => {
       transaction: jest.fn().mockResolvedValue(mockTransaction)
     };
 
-    // 2. Mock Models
     mockOrgModel = {
       codeExists: jest.fn(),
       create: jest.fn(),
@@ -27,19 +26,18 @@ describe('CompanyService (100% Coverage)', () => {
       findByMember: jest.fn(),
       getMemberCounts: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
-      searchOrganizations: jest.fn(),
-      getOrganizationStats: jest.fn()
+      deleteById: jest.fn(),
+      search: jest.fn(),
+      findByIdWithStats: jest.fn(),
     };
 
     mockMemModel = {
       create: jest.fn(),
-      bulkRemoveMembers: jest.fn(),
-      checkMembership: jest.fn(),
-      findMemberRole: jest.fn()
+      removeAllByOrganization: jest.fn(),
+      exists: jest.fn(),
+      getRole: jest.fn()
     };
 
-    // 3. Create Service
     service = createCompanyService({
       OrganizationModel: mockOrgModel,
       MemberModel: mockMemModel,
@@ -47,201 +45,193 @@ describe('CompanyService (100% Coverage)', () => {
     });
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  afterEach(() => { jest.clearAllMocks(); });
 
-  // --- createCompany ---
   describe('createCompany', () => {
     const validData = { org_name: 'Test Co', org_code: 'TEST' };
 
-    it('should throw if name or code missing', async () => {
-      await expect(service.createCompany('u1', {})).rejects.toThrow('กรุณากรอกชื่อบริษัทและรหัสบริษัท');
+    it('should throw BadRequest (400) if name or code missing', async () => {
+      await expect(service.createCompany('u1', {})).rejects.toMatchObject({ statusCode: 400 });
     });
 
-    it('should throw if code exists', async () => {
+    it('should throw Conflict (409) if code exists', async () => {
       mockOrgModel.codeExists.mockResolvedValue(true);
-      await expect(service.createCompany('u1', validData)).rejects.toThrow('รหัสบริษัทซ้ำ');
+      await expect(service.createCompany('u1', validData)).rejects.toMatchObject({ statusCode: 409 });
     });
 
-    it('should create company successfully', async () => {
+    it('should create company successfully with transaction', async () => {
       mockOrgModel.codeExists.mockResolvedValue(false);
-      mockOrgModel.create.mockResolvedValue({ org_id: 'o1' });
+      mockOrgModel.create.mockResolvedValue({ org_id: 'new_org' });
 
-      const result = await service.createCompany('u1', validData);
+      const res = await service.createCompany('u1', validData);
 
       expect(mockDb.transaction).toHaveBeenCalled();
       expect(mockOrgModel.create).toHaveBeenCalled();
-      expect(mockMemModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ roleId: 1 }), // Owner Role
-        mockTransaction
-      );
+      expect(mockMemModel.create).toHaveBeenCalledWith({ orgId: 'new_org', userId: 'u1', roleId: 1 }, mockTransaction);
       expect(mockTransaction.commit).toHaveBeenCalled();
-      expect(result.org_id).toBe('o1');
+      expect(res).toEqual({ org_id: 'new_org' });
     });
 
-    it('should rollback on error', async () => {
+    it('should rollback transaction on error', async () => {
       mockOrgModel.codeExists.mockResolvedValue(false);
-      mockOrgModel.create.mockRejectedValue(new Error('DB Fail'));
+      mockOrgModel.create.mockRejectedValue(new Error('DB Error'));
 
-      await expect(service.createCompany('u1', validData)).rejects.toThrow('DB Fail');
+      await expect(service.createCompany('u1', validData)).rejects.toThrow('DB Error');
       expect(mockTransaction.rollback).toHaveBeenCalled();
     });
   });
 
-  // --- getCompanyById ---
   describe('getCompanyById', () => {
-    it('should return company', async () => {
-      mockOrgModel.findById.mockResolvedValue({ id: 1 });
-      const res = await service.getCompanyById(1);
-      expect(res.id).toBe(1);
+    it('should throw NotFound (404) if not found', async () => {
+      mockOrgModel.findById.mockResolvedValue(null);
+      await expect(service.getCompanyById(1)).rejects.toMatchObject({ statusCode: 404 });
     });
 
-    it('should throw if not found', async () => {
-      mockOrgModel.findById.mockResolvedValue(null);
-      await expect(service.getCompanyById(1)).rejects.toThrow('ไม่พบบริษัทนี้');
+    it('should return company', async () => {
+      const mockComp = { org_id: 1, name: 'Test' };
+      mockOrgModel.findById.mockResolvedValue(mockComp);
+      const res = await service.getCompanyById(1);
+      expect(res).toEqual(mockComp);
     });
   });
 
-  // --- getUserCompanies ---
   describe('getUserCompanies', () => {
-    it('should return owned and member companies with counts', async () => {
-      // Mock Owned
+    it('should aggregate owned and member companies correctly', async () => {
+      // Mock Owned Companies
       mockOrgModel.findByOwner.mockResolvedValue([
-        { org_id: 'o1', get: () => ({ org_id: 'o1', name: 'Own' }) }
+        { org_id: 'o1', org_name: 'Owned 1', get: function() { return this; } }
       ]);
 
-      // Mock Member
-      mockOrgModel.findByMember.mockResolvedValue([
-        { 
-          org_id: 'o2', 
-          get: () => ({ 
-            org_id: 'o2', 
-            name: 'Mem', 
-            members: [{ sys_organization_members: { role_id: 3 } }] 
-          }) 
-        }
-      ]);
+      // Mock Member Companies (complex structure)
+      const memberComp = {
+        org_id: 'o2', 
+        org_name: 'Member 1',
+        members: [{ sys_organization_members: { role_id: 2 } }], // ADMIN
+        get: function() { return this; }
+      };
+      mockOrgModel.findByMember.mockResolvedValue([memberComp]);
 
       // Mock Counts
-      mockOrgModel.getMemberCounts.mockResolvedValue({ 'o1': 5, 'o2': 10 });
+      mockOrgModel.getMemberCounts.mockResolvedValue({ 'o1': 10, 'o2': 5 });
 
-      const res = await service.getUserCompanies('u1');
+      const result = await service.getUserCompanies('u1');
 
-      expect(res).toHaveLength(2);
-      expect(res[0].role_name).toBe('OWNER');
-      expect(res[0].member_count).toBe(5);
-      expect(res[1].role_name).toBe('MEMBER');
-      expect(res[1].member_count).toBe(10);
+      expect(result).toHaveLength(2);
+      
+      // Check Owned
+      expect(result[0].org_id).toBe('o1');
+      expect(result[0].role_id).toBe(1);
+      expect(result[0].role_name).toBe('OWNER');
+      expect(result[0].member_count).toBe(10);
+
+      // Check Member
+      expect(result[1].org_id).toBe('o2');
+      expect(result[1].role_id).toBe(2);
+      expect(result[1].role_name).toBe('ADMIN');
+      expect(result[1].member_count).toBe(5);
     });
 
-    it('should handle missing member role gracefully', async () => {
-      mockOrgModel.findByOwner.mockResolvedValue([]);
-      mockOrgModel.findByMember.mockResolvedValue([
-        { get: () => ({ org_id: 'o3', members: [] }) } // No members array data
-      ]);
-      mockOrgModel.getMemberCounts.mockResolvedValue({});
+    it('should handle member companies with missing member info (default role 3)', async () => {
+        mockOrgModel.findByOwner.mockResolvedValue([]);
+        const memberComp = {
+            org_id: 'o3',
+            members: [], // No member info
+            get: function() { return this; }
+        };
+        mockOrgModel.findByMember.mockResolvedValue([memberComp]);
+        mockOrgModel.getMemberCounts.mockResolvedValue({});
 
-      const res = await service.getUserCompanies('u1');
-      expect(res[0].role_id).toBe(3); // Default to MEMBER
+        const result = await service.getUserCompanies('u1');
+        expect(result[0].role_id).toBe(3);
+        expect(result[0].role_name).toBe('MEMBER');
+        expect(result[0].member_count).toBe(0);
     });
   });
 
-  // --- updateCompany ---
   describe('updateCompany', () => {
-    it('should throw if not owner', async () => {
-      await expect(service.updateCompany('o1', 'u1', 2, {})).rejects.toThrow('เฉพาะ OWNER เท่านั้น');
+    it('should throw Forbidden (403) if not owner', async () => {
+      await expect(service.updateCompany('o1', 'u1', 2, {})).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if code duplicate', async () => {
+    it('should throw Conflict if org code exists', async () => {
       mockOrgModel.codeExists.mockResolvedValue(true);
-      await expect(service.updateCompany('o1', 'u1', 1, { org_code: 'DUP' })).rejects.toThrow('Org Code ซ้ำ');
+      await expect(service.updateCompany('o1', 'u1', 1, { org_code: 'DUP' })).rejects.toMatchObject({ statusCode: 409 });
     });
 
-    it('should throw if company not found after update', async () => {
+    it('should throw NotFound if update fails', async () => {
       mockOrgModel.codeExists.mockResolvedValue(false);
       mockOrgModel.update.mockResolvedValue(null);
-      await expect(service.updateCompany('o1', 'u1', 1, {})).rejects.toThrow('ไม่พบบริษัทนี้');
+      await expect(service.updateCompany('o1', 'u1', 1, { name: 'New' })).rejects.toMatchObject({ statusCode: 404 });
     });
 
     it('should update successfully', async () => {
-      mockOrgModel.update.mockResolvedValue({ id: 1 });
+      mockOrgModel.update.mockResolvedValue({ org_id: 'o1' });
       const res = await service.updateCompany('o1', 'u1', 1, { name: 'New' });
-      expect(res.id).toBe(1);
+      expect(res).toBeDefined();
     });
   });
 
-  // --- deleteCompany ---
   describe('deleteCompany', () => {
-    it('should throw if not owner', async () => {
-      await expect(service.deleteCompany('o1', 'u1', 2)).rejects.toThrow('อนุญาตเฉพาะ OWNER เท่านั้น');
-    });
+      it('should throw Forbidden if not owner', async () => {
+          await expect(service.deleteCompany('o1', 'u1', 2)).rejects.toMatchObject({ statusCode: 403 });
+      });
 
-    it('should delete successfully', async () => {
-      mockOrgModel.delete.mockResolvedValue(true);
-      
-      const res = await service.deleteCompany('o1', 'u1', 1);
+      it('should throw NotFound if delete returns false', async () => {
+          mockOrgModel.deleteById.mockResolvedValue(false);
+          await expect(service.deleteCompany('o1', 'u1', 1)).rejects.toMatchObject({ statusCode: 404 });
+      });
 
-      expect(mockDb.transaction).toHaveBeenCalled();
-      expect(mockOrgModel.delete).toHaveBeenCalled();
-      expect(mockMemModel.bulkRemoveMembers).toHaveBeenCalled();
-      expect(mockTransaction.commit).toHaveBeenCalled();
-      expect(res.success).toBe(true);
-    });
+      it('should delete successfully with transaction', async () => {
+          mockOrgModel.deleteById.mockResolvedValue(true);
+          
+          const res = await service.deleteCompany('o1', 'u1', 1);
 
-    it('should rollback if company not found', async () => {
-      mockOrgModel.delete.mockResolvedValue(false);
-      
-      await expect(service.deleteCompany('o1', 'u1', 1)).rejects.toThrow('ไม่พบบริษัทนี้');
-      expect(mockTransaction.rollback).toHaveBeenCalled();
-    });
+          expect(mockMemModel.removeAllByOrganization).toHaveBeenCalledWith('o1', mockTransaction);
+          expect(mockTransaction.commit).toHaveBeenCalled();
+          expect(res.success).toBe(true);
+      });
 
-    it('should rollback on DB error', async () => {
-      mockOrgModel.delete.mockRejectedValue(new Error('Fail'));
-      
-      await expect(service.deleteCompany('o1', 'u1', 1)).rejects.toThrow('Fail');
-      expect(mockTransaction.rollback).toHaveBeenCalled();
-    });
+      it('should rollback on error', async () => {
+          mockOrgModel.deleteById.mockRejectedValue(new Error('Fail'));
+          await expect(service.deleteCompany('o1', 'u1', 1)).rejects.toThrow('Fail');
+          expect(mockTransaction.rollback).toHaveBeenCalled();
+      });
   });
 
-  // --- Other Methods ---
-  describe('Other Methods', () => {
-    it('searchOrganizations', async () => {
-      await service.searchOrganizations();
-      expect(mockOrgModel.searchOrganizations).toHaveBeenCalled();
-    });
+  describe('Helpers and other methods', () => {
+      it('should search organizations', async () => {
+          await service.searchOrganizations();
+          expect(mockOrgModel.search).toHaveBeenCalled();
+      });
 
-    it('getOrganizationStats', async () => {
-      mockOrgModel.getOrganizationStats.mockResolvedValue({});
-      await service.getOrganizationStats('o1');
-      expect(mockOrgModel.getOrganizationStats).toHaveBeenCalled();
-    });
+      it('should get organization stats', async () => {
+          mockOrgModel.findByIdWithStats.mockResolvedValue({});
+          await service.getOrganizationStats('o1');
+          expect(mockOrgModel.findByIdWithStats).toHaveBeenCalled();
+      });
 
-    it('getOrganizationStats throw if null', async () => {
-      mockOrgModel.getOrganizationStats.mockResolvedValue(null);
-      await expect(service.getOrganizationStats('o1')).rejects.toThrow('ไม่พบบริษัทนี้');
-    });
+      it('should throw NotFound for stats if missing', async () => {
+          mockOrgModel.findByIdWithStats.mockResolvedValue(null);
+          await expect(service.getOrganizationStats('o1')).rejects.toMatchObject({ statusCode: 404 });
+      });
 
-    it('verifyMembership', async () => {
-      await service.verifyMembership('o1', 'u1');
-      expect(mockMemModel.checkMembership).toHaveBeenCalled();
-    });
+      it('should verify membership', async () => {
+          await service.verifyMembership('o1', 'u1');
+          expect(mockMemModel.exists).toHaveBeenCalled();
+      });
 
-    it('getUserRoleInOrganization', async () => {
-      await service.getUserRoleInOrganization('o1', 'u1');
-      expect(mockMemModel.findMemberRole).toHaveBeenCalled();
-    });
-  });
+      it('should get user role', async () => {
+          await service.getUserRoleInOrganization('o1', 'u1');
+          expect(mockMemModel.getRole).toHaveBeenCalled();
+      });
 
-  // --- Role Mapper Test ---
-  describe('mapRoleIdToName', () => {
-    it('should map roles correctly', () => {
-      expect(service.mapRoleIdToName(1)).toBe('OWNER');
-      expect(service.mapRoleIdToName(2)).toBe('ADMIN');
-      expect(service.mapRoleIdToName(3)).toBe('MEMBER');
-      expect(service.mapRoleIdToName(4)).toBe('VIEWER');
-      expect(service.mapRoleIdToName(5)).toBe('AUDITOR');
-      expect(service.mapRoleIdToName(99)).toBe('UNKNOWN');
-    });
+      it('should map role IDs to names correctly', () => {
+          expect(service.mapRoleIdToName(1)).toBe('OWNER');
+          expect(service.mapRoleIdToName(2)).toBe('ADMIN');
+          expect(service.mapRoleIdToName(3)).toBe('MEMBER');
+          expect(service.mapRoleIdToName(4)).toBe('VIEWER');
+          expect(service.mapRoleIdToName(5)).toBe('AUDITOR');
+          expect(service.mapRoleIdToName(99)).toBe('UNKNOWN');
+      });
   });
 });

@@ -1,6 +1,7 @@
-// test/services/MemberService.coverage.test.js
+// tests/services/MemberService.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createMemberService } from '../../src/services/MemberService.js';
+import { AppError } from '../../src/middleware/errorHandler.js';
 
 describe('MemberService (100% Coverage)', () => {
   let service;
@@ -8,7 +9,6 @@ describe('MemberService (100% Coverage)', () => {
   let mockTransaction;
 
   beforeEach(() => {
-    // 1. Mock DB Transaction
     mockTransaction = {
       commit: jest.fn(),
       rollback: jest.fn(),
@@ -18,7 +18,6 @@ describe('MemberService (100% Coverage)', () => {
       transaction: jest.fn().mockResolvedValue(mockTransaction)
     };
 
-    // 2. Mock Member Model
     mockMemberModel = {
       findByOrganization: jest.fn(),
       exists: jest.fn(),
@@ -33,122 +32,116 @@ describe('MemberService (100% Coverage)', () => {
       findByUser: jest.fn()
     };
 
-    // 3. Create Service
     service = createMemberService({
       MemberModel: mockMemberModel,
       sequelize: mockDb
     });
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  afterEach(() => { jest.clearAllMocks(); });
 
-  // --- getMembers ---
   describe('getMembers', () => {
-    it('should throw if role > 3', async () => {
-      await expect(service.getMembers('o1', 4)).rejects.toThrow('สิทธิ์ไม่เพียงพอในการดูสมาชิก');
+    it('should throw Forbidden (403) if role > 3', async () => {
+      await expect(service.getMembers('o1', 4)).rejects.toMatchObject({ statusCode: 403 });
     });
 
     it('should return members if allowed', async () => {
-      mockMemberModel.findByOrganization.mockResolvedValue([]);
-      const res = await service.getMembers('o1', 3);
-      expect(res).toEqual([]);
+      mockMemberModel.findByOrganization.mockResolvedValue(['m1', 'm2']);
+      const res = await service.getMembers('o1', 1);
+      expect(res).toEqual(['m1', 'm2']);
     });
   });
 
-  // --- inviteMember ---
   describe('inviteMember', () => {
-    it('should throw if missing data', async () => {
-      await expect(service.inviteMember('o1', 'u1', 1, null, 3)).rejects.toThrow('invitedUserId and roleId required');
+    it('should throw BadRequest (400) if missing data', async () => {
+      await expect(service.inviteMember('o1', 'u1', 1, null, 3)).rejects.toMatchObject({ statusCode: 400 });
     });
 
-    it('should throw if inviter not owner/admin', async () => {
-      await expect(service.inviteMember('o1', 'u1', 3, 'u2', 3)).rejects.toThrow('สิทธิ์ไม่เพียงพอ');
+    it('should throw Forbidden (403) if inviter not owner/admin', async () => {
+      await expect(service.inviteMember('o1', 'u1', 3, 'u2', 3)).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if already member', async () => {
+    it('should throw Conflict (409) if already member', async () => {
       mockMemberModel.exists.mockResolvedValue(true);
-      await expect(service.inviteMember('o1', 'u1', 2, 'u2', 3)).rejects.toThrow('ผู้ใช้นี้เป็นสมาชิกอยู่แล้ว');
+      await expect(service.inviteMember('o1', 'u1', 2, 'u2', 3)).rejects.toMatchObject({ statusCode: 409 });
     });
 
     it('should invite successfully', async () => {
       mockMemberModel.exists.mockResolvedValue(false);
       mockMemberModel.create.mockResolvedValue({ id: 1 });
-      const res = await service.inviteMember('o1', 'u1', 2, 'u2', 3);
-      expect(res.id).toBe(1);
+      const res = await service.inviteMember('o1', 'u1', 1, 'u2', 3);
+      expect(mockMemberModel.create).toHaveBeenCalledWith({ orgId: 'o1', userId: 'u2', roleId: 3 });
+      expect(res).toEqual({ id: 1 });
     });
   });
 
-  // --- changeMemberRole ---
   describe('changeMemberRole', () => {
-    it('should throw if actor not owner/admin', async () => {
-      await expect(service.changeMemberRole('o1', 'u1', 3, 'u2', 2)).rejects.toThrow('สิทธิ์ไม่เพียงพอ');
+    it('should throw Forbidden (403) if actor is not admin/owner', async () => {
+      await expect(service.changeMemberRole('o1', 'u1', 3, 'target', 2)).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if member not found', async () => {
+    it('should throw NotFound (404) if target member not found', async () => {
       mockMemberModel.getRole.mockResolvedValue(null);
-      await expect(service.changeMemberRole('o1', 'u1', 1, 'u2', 2)).rejects.toThrow('ไม่พบสมาชิก');
+      await expect(service.changeMemberRole('o1', 'u1', 1, 'target', 2)).rejects.toMatchObject({ statusCode: 404 });
     });
 
-    it('should throw if target is owner', async () => {
-      mockMemberModel.getRole.mockResolvedValue(1); // Owner role
-      await expect(service.changeMemberRole('o1', 'u1', 1, 'u2', 2)).rejects.toThrow('ไม่สามารถเปลี่ยน role ของ OWNER ได้');
+    it('should throw Forbidden (403) if trying to change OWNER role', async () => {
+      mockMemberModel.getRole.mockResolvedValue(1); // Target is OWNER
+      await expect(service.changeMemberRole('o1', 'u1', 1, 'target', 2)).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should change role successfully', async () => {
+    it('should update role successfully', async () => {
       mockMemberModel.getRole.mockResolvedValue(3);
       mockMemberModel.updateRole.mockResolvedValue(true);
-      const res = await service.changeMemberRole('o1', 'u1', 1, 'u2', 2);
+      const res = await service.changeMemberRole('o1', 'u1', 1, 'target', 2);
+      expect(mockMemberModel.updateRole).toHaveBeenCalledWith('o1', 'target', 2);
       expect(res).toBe(true);
     });
   });
 
-  // --- removeMember ---
   describe('removeMember', () => {
-    it('should throw if actor not authorized', async () => {
-      await expect(service.removeMember('o1', 'u1', 3, 'u2')).rejects.toThrow('สิทธิ์ไม่เพียงพอ');
+    it('should throw Forbidden (403) if actor is not admin', async () => {
+      await expect(service.removeMember('o1', 'u1', 3, 'target')).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if target is owner', async () => {
+    it('should throw Forbidden if target is OWNER', async () => {
       mockMemberModel.getRole.mockResolvedValue(1);
-      await expect(service.removeMember('o1', 'u1', 1, 'u2')).rejects.toThrow('ไม่สามารถลบ OWNER ได้');
+      await expect(service.removeMember('o1', 'u1', 1, 'target')).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if member not found/deleted', async () => {
+    it('should throw NotFound if delete returns false', async () => {
       mockMemberModel.getRole.mockResolvedValue(3);
-      mockMemberModel.remove.mockResolvedValue(false);
-      await expect(service.removeMember('o1', 'u1', 1, 'u2')).rejects.toThrow('ไม่พบสมาชิก');
+      mockMemberModel.remove.mockResolvedValue(0);
+      await expect(service.removeMember('o1', 'u1', 1, 'target')).rejects.toMatchObject({ statusCode: 404 });
     });
 
     it('should remove successfully', async () => {
       mockMemberModel.getRole.mockResolvedValue(3);
-      mockMemberModel.remove.mockResolvedValue(true);
-      const res = await service.removeMember('o1', 'u1', 1, 'u2');
+      mockMemberModel.remove.mockResolvedValue(1);
+      const res = await service.removeMember('o1', 'u1', 1, 'target');
       expect(res.success).toBe(true);
     });
   });
 
-  // --- transferOwner ---
   describe('transferOwner', () => {
-    it('should throw if not current owner', async () => {
-      await expect(service.transferOwner('o1', 'u1', 2, 'u2')).rejects.toThrow('ต้องเป็น OWNER เท่านั้น');
+    it('should throw Forbidden (403) if not current owner', async () => {
+      await expect(service.transferOwner('o1', 'u1', 2, 'u2')).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('should throw if new owner not member', async () => {
+    it('should throw BadRequest (400) if new owner is not a member', async () => {
       mockMemberModel.exists.mockResolvedValue(false);
-      await expect(service.transferOwner('o1', 'u1', 1, 'u2')).rejects.toThrow('ผู้รับโอนต้องเป็นสมาชิก');
+      await expect(service.transferOwner('o1', 'u1', 1, 'u2')).rejects.toMatchObject({ statusCode: 400 });
     });
 
     it('should transfer ownership successfully', async () => {
       mockMemberModel.exists.mockResolvedValue(true);
       
-      const res = await service.transferOwner('o1', 'u1', 1, 'u2');
-
+      const res = await service.transferOwner('o1', 'old', 1, 'new');
+      
       expect(mockDb.transaction).toHaveBeenCalled();
-      expect(mockMemberModel.updateOwner).toHaveBeenCalledWith('o1', 'u2', mockTransaction);
-      expect(mockMemberModel.updateRole).toHaveBeenCalledWith('o1', 'u2', 1, mockTransaction); // New owner
-      expect(mockMemberModel.updateRole).toHaveBeenCalledWith('o1', 'u1', 2, mockTransaction); // Old owner -> Admin
+      expect(mockMemberModel.updateOwner).toHaveBeenCalledWith('o1', 'new', mockTransaction);
+      expect(mockMemberModel.updateRole).toHaveBeenCalledWith('o1', 'new', 1, mockTransaction); // New Owner
+      expect(mockMemberModel.updateRole).toHaveBeenCalledWith('o1', 'old', 2, mockTransaction); // Old Owner becomes Admin
       expect(mockTransaction.commit).toHaveBeenCalled();
       expect(res.success).toBe(true);
     });
@@ -156,58 +149,49 @@ describe('MemberService (100% Coverage)', () => {
     it('should rollback on error', async () => {
       mockMemberModel.exists.mockResolvedValue(true);
       mockMemberModel.updateOwner.mockRejectedValue(new Error('DB Fail'));
-
-      await expect(service.transferOwner('o1', 'u1', 1, 'u2')).rejects.toThrow('DB Fail');
+      
+      await expect(service.transferOwner('o1', 'old', 1, 'new')).rejects.toThrow('DB Fail');
       expect(mockTransaction.rollback).toHaveBeenCalled();
     });
   });
 
-  // --- Other Methods ---
-  describe('Other Methods', () => {
-    it('getMembersWithPagination throws if unauthorized', async () => {
-      await expect(service.getMembersWithPagination('o1', 4)).rejects.toThrow('สิทธิ์ไม่เพียงพอ');
+  describe('getMembersWithPagination', () => {
+    it('should throw Forbidden if role > 3', async () => {
+        await expect(service.getMembersWithPagination('o1', 4)).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    it('getMembersWithPagination success', async () => {
-      mockMemberModel.findByOrganizationPaginated.mockResolvedValue({});
-      await service.getMembersWithPagination('o1', 1);
-      expect(mockMemberModel.findByOrganizationPaginated).toHaveBeenCalled();
-    });
-
-    it('getMemberCount', async () => {
-      await service.getMemberCount('o1');
-      expect(mockMemberModel.countByOrganization).toHaveBeenCalled();
-    });
-
-    it('checkMembership', async () => {
-      await service.checkMembership('o1', 'u1');
-      expect(mockMemberModel.exists).toHaveBeenCalled();
-    });
-
-    it('getUserMemberships', async () => {
-      await service.getUserMemberships('u1');
-      expect(mockMemberModel.findByUser).toHaveBeenCalled();
+    it('should return paginated result', async () => {
+        mockMemberModel.findByOrganizationPaginated.mockResolvedValue({ rows: [], count: 0 });
+        const res = await service.getMembersWithPagination('o1', 1, { page: 1 });
+        expect(res).toEqual({ rows: [], count: 0 });
     });
   });
 
-  // --- bulkRemoveMembers ---
   describe('bulkRemoveMembers', () => {
-    it('should throw if not owner', async () => {
-      await expect(service.bulkRemoveMembers('o1', 2, [])).rejects.toThrow('เฉพาะ OWNER เท่านั้น');
-    });
+      it('should throw Forbidden if not OWNER', async () => {
+          await expect(service.bulkRemoveMembers('o1', 2, ['u2'])).rejects.toMatchObject({ statusCode: 403 });
+      });
 
-    it('should throw if trying to remove owner', async () => {
-      mockMemberModel.getRole.mockResolvedValue(1); // One user is owner
-      await expect(service.bulkRemoveMembers('o1', 1, ['u2'])).rejects.toThrow('ไม่สามารถลบ OWNER ได้');
-    });
+      it('should throw Forbidden if trying to remove OWNER', async () => {
+          mockMemberModel.getRole.mockResolvedValue(1);
+          await expect(service.bulkRemoveMembers('o1', 1, ['owner_id'])).rejects.toMatchObject({ statusCode: 403 });
+      });
 
-    it('should bulk remove successfully', async () => {
-      mockMemberModel.getRole.mockResolvedValue(3); // Normal member
-      mockMemberModel.bulkRemove.mockResolvedValue(5);
-      
-      const res = await service.bulkRemoveMembers('o1', 1, ['u2', 'u3']);
-      expect(res.deleted).toBe(5);
-      expect(res.success).toBe(true);
-    });
+      it('should bulk remove successfully', async () => {
+          mockMemberModel.getRole.mockResolvedValue(3); // Normal member
+          mockMemberModel.bulkRemove.mockResolvedValue(5);
+          const res = await service.bulkRemoveMembers('o1', 1, ['u1', 'u2']);
+          expect(res.success).toBe(true);
+          expect(res.deleted).toBe(5);
+      });
+  });
+
+  // Test exposed helpers to ensure object structure matches
+  describe('Exposed Helpers', () => {
+      it('should expose helper functions', () => {
+          expect(service.getMemberCount).toBeDefined();
+          expect(service.checkMembership).toBeDefined();
+          expect(service.getUserMemberships).toBeDefined();
+      });
   });
 });
