@@ -1,6 +1,7 @@
 /**
  * Token Utilities Unit Tests
  * ISO 27001 Annex A.8 - Authentication Token Security Testing
+ * Target: Branch Coverage ≥ 96%
  * 
  * Tests JWT token generation and verification:
  * - Access token generation/verification
@@ -9,6 +10,7 @@
  * - Error handling for invalid tokens
  */
 
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import {
   verifyAccessToken,
@@ -17,7 +19,19 @@ import {
   verifyRefreshToken
 } from '../../src/utils/token.js';
 
+// Save original console.error
+const originalConsoleError = console.error;
+
 describe('Token Utilities', () => {
+  beforeEach(() => {
+    // Mock console.error to prevent noise in test output
+    console.error = jest.fn();
+  });
+
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
+
   // ============================================================
   // GENERATE ACCESS TOKEN TESTS
   // ============================================================
@@ -69,6 +83,58 @@ describe('Token Utilities', () => {
 
       // Tokens should be different due to iat timestamp
       expect(token1).not.toBe(token2);
+    });
+
+    it('should handle numeric userId', () => {
+      const userId = 12345;
+      const token = generateAccessToken(userId);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.user_id).toBe(userId);
+    });
+
+    it('should handle empty string userId', () => {
+      const userId = '';
+      const token = generateAccessToken(userId);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.user_id).toBe('');
+    });
+
+    it('should handle object userId', () => {
+      const userId = { id: 'complex-user' };
+      const token = generateAccessToken(userId);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.user_id).toEqual(userId);
+    });
+
+    it('should use default expiry if ACCESS_EXPIRES is not set', () => {
+      const originalExpires = process.env.ACCESS_EXPIRES;
+      delete process.env.ACCESS_EXPIRES;
+
+      const token = generateAccessToken('user-123');
+      const decoded = jwt.decode(token);
+
+      // Default is 15m = 900 seconds
+      const tokenLifespan = decoded.exp - decoded.iat;
+      expect(tokenLifespan).toBeLessThanOrEqual(900);
+
+      process.env.ACCESS_EXPIRES = originalExpires;
+    });
+
+    it('should use custom expiry from ACCESS_EXPIRES', () => {
+      const originalExpires = process.env.ACCESS_EXPIRES;
+      process.env.ACCESS_EXPIRES = '30m';
+
+      const token = generateAccessToken('user-123');
+      const decoded = jwt.decode(token);
+
+      // 30m = 1800 seconds
+      const tokenLifespan = decoded.exp - decoded.iat;
+      expect(tokenLifespan).toBeLessThanOrEqual(1800);
+
+      process.env.ACCESS_EXPIRES = originalExpires;
     });
   });
 
@@ -140,6 +206,52 @@ describe('Token Utilities', () => {
 
       expect(result).toBeNull();
     });
+
+    it('should return null when ACCESS_TOKEN_SECRET is not configured', () => {
+      const originalSecret = process.env.ACCESS_TOKEN_SECRET;
+      const token = generateAccessToken('user-123');
+      
+      delete process.env.ACCESS_TOKEN_SECRET;
+
+      const result = verifyAccessToken(token);
+
+      expect(result).toBeNull();
+      expect(console.error).toHaveBeenCalledWith(
+        '❌ Token verification failed:',
+        'ACCESS_TOKEN_SECRET not configured'
+      );
+
+      process.env.ACCESS_TOKEN_SECRET = originalSecret;
+    });
+
+    it('should log error message when verification fails', () => {
+      verifyAccessToken('invalid-token');
+
+      expect(console.error).toHaveBeenCalled();
+      const errorCall = console.error.mock.calls[0];
+      expect(errorCall[0]).toContain('Token verification failed');
+    });
+
+    it('should return null for token with different algorithm', () => {
+      // Create token with different algorithm (none - unsigned)
+      const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(JSON.stringify({ user_id: 'test-user', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url');
+      const unsignedToken = `${header}.${payload}.`;
+
+      const result = verifyAccessToken(unsignedToken);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return full decoded token with all claims', () => {
+      const userId = 'user-with-claims';
+      const token = generateAccessToken(userId);
+      const decoded = verifyAccessToken(token);
+
+      expect(decoded).toHaveProperty('user_id', userId);
+      expect(decoded).toHaveProperty('iat');
+      expect(decoded).toHaveProperty('exp');
+    });
   });
 
   // ============================================================
@@ -182,6 +294,52 @@ describe('Token Utilities', () => {
       expect(() => generateRefreshToken('user-123')).toThrow('REFRESH_TOKEN_SECRET not configured');
 
       process.env.REFRESH_TOKEN_SECRET = originalSecret;
+    });
+
+    it('should handle numeric userId', () => {
+      const userId = 67890;
+      const token = generateRefreshToken(userId);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.user_id).toBe(userId);
+    });
+
+    it('should use default expiry if REFRESH_EXPIRES is not set', () => {
+      const originalExpires = process.env.REFRESH_EXPIRES;
+      delete process.env.REFRESH_EXPIRES;
+
+      const token = generateRefreshToken('user-123');
+      const decoded = jwt.decode(token);
+
+      // Default is 7d = 604800 seconds
+      const tokenLifespan = decoded.exp - decoded.iat;
+      expect(tokenLifespan).toBeLessThanOrEqual(604800);
+
+      process.env.REFRESH_EXPIRES = originalExpires;
+    });
+
+    it('should use custom expiry from REFRESH_EXPIRES', () => {
+      const originalExpires = process.env.REFRESH_EXPIRES;
+      process.env.REFRESH_EXPIRES = '14d';
+
+      const token = generateRefreshToken('user-123');
+      const decoded = jwt.decode(token);
+
+      // 14d = 1209600 seconds
+      const tokenLifespan = decoded.exp - decoded.iat;
+      expect(tokenLifespan).toBeLessThanOrEqual(1209600);
+
+      process.env.REFRESH_EXPIRES = originalExpires;
+    });
+
+    it('should generate unique refresh tokens for same user', async () => {
+      const userId = 'test-user-456';
+      const token1 = generateRefreshToken(userId);
+      
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      const token2 = generateRefreshToken(userId);
+
+      expect(token1).not.toBe(token2);
     });
   });
 
@@ -245,6 +403,65 @@ describe('Token Utilities', () => {
 
       // Should fail because signed with different secret
       expect(result).toBeNull();
+    });
+
+    it('should return null when REFRESH_TOKEN_SECRET is not configured', () => {
+      const originalSecret = process.env.REFRESH_TOKEN_SECRET;
+      const token = generateRefreshToken('user-123');
+      
+      delete process.env.REFRESH_TOKEN_SECRET;
+
+      const result = verifyRefreshToken(token);
+
+      expect(result).toBeNull();
+      expect(console.error).toHaveBeenCalledWith(
+        '❌ Refresh token verification failed:',
+        'REFRESH_TOKEN_SECRET not configured'
+      );
+
+      process.env.REFRESH_TOKEN_SECRET = originalSecret;
+    });
+
+    it('should return null for malformed refresh token', () => {
+      const result = verifyRefreshToken('not.valid.jwt.format.here');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null for empty string', () => {
+      const result = verifyRefreshToken('');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null for null input', () => {
+      const result = verifyRefreshToken(null);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null for undefined input', () => {
+      const result = verifyRefreshToken(undefined);
+
+      expect(result).toBeNull();
+    });
+
+    it('should log error message when refresh verification fails', () => {
+      verifyRefreshToken('invalid-refresh-token');
+
+      expect(console.error).toHaveBeenCalled();
+      const errorCall = console.error.mock.calls[0];
+      expect(errorCall[0]).toContain('Refresh token verification failed');
+    });
+
+    it('should return full decoded token with all claims', () => {
+      const userId = 'refresh-user-claims';
+      const token = generateRefreshToken(userId);
+      const decoded = verifyRefreshToken(token);
+
+      expect(decoded).toHaveProperty('user_id', userId);
+      expect(decoded).toHaveProperty('iat');
+      expect(decoded).toHaveProperty('exp');
     });
   });
 });

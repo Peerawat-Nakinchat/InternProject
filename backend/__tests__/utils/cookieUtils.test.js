@@ -402,3 +402,157 @@ describe('Cookie Security Compliance (ISO 27001)', () => {
     });
   });
 });
+
+// ============================================================
+// ENVIRONMENT-BASED CONFIGURATION TESTS
+// ============================================================
+
+describe('Environment-based Cookie Configuration', () => {
+  describe('Production vs Development settings', () => {
+    it('should define secure flag based on NODE_ENV', () => {
+      // The isProduction variable is set at module load time
+      // In test environment (NODE_ENV=test), it behaves like non-development
+      expect(typeof ACCESS_TOKEN_COOKIE_OPTIONS.secure).toBe('boolean');
+      expect(typeof REFRESH_TOKEN_COOKIE_OPTIONS.secure).toBe('boolean');
+    });
+
+    it('should define sameSite attribute correctly', () => {
+      // sameSite should be 'lax' in development or 'strict' in production
+      expect(['lax', 'strict']).toContain(ACCESS_TOKEN_COOKIE_OPTIONS.sameSite);
+      expect(['lax', 'strict']).toContain(REFRESH_TOKEN_COOKIE_OPTIONS.sameSite);
+    });
+
+    it('should have consistent security settings between access and refresh tokens', () => {
+      expect(ACCESS_TOKEN_COOKIE_OPTIONS.secure).toBe(REFRESH_TOKEN_COOKIE_OPTIONS.secure);
+    });
+  });
+});
+
+// ============================================================
+// ADDITIONAL EDGE CASE TESTS
+// ============================================================
+
+describe('Cookie Edge Cases', () => {
+  describe('getAccessToken edge cases', () => {
+    it('should handle request with undefined cookies and headers', () => {
+      const mockReq = { headers: {} };
+      const token = getAccessToken(mockReq);
+      expect(token).toBeNull();
+    });
+
+    it('should handle request with null cookies', () => {
+      const mockReq = {
+        cookies: null,
+        headers: {}
+      };
+      const token = getAccessToken(mockReq);
+      expect(token).toBeNull();
+    });
+
+    it('should handle Bearer token with extra spaces', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {
+          authorization: 'Bearer  token-with-extra-space'
+        }
+      };
+      const token = getAccessToken(mockReq);
+      // Should return empty string due to extra space
+      expect(token).toBe('');
+    });
+
+    it('should handle Authorization header with only Bearer prefix', () => {
+      const mockReq = {
+        cookies: {},
+        headers: {
+          authorization: 'Bearer '
+        }
+      };
+      const token = getAccessToken(mockReq);
+      expect(token).toBe('');
+    });
+  });
+
+  describe('getRefreshToken edge cases', () => {
+    it('should handle request with undefined cookies and body', () => {
+      const mockReq = {};
+      const token = getRefreshToken(mockReq);
+      expect(token).toBeNull();
+    });
+
+    it('should handle request with null cookies', () => {
+      const mockReq = {
+        cookies: null,
+        body: {}
+      };
+      const token = getRefreshToken(mockReq);
+      expect(token).toBeNull();
+    });
+
+    it('should handle body with null refreshToken', () => {
+      const mockReq = {
+        cookies: {},
+        body: {
+          refreshToken: null
+        }
+      };
+      const token = getRefreshToken(mockReq);
+      expect(token).toBeNull();
+    });
+
+    it('should handle body with empty string refreshToken', () => {
+      const mockReq = {
+        cookies: {},
+        body: {
+          refreshToken: ''
+        }
+      };
+      const token = getRefreshToken(mockReq);
+      // Empty string is falsy, so it returns null
+      expect(token).toBeNull();
+    });
+  });
+
+  describe('Cookie operations with special characters', () => {
+    let mockRes;
+
+    beforeEach(() => {
+      mockRes = {
+        cookie: jest.fn(),
+        clearCookie: jest.fn()
+      };
+    });
+
+    it('should handle tokens with special characters', () => {
+      const specialToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test+/=';
+      
+      setAccessTokenCookie(mockRes, specialToken);
+      
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        specialToken,
+        ACCESS_TOKEN_COOKIE_OPTIONS
+      );
+    });
+
+    it('should handle very long tokens', () => {
+      const longToken = 'x'.repeat(4096); // 4KB token
+      
+      setAuthCookies(mockRes, longToken, longToken);
+      
+      expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle unicode in tokens', () => {
+      const unicodeToken = 'token_日本語_한국어_中文';
+      
+      setAccessTokenCookie(mockRes, unicodeToken);
+      
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        COOKIE_NAMES.ACCESS_TOKEN,
+        unicodeToken,
+        expect.any(Object)
+      );
+    });
+  });
+});

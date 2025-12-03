@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">17.64% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/17</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">17.64% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>3/17</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -109,11 +109,9 @@
 <a name='L44'></a><a href='#L44'>44</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">39x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">39x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -121,32 +119,34 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">39x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">21x</span>
+<span class="cline-any cline-yes">21x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import nodemailer from "nodemailer";
@@ -164,32 +164,32 @@ const transporter = nodemailer.createTransport({
   },
 });
 &nbsp;
-export const sendEmail = <span class="fstat-no" title="function not covered" >as</span>ync (to, subject, html) =&gt; {
-<span class="cstat-no" title="statement not covered" >  console.log("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");</span>
-<span class="cstat-no" title="statement not covered" >  console.log("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");</span>
+export const sendEmail = async (to, subject, html) =&gt; {
+  console.log("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");
+  console.log("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");
 &nbsp;
   // If no mail credentials, log to console (Mock mode)
-<span class="cstat-no" title="statement not covered" >  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {</span>
-<span class="cstat-no" title="statement not covered" >    console.log("==================================================");</span>
-<span class="cstat-no" title="statement not covered" >    console.log(`[MOCK EMAIL] To: ${to}`);</span>
-<span class="cstat-no" title="statement not covered" >    console.log(`Subject: ${subject}`);</span>
-<span class="cstat-no" title="statement not covered" >    console.log("Body:", html);</span>
-<span class="cstat-no" title="statement not covered" >    console.log("==================================================");</span>
-<span class="cstat-no" title="statement not covered" >    return;</span>
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    console.log("==================================================");
+    console.log(`[MOCK EMAIL] To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log("Body:", html);
+    console.log("==================================================");
+    return;
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const info = <span class="cstat-no" title="statement not covered" >await transporter.sendMail({</span>
+  try {
+    const info = await transporter.sendMail({
       from: '"Intern Project" &lt;no-reply@example.com&gt;', // sender address
       to, // list of receivers
       subject, // Subject line
       html, // html body
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    console.log("Message sent: %s", info.messageId);</span>
+    console.log("Message sent: %s", info.messageId);
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.error("Error sending email:", error);</span>
-<span class="cstat-no" title="statement not covered" >    throw error;</span>
+    console.error("Error sending email:", error);
+    throw error;
   }
 };
 &nbsp;</pre></td></tr></table></pre>
@@ -199,7 +199,7 @@ export const sendEmail = <span class="fstat-no" title="function not covered" >as
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-02T06:21:05.827Z
+                at 2025-12-03T02:51:25.171Z
             </div>
         <script src="../prettify.js"></script>
         <script>
