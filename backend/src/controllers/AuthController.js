@@ -57,9 +57,7 @@ export const createAuthController = (deps = {}) => {
   const refreshToken = asyncHandler(async (req, res) => {
     try {
       const token = cookies.getRefreshToken(req);
-      // Validation ย้ายไปอยู่ใน Service หรือ Middleware แต่เช็คเบื้องต้นได้
       if (!token) {
-        // ให้ชัดเจนว่าไม่มี token ไม่ใช่ error 500
         return ResponseHandler.error(res, "Refresh Token required", 401);
       }
 
