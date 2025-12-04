@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Test database compose
 # Run: docker compose -f docker-compose.test.yml up -d
 

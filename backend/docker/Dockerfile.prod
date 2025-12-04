@@ -10,8 +10,8 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for build)
-RUN npm ci --only=production
+# Install production dependencies only
+RUN npm install --omit=dev
 
 # Stage 2: Production image
 FROM node:20-alpine AS production

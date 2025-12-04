@@ -9,6 +9,10 @@ vault-agent-config/token
 vault-agent-config/token-sink
 vault-agent-config/role-id
 vault-agent-config/secret-id
+docker/vault-agent-config/token
+docker/vault-agent-config/token-sink
+docker/vault-agent-config/role-id
+docker/vault-agent-config/secret-id
 
 # Vault credentials
 vault-credentials/team/role-id

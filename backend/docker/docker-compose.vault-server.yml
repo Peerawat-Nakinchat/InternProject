@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Standalone Vault server for development
 # Run: docker compose -f docker-compose.vault-server.yml up -d
 

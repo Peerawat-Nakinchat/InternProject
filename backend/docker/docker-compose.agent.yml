@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Vault Agent compose
 # Run: docker compose -f docker-compose.agent.yml up -d
 
@@ -11,7 +9,7 @@ services:
     volumes:
       - ./vault-agent-config:/vault/config
       - ../secrets:/secrets
-    command: agent -config=/vault/config/agent.hcl
+    command: vault agent -config=/vault/config/agent.hcl
     cap_add:
       - IPC_LOCK
     networks:
