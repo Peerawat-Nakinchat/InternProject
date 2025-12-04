@@ -1,16 +1,14 @@
 // stores/auth.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useCompanyStore } from './company'
 import { hasEssentialConsent } from '@/utils/cookieConsent'
 
-const API_BASE_URL = '/api'
+// ✅ 1. Environment Config (มาตรฐาน)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-// ✅ สำคัญ: ต้องตั้งค่า axios ให้ส่ง cookies
-axios.defaults.withCredentials = true
-
-// --- Interfaces ---
+// --- Interfaces (คงเดิม) ---
 export interface User {
   user_id: string
   email: string
@@ -26,52 +24,44 @@ export interface User {
   is_active?: boolean
 }
 
-export interface LoginCredentials {
-  email: string
-  password: string
-  remember?: boolean
-}
+// ... (Interfaces อื่นๆ คงเดิม) ...
+export interface LoginCredentials { email: string; password: string; }
+export interface RegisterData { email: string; password: string; name: string; surname: string; sex: "M" | "F" | "O"; user_address_1?: string; user_address_2?: string; user_address_3?: string; }
+export interface ChangeEmailData { newEmail: string; password: string; }
+export interface ChangePasswordData { oldPassword: string; newPassword: string; }
+export interface ProfileUpdateData { name: string; surname: string; full_name: string; sex: string; user_address_1: string; user_address_2: string; user_address_3: string; profile_image_url: string; }
 
-export interface RegisterData {
-  email: string
-  password: string
-  name: string
-  surname: string
-  sex: "M" | "F" | "O"
-  user_address_1?: string
-  user_address_2?: string
-  user_address_3?: string
-}
+// --- 🛠 Axios Setup (Enterprise Pattern) ---
+// สร้าง Instance แยก เพื่อไม่ให้กระทบ global axios
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // ส่ง Cookies อัตโนมัติ
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
 
-export interface ChangeEmailData {
-  newEmail: string
-  password: string
-}
+// ตัวแปรสำหรับจัดการ Refresh Token Concurrency
+let isRefreshing = false
+let failedQueue: any[] = []
 
-export interface ChangePasswordData {
-  oldPassword: string
-  newPassword: string
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  failedQueue = []
 }
-
-export interface ProfileUpdateData {
-    name: string
-    surname: string
-    full_name: string
-    sex: "M" | "F" | "O" | string
-    user_address_1: string
-    user_address_2: string
-    user_address_3: string
-    profile_image_url: string
-}
-
-// ✅ Promise สำหรับรอ initAuth เสร็จ (ใช้ใน router guard)
-let initAuthPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', () => {
   // --- State ---
   const user = ref<User | null>(null)
   const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(null)
+  // ❌ ลบ refreshToken ออกจาก State เพราะเราใช้ HTTP-Only Cookie (Frontend มองไม่เห็นและไม่ต้องใช้)
+  
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const authReady = ref(false)
@@ -80,84 +70,99 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value)
   const userName = computed(() => user.value?.full_name || user.value?.email || 'Guest')
 
+  // --- 🛡 Interceptor Logic ---
+  // 1. Request Interceptor: แนบ Access Token (ถ้ามี)
+  api.interceptors.request.use((config) => {
+    if (accessToken.value) {
+      config.headers.Authorization = `Bearer ${accessToken.value}`
+    }
+    return config
+  })
+
+  // 2. Response Interceptor: จัดการ 401 และ Refresh Token
+  api.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+      // ถ้าเจอ 401 และยังไม่ได้ลอง Retry
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        
+        // ถ้ากำลัง Refresh อยู่ ให้เข้าคิวรอ (ป้องกัน Race Condition)
+        if (isRefreshing) {
+          return new Promise(function(resolve, reject) {
+            failedQueue.push({ resolve, reject })
+          }).then(() => {
+            return api(originalRequest)
+          }).catch(err => {
+            return Promise.reject(err)
+          })
+        }
+
+        originalRequest._retry = true
+        isRefreshing = true
+
+        try {
+          // เรียก Refresh Token Endpoint
+          // หมายเหตุ: Endpoint นี้จะอ่าน Refresh Token จาก Cookie และ Set Access Token ใหม่กลับมา
+          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+          
+          if (data.success && data.data?.accessToken) {
+            const newToken = data.data.accessToken
+            accessToken.value = newToken
+            
+            // update header สำหรับ request ที่ค้างอยู่
+            api.defaults.headers.common['Authorization'] = 'Bearer ' + newToken
+            
+            // ปล่อยคิวที่รออยู่
+            processQueue(null, newToken)
+            
+            // Retry request เดิม
+            return api(originalRequest)
+          } else {
+            throw new Error('Refresh failed')
+          }
+        } catch (refreshErr) {
+          processQueue(refreshErr, null)
+          await logout() // ถ้า Refresh ไม่ผ่าน คือจบข่าว Logout ทันที
+          return Promise.reject(refreshErr)
+        } finally {
+          isRefreshing = false
+        }
+      }
+
+      return Promise.reject(error)
+    }
+  )
+
   // --- Actions ---
 
   // 1. Initialize Auth
   const initAuth = async () => {
     if (authReady.value) return
-
     try {
-      const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
-        withCredentials: true
-      })
-
-      // ✅ แก้ไข: เจาะเข้า data.data.user
+      // เรียก Profile ตรงๆ เลย ถ้า 401 Interceptor จะทำงานให้เอง!
+      const response = await api.get('/auth/profile')
       if (response.data.success && response.data.data?.user) {
         user.value = response.data.data.user
-        console.log('✅ Auth initialized from cookies - user found')
+        console.log('✅ Auth initialized')
       }
-    } catch (err: unknown) {
-      // ถ้า 401 ลอง refresh token ก่อน
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { status?: number } }
-        if (axiosErr.response?.status === 401) {
-          console.log('ℹ️ Access token expired, trying refresh...')
-          const refreshed = await tryRefreshOnInit()
-          if (refreshed) return
-        }
-      }
-      // ถ้าไม่เจอ user หรือ refresh ไม่ได้
-      console.log('ℹ️ No valid session found')
+    } catch (err) {
+      console.log('ℹ️ No valid session found (Guest)')
       user.value = null
       accessToken.value = null
-      refreshToken.value = null
     } finally {
       authReady.value = true
     }
   }
 
-  // 2. Try Refresh on Init
-  const tryRefreshOnInit = async (): Promise<boolean> => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-        withCredentials: true
-      })
-
-      // ✅ แก้ไข: ดึงจาก response.data.data
-      const data = response.data.data
-      if (response.data.success && data) {
-        accessToken.value = data.accessToken
-        if (data.refreshToken) {
-          refreshToken.value = data.refreshToken
-        }
-
-        // Fetch profile again
-        const profileResponse = await axios.get(`${API_BASE_URL}/auth/profile`, {
-          withCredentials: true
-        })
-
-        // ✅ แก้ไข: เจาะเข้า data.data.user
-        if (profileResponse.data.success && profileResponse.data.data?.user) {
-          user.value = profileResponse.data.data.user
-          console.log('✅ Auth restored via refresh token')
-          authReady.value = true
-          return true
-        }
-      }
-      return false
-    } catch (err) {
-      return false
-    }
+  const waitForAuthReady = async (): Promise<void> => {
+    if (authReady.value) return
+    await initAuth()
   }
 
-  const waitForAuthReady = (): Promise<void> => {
-    if (authReady.value) return Promise.resolve()
-    if (!initAuthPromise) initAuthPromise = initAuth()
-    return initAuthPromise
-  }
-
-  // 3. Login
-  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string; rateLimited?: boolean; retryAfter?: number; needsConsent?: boolean }> => {
+  // 2. Login
+  const login = async (credentials: LoginCredentials) => {
     isLoading.value = true
     error.value = null
 
@@ -167,206 +172,129 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        email: credentials.email,
-        password: credentials.password,
-      }, { withCredentials: true })
+      // ใช้ api instance แทน axios ธรรมดา
+      const response = await api.post('/auth/login', credentials)
 
       if (response.data.success) {
-        // ✅ แก้ไข: ดึงข้อมูลจากชั้น .data
-        const responseData = response.data.data
-        
-        accessToken.value = responseData.accessToken
-        refreshToken.value = responseData.refreshToken
-        user.value = responseData.user
-
-        console.log('✅ Login สำเร็จ')
+        const data = response.data.data
+        accessToken.value = data.accessToken
+        user.value = data.user
+        // ไม่ต้องเก็บ refreshToken ใน state
         return { success: true }
       }
-
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string; error?: string } } }
-
-        // Handle Rate Limit
-        if (axiosErr.response?.status === 429) {
-          const retryAfter = axiosErr.response.headers?.['retry-after']
-          error.value = 'คุณพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่'
-          return {
-            success: false,
-            error: error.value,
-            rateLimited: true,
-            retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined
-          }
-        }
-
-        // Handle Other Errors (Backend now sends error inside 'error' property)
-        error.value = axiosErr.response?.data?.error || axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
-      } else {
-        error.value = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+    } catch (err: any) {
+      // จัดการ Error แบบรวมศูนย์
+      error.value = err.response?.data?.error || err.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+      
+      // Check Rate Limit
+      if (err.response?.status === 429) {
+          const retryAfter = err.response.headers['retry-after']
+          return { success: false, error: error.value, rateLimited: true, retryAfter }
       }
+      
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
   }
 
-  // 4. Register
-  const register = async (data: RegisterData): Promise<{ success: boolean; message?: string; error?: string }> => {
+  // 3. Register
+  const register = async (data: RegisterData) => {
     isLoading.value = true
     error.value = null
-
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, data)
-
+      const response = await api.post('/auth/register', data)
       if (response.data.success) {
-        return { success: true, message: 'ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ' }
+        return { success: true, message: 'ลงทะเบียนสำเร็จ' }
       }
-
       return { success: false, error: 'ลงทะเบียนไม่สำเร็จ' }
     } catch (err: any) {
-      error.value = err.response?.data?.error || err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
+      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
   }
 
-  // 5. Logout
+  // 4. Logout
   const logout = async () => {
-    isLoading.value = true
     try {
-      await axios.post(`${API_BASE_URL}/auth/logout`, {}, { withCredentials: true })
+      await api.post('/auth/logout')
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
       user.value = null
       accessToken.value = null
-      refreshToken.value = null
       
       const companyStore = useCompanyStore()
       companyStore.reset()
       
-      console.log('✅ Logout สำเร็จ')
-      isLoading.value = false
+      // Redirect หรือ reload page ถ้าจำเป็น
+      // window.location.href = '/login' 
     }
   }
 
-  // 6. Fetch Profile
+  // 5. General Update Methods (Clean Code)
   const fetchProfile = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/auth/profile`, { withCredentials: true })
-
-      // ✅ แก้ไข: เจาะเข้า data.data.user
-      if (response.data.success && response.data.data?.user) {
+      const response = await api.get('/auth/profile')
+      if (response.data.data?.user) {
         user.value = response.data.data.user
       }
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { status?: number } }
-        if (axiosErr.response?.status === 401) {
-          await logout()
-        }
-      }
-    }
-  }
-
-  // 7. Refresh Access Token
-  const refreshAccessToken = async (): Promise<boolean> => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
-      
-      // ✅ แก้ไข: ดึง data ออกมาก่อน
-      const data = response.data.data
-
-      if (response.data.success && data?.accessToken) {
-        accessToken.value = data.accessToken
-        if (data.refreshToken) {
-          refreshToken.value = data.refreshToken
-        }
-        console.log('✅ Token refreshed successfully')
-        return true
-      }
-      return false
     } catch (err) {
-      user.value = null
-      accessToken.value = null
-      refreshToken.value = null
-      return false
+       // ไม่ต้องทำอะไร Interceptor จัดการ Logout ให้ถ้า Token ตายสนิท
     }
   }
 
-  // 8. Update Profile & Change Email/Password
-  const changeEmail = async (data: ChangeEmailData): Promise<{ success: boolean; error?: string }> => {
+  const changeEmail = async (data: ChangeEmailData) => {
     isLoading.value = true
-    error.value = null
     try {
-      const response = await axios.put(`${API_BASE_URL}/auth/change-email`, data, { withCredentials: true })
-
+      const response = await api.put('/auth/change-email', data)
       if (response.data.success) {
-        // ✅ แก้ไข: data.data.user
-        if (user.value && response.data.data?.user) {
-          user.value.email = response.data.data.user.email
-        }
-        return { success: true }
+         if (user.value) user.value.email = data.newEmail
+         return { success: true }
       }
-      return { success: false, error: response.data.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
+      return { success: false, error: response.data.error }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
-      return { success: false, error: error.value }
-    } finally {
-      isLoading.value = false
-    }
+      return { success: false, error: err.response?.data?.error || 'Failed' }
+    } finally { isLoading.value = false }
   }
 
-  const changePassword = async (data: ChangePasswordData): Promise<{ success: boolean; error?: string }> => {
+  const changePassword = async (data: ChangePasswordData) => {
     isLoading.value = true
-    error.value = null
     try {
-      const response = await axios.put(`${API_BASE_URL}/auth/change-password`, data, { withCredentials: true })
-
+      const response = await api.put('/auth/change-password', data)
       if (response.data.success) {
         await logout()
         return { success: true }
       }
-      return { success: false, error: response.data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
+      return { success: false, error: response.data.error }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
-      return { success: false, error: error.value }
-    } finally {
-      isLoading.value = false
-    }
+      return { success: false, error: err.response?.data?.error || 'Failed' }
+    } finally { isLoading.value = false }
   }
 
-  const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolean; error?: string }> => {
+  const updateProfile = async (data: ProfileUpdateData) => {
     isLoading.value = true
-    error.value = null
     try {
-      const response = await axios.put(`${API_BASE_URL}/auth/update-profile`, data, { withCredentials: true })
-
-      if (response.data.success) {
-        // ✅ แก้ไข: data.data.user
-        if (response.data.data?.user) {
-          user.value = { ...user.value, ...response.data.data.user }
-        }
+      const response = await api.put('/auth/update-profile', data)
+      if (response.data.success && response.data.data?.user) {
+        user.value = { ...user.value, ...response.data.data.user }
         return { success: true }
       }
-      return { success: false, error: response.data.error || 'บันทึกข้อมูลไม่สำเร็จ' }
+      return { success: false, error: response.data.error }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
-      return { success: false, error: error.value }
-    } finally {
-      isLoading.value = false
-    }
+      return { success: false, error: err.response?.data?.error || 'Failed' }
+    } finally { isLoading.value = false }
   }
 
-  initAuthPromise = initAuth()
+  // Auto Init
+  initAuth()
 
   return {
     user,
     accessToken,
-    refreshToken,
     isLoading,
     error,
     authReady,
@@ -376,11 +304,11 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     fetchProfile,
-    refreshAccessToken,
     initAuth,
     waitForAuthReady,
     changeEmail,
     changePassword,
-    updateProfile
+    updateProfile,
+    api 
   }
 })
