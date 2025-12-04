@@ -2,29 +2,40 @@
 import { sequelize } from "../models/dbModels.js";
 import { MemberModel } from "../models/MemberModel.js";
 import { ROLE_ID } from "../constants/roles.js";
-import { createError } from "../middleware/errorHandler.js"; // ✅ Import Helper
+import { createError } from "../middleware/errorHandler.js";
 
 export const createMemberService = (deps = {}) => {
   const Member = deps.MemberModel || MemberModel;
   const db = deps.sequelize || sequelize;
+  const validateHierarchy = (actorRoleId, targetRoleId, action = 'จัดการ') => {
+
+    if (actorRoleId === ROLE_ID.OWNER) return;
+
+    if (actorRoleId >= targetRoleId) {
+      throw createError.forbidden(`สิทธิ์ไม่เพียงพอ: คุณไม่สามารถ${action}ผู้ที่มีตำแหน่งสูงกว่าหรือเท่ากันได้`);
+    }
+  };
 
   const getMembers = async (orgId, actorRoleId, filters = {}) => {
+
     if (!actorRoleId || actorRoleId > ROLE_ID.MEMBER) {
-      throw createError.forbidden("สิทธิ์ไม่เพียงพอในการดูสมาชิก"); // ✅ 403
+      throw createError.forbidden("สิทธิ์ไม่เพียงพอในการดูสมาชิก");
     }
     return await Member.findByOrganization(orgId, filters);
   };
 
   const inviteMember = async (orgId, inviterUserId, inviterRoleId, invitedUserId, roleId) => {
-    if (!invitedUserId || !roleId) throw createError.badRequest("invitedUserId and roleId required");
+    if (!invitedUserId || !roleId) throw createError.badRequest("ข้อมูลไม่ครบถ้วน (userId, roleId)");
 
     if (!inviterRoleId || inviterRoleId > ROLE_ID.ADMIN) {
-      throw createError.forbidden("สิทธิ์ไม่เพียงพอ (ต้องเป็น OWNER หรือ ADMIN)"); // ✅ 403
+      throw createError.forbidden("สิทธิ์ไม่เพียงพอ (ต้องเป็น OWNER หรือ ADMIN)");
     }
+
+    validateHierarchy(inviterRoleId, roleId, 'แต่งตั้ง');
 
     const isMember = await Member.exists(orgId, invitedUserId);
     if (isMember) {
-      throw createError.conflict("ผู้ใช้นี้เป็นสมาชิกอยู่แล้ว"); // ✅ 409
+      throw createError.conflict("ผู้ใช้นี้เป็นสมาชิกอยู่แล้ว");
     }
 
     return await Member.create({ orgId, userId: invitedUserId, roleId });
@@ -32,14 +43,22 @@ export const createMemberService = (deps = {}) => {
 
   const changeMemberRole = async (orgId, actorUserId, actorRoleId, targetMemberId, newRoleId) => {
     if (!actorRoleId || actorRoleId > ROLE_ID.ADMIN) {
-      throw createError.forbidden("สิทธิ์ไม่เพียงพอ"); // ✅ 403
+      throw createError.forbidden("สิทธิ์ไม่เพียงพอ");
     }
 
-    const targetRole = await Member.getRole(orgId, targetMemberId);
-    if (!targetRole) throw createError.notFound("ไม่พบสมาชิก"); // ✅ 404
+    if (String(actorUserId) === String(targetMemberId)) {
+        throw createError.badRequest("ไม่สามารถเปลี่ยนตำแหน่งตัวเองได้");
+    }
 
-    if (targetRole === ROLE_ID.OWNER) {
-      throw createError.forbidden("ไม่สามารถเปลี่ยน role ของ OWNER ได้"); // ✅ 403
+    const currentTargetRole = await Member.getRole(orgId, targetMemberId);
+    if (!currentTargetRole) throw createError.notFound("ไม่พบสมาชิก");
+
+    validateHierarchy(actorRoleId, currentTargetRole, 'แก้ไขบทบาท');
+
+    validateHierarchy(actorRoleId, newRoleId, 'มอบหมายตำแหน่ง');
+
+    if (currentTargetRole === ROLE_ID.OWNER) {
+      throw createError.forbidden("ไม่สามารถเปลี่ยน role ของ OWNER ได้");
     }
 
     return await Member.updateRole(orgId, targetMemberId, newRoleId);
@@ -50,32 +69,47 @@ export const createMemberService = (deps = {}) => {
       throw createError.forbidden("สิทธิ์ไม่เพียงพอ");
     }
 
+    if (String(actorUserId) === String(targetMemberId)) {
+        throw createError.badRequest("ไม่สามารถลบตัวเองได้ (กรุณาใช้เมนู 'ออกจากองค์กร')");
+    }
+
     const targetRole = await Member.getRole(orgId, targetMemberId);
+    if (!targetRole) throw createError.notFound("ไม่พบสมาชิก");
+
     if (targetRole === ROLE_ID.OWNER) {
       throw createError.forbidden("ไม่สามารถลบ OWNER ได้");
     }
 
+    validateHierarchy(actorRoleId, targetRole, 'ลบสมาชิก');
+
     const deleted = await Member.remove(orgId, targetMemberId);
-    if (!deleted) throw createError.notFound("ไม่พบสมาชิก");
+    if (!deleted) throw createError.notFound("ไม่พบสมาชิก หรือลบไม่สำเร็จ");
 
     return { success: true };
   };
 
   const transferOwner = async (orgId, currentOwnerId, currentOwnerRoleId, newOwnerUserId) => {
+
     if (currentOwnerRoleId !== ROLE_ID.OWNER) {
       throw createError.forbidden("ต้องเป็น OWNER เท่านั้นในการโอนสิทธิ์");
     }
 
+    if (String(currentOwnerId) === String(newOwnerUserId)) {
+        throw createError.badRequest("คุณเป็นเจ้าของอยู่แล้ว");
+    }
+
     const isMember = await Member.exists(orgId, newOwnerUserId);
     if (!isMember) {
-      throw createError.badRequest("ผู้รับโอนต้องเป็นสมาชิกขององค์กรก่อน"); // ✅ 400
+      throw createError.badRequest("ผู้รับโอนต้องเป็นสมาชิกขององค์กรก่อน");
     }
 
     const t = await db.transaction();
     try {
-      await Member.updateOwner(orgId, newOwnerUserId, t);
-      await Member.updateRole(orgId, newOwnerUserId, 1, t);
-      await Member.updateRole(orgId, currentOwnerId, 2, t);
+
+      await Member.updateOwner(orgId, newOwnerUserId, t); 
+      await Member.updateRole(orgId, newOwnerUserId, ROLE_ID.OWNER, t);
+      await Member.updateRole(orgId, currentOwnerId, ROLE_ID.ADMIN, t);
+      
       await t.commit();
       return { success: true };
     } catch (error) {
@@ -91,7 +125,7 @@ export const createMemberService = (deps = {}) => {
     return await Member.findByOrganizationPaginated(orgId, options);
   };
 
-const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
+  const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       throw createError.badRequest("กรุณาระบุรายชื่อสมาชิกที่ต้องการลบ");
@@ -103,19 +137,25 @@ const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
 
     const targetMembers = await Member.findRolesInList(orgId, userIds);
     const hasOwner = targetMembers.some(member => member.roleId === ROLE_ID.OWNER);
-    
     if (hasOwner) {
-      throw createError.forbidden("พบ OWNER อยู่ในรายการลบ: ไม่สามารถลบ OWNER ได้ กรุณาโอนสิทธิ์ก่อน");
+      throw createError.forbidden("พบ OWNER อยู่ในรายการลบ: ไม่สามารถลบ OWNER ได้");
     }
-    const deletedCount = await Member.bulkRemove(orgId, userIds);
 
+    const deletedCount = await Member.bulkRemove(orgId, userIds);
     return { success: true, deleted: deletedCount };
   };
 
   return {
-    getMembers, inviteMember, changeMemberRole, removeMember, transferOwner,
-    getMembersWithPagination, getMemberCount: Member.countByOrganization,
-    bulkRemoveMembers, checkMembership: Member.exists, getUserMemberships: Member.findByUser
+    getMembers, 
+    inviteMember, 
+    changeMemberRole, 
+    removeMember, 
+    transferOwner,
+    getMembersWithPagination, 
+    getMemberCount: Member.countByOrganization,
+    bulkRemoveMembers, 
+    checkMembership: Member.exists, 
+    getUserMemberships: Member.findByUser
   };
 };
 
