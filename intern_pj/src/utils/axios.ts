@@ -7,6 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 // ✅ สำหรับจัดการ refresh token ที่กำลังทำงานอยู่
 let isRefreshing = false
+let refreshPromise: Promise<boolean> | null = null
 let failedQueue: Array<{
   resolve: (value?: unknown) => void
   reject: (reason?: unknown) => void
@@ -62,7 +63,7 @@ axiosInstance.interceptors.response.use(
     return response.data
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number }
 
     console.error('❌ Response error:', error.response?.status, error.config?.url)
 
@@ -74,16 +75,20 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error)
       }
 
-      // ✅ ถ้ากำลัง refresh อยู่ ให้รอ queue
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        }).then(() => {
-          // retry request เดิมหลัง refresh สำเร็จ
-          return axiosInstance(originalRequest)
-        }).catch(err => {
+      // ✅ ถ้ากำลัง refresh อยู่ ให้รอ promise เดียวกัน
+      if (isRefreshing && refreshPromise) {
+        try {
+          const refreshed = await refreshPromise
+          if (refreshed) {
+            // ✅ รอให้ cookies ถูก set สมบูรณ์ก่อน retry
+            await new Promise(resolve => setTimeout(resolve, 50))
+            // retry request เดิมหลัง refresh สำเร็จ
+            return axiosInstance(originalRequest)
+          }
+        } catch (err) {
           return Promise.reject(err)
-        })
+        }
+        return Promise.reject(new Error('Refresh token failed'))
       }
 
       originalRequest._retry = true
@@ -93,27 +98,42 @@ axiosInstance.interceptors.response.use(
         const auth = useAuthStore()
         console.log('🔄 Token expired, trying to refresh...')
 
-        const refreshed = await auth.refreshAccessToken()
+        // ✅ เก็บ promise เพื่อให้ request อื่นรอใช้ร่วมกัน
+        refreshPromise = auth.refreshAccessToken()
+        const refreshed = await refreshPromise
 
         if (refreshed) {
           console.log('✅ Token refreshed successfully, retrying request...')
           processQueue(null)
+
+          // ✅ สำคัญ: รอให้ cookies ถูก set สมบูรณ์ก่อน retry
+          // ช่วยให้ browser มีเวลา process cookies ก่อนส่ง request ใหม่
+          await new Promise(resolve => setTimeout(resolve, 50))
+
           // retry request เดิม
           return axiosInstance(originalRequest)
         } else {
           // refresh ไม่สำเร็จ - logout แล้ว
           console.log('❌ Refresh failed, user logged out')
           processQueue(new Error('Refresh token expired'))
-          window.location.href = '/login'
+          // ✅ ใช้ router.push แทน window.location เพื่อไม่ให้หน้า reload
+          const currentPath = window.location.pathname
+          if (currentPath !== '/login') {
+            window.location.href = '/login'
+          }
           return Promise.reject(error)
         }
       } catch (refreshError) {
         console.error('❌ Refresh error:', refreshError)
         processQueue(refreshError as Error)
-        window.location.href = '/login'
+        const currentPath = window.location.pathname
+        if (currentPath !== '/login') {
+          window.location.href = '/login'
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
+        refreshPromise = null
       }
     }
 
