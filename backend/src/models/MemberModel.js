@@ -376,20 +376,6 @@ const bulkCreate = async (membersData, transaction = null) => {
   });
 };
 
-const findRolesInList = async (orgId, userIds) => {
-  return await OrganizationMember.findAll({
-    where: {
-      org_id: orgId,
-      user_id: { [Op.in]: userIds }
-    },
-    attributes: [
-      ['user_id', 'userId'], 
-      ['role_id', 'roleId']
-    ],
-    raw: true 
-  });
-};
-
 /**
  * Find membership by ID
  */
@@ -432,8 +418,7 @@ export const MemberModel = {
   countByRole,
   getRoleDistribution,
   bulkCreate,
-  findByMembershipId,
-  findRolesInList
+  findByMembershipId
 };
 
 export default MemberModel;
