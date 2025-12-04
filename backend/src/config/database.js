@@ -1,56 +1,69 @@
+// src/config/database.js
 import dotenv from 'dotenv';
+import { z } from 'zod';
+
 dotenv.config();
 
-export default {
+//Schema เพื่อ Validate Environment Variables
+const dbEnvSchema = z.object({
+  DB_HOST: z.string().min(1, "DB_HOST is required"),
+  DB_PORT: z.coerce.number().default(5432),
+  DB_USER: z.string().min(1, "DB_USER is required"),
+  DB_PASSWORD: z.string().min(1, "DB_PASSWORD is required"),
+  DB_DATABASE: z.string().min(1, "DB_DATABASE is required"),
+  DB_SSL: z.string().transform((val) => val === 'true').optional(),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development')
+});
+
+//Parse และ Validate 
+const env = dbEnvSchema.parse(process.env);
+
+const config = {
   development: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
+    username: env.DB_USER,
+    password: env.DB_PASSWORD,
+    database: env.DB_DATABASE,
+    host: env.DB_HOST,
+    port: env.DB_PORT,
     dialect: 'postgres',
-    logging: false,
+    logging: (msg) => console.log(`[Sequelize] ${msg}`), 
     pool: {
-      max: 5,
+      max: 10, 
       min: 0,
       acquire: 30000,
       idle: 10000
-    },
-    dialectOptions: {
-      ssl: process.env.DB_SSL === 'true' ? {
-        require: true,
-        rejectUnauthorized: false
-      } : false
     }
   },
   production: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
+    username: env.DB_USER,
+    password: env.DB_PASSWORD,
+    database: env.DB_DATABASE,
+    host: env.DB_HOST,
+    port: env.DB_PORT,
     dialect: 'postgres',
-    logging: false,
+    logging: false, 
     pool: {
-      max: 10,
-      min: 2,
-      acquire: 30000,
+      max: 20, 
+      min: 5,  
+      acquire: 60000,
       idle: 10000
     },
-    dialectOptions: {
+    dialectOptions: env.DB_SSL ? {
       ssl: {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false 
       }
-    }
+    } : {}
   },
   test: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE + '_test',
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
+    username: env.DB_USER,
+    password: env.DB_PASSWORD,
+    database: env.DB_DATABASE + '_test',
+    host: env.DB_HOST,
+    port: env.DB_PORT,
     dialect: 'postgres',
     logging: false
   }
 };
+
+export default config;

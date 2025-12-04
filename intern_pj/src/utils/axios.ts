@@ -104,11 +104,13 @@ axiosInstance.interceptors.response.use(
           // refresh ไม่สำเร็จ - logout แล้ว
           console.log('❌ Refresh failed, user logged out')
           processQueue(new Error('Refresh token expired'))
+          window.location.href = '/login'
           return Promise.reject(error)
         }
       } catch (refreshError) {
         console.error('❌ Refresh error:', refreshError)
         processQueue(refreshError as Error)
+        window.location.href = '/login'
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

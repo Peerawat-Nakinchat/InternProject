@@ -1,165 +1,142 @@
+import { createServer } from 'http'; 
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swaggerConfig.js";
 import cron from "node-cron";
-import "./src/config/loadEnv.js";
 
-// Import Sequelize and Audit Log
+// Config & Utils
+import "./src/config/loadEnv.js"; 
+import sequelize from "./src/config/dbConnection.js";
+import logger from "./src/utils/logger.js";
+
+// Models & Middlewares
 import { syncDatabase } from "./src/models/dbModels.js";
 import { RefreshTokenModel } from "./src/models/TokenModel.js";
 import { addCorrelationId, addSessionId, clientInfoMiddleware } from "./src/middleware/auditLogMiddleware.js";
-import sequelize from "./src/config/dbConnection.js";
-
-dotenv.config();
-
-const app = express();
-
-// ========================================
-// 🔒 SECURITY MIDDLEWARE
-// ========================================
-
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
-      },
-    },
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true,
-    },
-  })
-);
-
-// CORS Configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:5173", "http://localhost:3000"];
-
-if (!allowedOrigins.includes("http://localhost:3000")) {
-  allowedOrigins.push("http://localhost:3000");
-}
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = "CORS policy does not allow access from this origin.";
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-org-id"],
-  })
-);
-
-// Cookie Parser - สำหรับ parse cookies จาก request
-app.use(cookieParser());
-
-// Rate Limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    success: false,
-    error: "Too many requests, please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    success: false,
-    error: "Too many login attempts, try again after 15 minutes.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
-
-// ========================================
-// BODY PARSERS
-// ========================================
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use(addCorrelationId);
-app.use(addSessionId);
-app.use(clientInfoMiddleware);
-
-// ========================================
-// SECURITY MONITORING
-// ========================================
-
 import {
   extractClientInfo,
   requestLogger,
   detectSuspiciousPatterns,
   bruteForceProtection,
 } from "./src/middleware/securityMonitoring.js";
-import logger from "./src/utils/logger.js";
-
-app.use(extractClientInfo);
-app.use(requestLogger);
-app.use(detectSuspiciousPatterns);
-app.use("/api/auth/login", bruteForceProtection);
-app.use("/api/auth/register", bruteForceProtection);
-
-// ========================================
-// PASSPORT
-// ========================================
-
+import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.js";
 import passport from "./src/config/passport.js";
-app.use(passport.initialize());
-app.use(addCorrelationId);
-app.use(addSessionId);
 
-// ========================================
-// ROUTES
-// ========================================
-
+// Routes
 import userRoutes from "./src/routes/memberRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
 
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
+const app = express();
+const httpServer = createServer(app); 
+
+// ========================================
+// SECURITY & CONFIGURATION
+// ========================================
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  hidePoweredBy: true 
+}));
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",");
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS policy does not allow access from this origin."));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-org-id"],
+}));
+
+app.use(cookieParser());
+app.use(express.json({ limit: "100kb" })); 
+app.use(express.urlencoded({ limit: "100kb", extended: true }));
+
+// ========================================
+// RATE LIMITING
+// ========================================
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, 
+  message: { success: false, error: "Too many login attempts, try again after 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, 
+});
+
+// ========================================
+// LOGGING & MONITORING
+// ========================================
+
+app.use(addCorrelationId);
+app.use(addSessionId);
+app.use(clientInfoMiddleware);
+app.use(extractClientInfo);
+app.use(requestLogger);
+app.use(detectSuspiciousPatterns);
+
+// ========================================
+// AUTHENTICATION
+// ========================================
+
+app.use(passport.initialize());
+app.use("/api/auth/login", bruteForceProtection, authLimiter);
+app.use("/api/auth/register", bruteForceProtection, authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
 app.use("/api/auth/reset-password", authLimiter);
 
-app.use("/api", apiLimiter);
+// ========================================
+// ROUTES
+// ========================================
 
-// Swagger Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api", apiLimiter); // Global API limit
 
-// Mount routes
+// Docs 
+if (process.env.NODE_ENV !== 'production') {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
 
 // Health check
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.json({
     status: "ok",
-    message: "API server is running",
+    uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
 });
@@ -168,44 +145,20 @@ app.get("/", (req, res) => {
 // ERROR HANDLING
 // ========================================
 
-import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.js";
-
-// 404 handler (must be after all routes)
 app.use(notFoundHandler);
-
-// Global error handler (must be last)
 app.use(errorHandler);
 
 // ========================================
-// SCHEDULED TASKS (CRON JOBS)
+// ⏰ CRON JOBS
 // ========================================
 
-// Cleanup expired tokens every day at 2 AM
 cron.schedule('0 2 * * *', async () => {
   try {
-    console.log('🧹 Running scheduled token cleanup...');
+    logger.info('🧹 Running scheduled token cleanup...');
     await RefreshTokenModel.cleanupExpiredTokens();
   } catch (error) {
-    console.error('❌ Error in scheduled token cleanup:', error);
+    logger.error('❌ Error in token cleanup:', error);
   }
-});
-
-// Cleanup old audit logs every week (Sunday at 3 AM)
-cron.schedule('0 3 * * *', async () => {
-  try {
-    console.log('🧹 Running scheduled audit log cleanup...');
-    const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90;
-    
-    // เปลี่ยนมาใช้ Service เพื่อให้มันบันทึก Log การลบด้วย
-    const result = await AuditLogService.cleanup(retentionDays);
-    
-    console.log(`✅ Cleanup complete. Deleted ${result.deleted} logs.`);
-  } catch (error) {
-    console.error('❌ Error in scheduled audit log cleanup:', error);
-  }
-}, {
-  scheduled: true,
-  timezone: "Asia/Bangkok" // ระบุเวลาไทย เพื่อให้รันตอนตี 3 บ้านเราจริงๆ
 });
 
 // ========================================
@@ -214,55 +167,53 @@ cron.schedule('0 3 * * *', async () => {
 
 const PORT = process.env.PORT || 3000;
 
-// Initialize database and start server
 const startServer = async () => {
   try {
-    // Sync database
-    await syncDatabase();
-    console.log('✅ Database synced successfully');
+    if (process.env.NODE_ENV === 'development') {
+      await syncDatabase();
+      logger.info('✅ Database synced (Development mode)');
+    }
 
-    // Sync audit log table
-    console.log('✅ Audit log table synced');
-
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on port ${PORT}`);
-      console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-      console.log(`\n🔒 Security Features Enabled:`);
-      console.log(`   ✓ Helmet (Security Headers)`);
-      console.log(`   ✓ CORS: ${allowedOrigins.join(", ")}`);
-      console.log(`   ✓ Rate Limiting (IP & User)`);
-      console.log(`   ✓ Request Logging`);
-      console.log(`   ✓ Brute Force Protection`);
-      console.log(`   ✓ Suspicious Pattern Detection`);
-      console.log(`   ✓ SQL Injection Prevention (Sequelize)`);
-      console.log(`   ✓ XSS Protection`);
-      console.log(`   ✓ Input Validation & Sanitization`);
-      console.log(`   ✓ Audit Logging`);
-      console.log(`   ✓ Token Hashing`);
-      console.log(`   ✓ HTTP-Only Cookies (ISO 27001 Compliant)`);
-      console.log(`   ✓ Scheduled Cleanup Tasks`);
-      console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-      
-      logger.info(`Server started on port ${PORT}`);
+    httpServer.listen(PORT, () => {
+      logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
+      }
     });
+
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
 
 startServer();
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  try {
-    await sequelize.close();
-    console.log('✅ Database connections closed');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+// ========================================
+// GRACEFUL SHUTDOWN
+// ========================================
+
+const gracefulShutdown = async (signal) => {
+  logger.info(`\n🛑 ${signal} received. Closing HTTP server...`);
+  
+  httpServer.close(async () => {
+    logger.info('🛑 HTTP server closed.');
+    
+    try {
+      await sequelize.close();
+      logger.info('🔒 Database connection closed.');
+      process.exit(0);
+    } catch (error) {
+      logger.error('💥 Error during database disconnection:', error);
+      process.exit(1);
+    }
+  });
+
+  setTimeout(() => {
+    logger.error('💥 Forced shutdown due to timeout');
     process.exit(1);
-  }
-});
+  }, 10000);
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

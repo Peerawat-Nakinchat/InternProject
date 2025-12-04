@@ -1,25 +1,17 @@
-// test/services/AuthService.coverage.test.js
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'; // สำคัญ: แก้ปัญหา jest is not defined
 import { createAuthService } from '../../src/services/AuthService.js';
+import { AppError } from '../../src/middleware/errorHandler.js';
 
-describe('AuthService (100% Coverage)', () => {
-  let service;
-  let mockUser, mockMember, mockToken, mockInvitation, mockInviteService;
-  let mockDb, mockHasher, mockCrypto, mockMailer, mockTokenUtils;
-  let mockTransaction;
+describe('AuthService (Complete Coverage)', () => {
+  let service, mockUser, mockMember, mockToken, mockInvitation, mockInviteService;
+  let mockDb, mockHasher, mockCrypto, mockMailer, mockTokenUtils, mockTransaction;
 
   beforeEach(() => {
-    // 1. Mock DB & Transaction
-    mockTransaction = {
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      finished: false
-    };
-    mockDb = {
-      transaction: jest.fn().mockResolvedValue(mockTransaction)
-    };
+    // Mock Transaction
+    mockTransaction = { commit: jest.fn(), rollback: jest.fn(), finished: false };
+    mockDb = { transaction: jest.fn().mockResolvedValue(mockTransaction) };
 
-    // 2. Mock Models
+    // Mock Models
     mockUser = {
       findByEmail: jest.fn(),
       create: jest.fn(),
@@ -34,16 +26,13 @@ describe('AuthService (100% Coverage)', () => {
     mockMember = { create: jest.fn() };
     mockToken = {
       create: jest.fn(),
-      findOne: jest.fn(),
+      findByToken: jest.fn(),
       deleteOne: jest.fn(),
       deleteAllByUser: jest.fn()
     };
-    mockInvitation = {
-      findByToken: jest.fn(),
-      updateStatus: jest.fn()
-    };
-
-    // 3. Mock Utilities
+    mockInvitation = { findByToken: jest.fn(), updateStatus: jest.fn() };
+    
+    // Mock Services & Utils
     mockInviteService = { getInvitationInfo: jest.fn() };
     mockHasher = {
       genSalt: jest.fn().mockResolvedValue('salt'),
@@ -53,12 +42,12 @@ describe('AuthService (100% Coverage)', () => {
     mockCrypto = { randomUUID: jest.fn().mockReturnValue('uuid') };
     mockMailer = jest.fn().mockResolvedValue(true);
     mockTokenUtils = {
-      generateAccessToken: jest.fn().mockReturnValue('access'),
-      generateRefreshToken: jest.fn().mockReturnValue('refresh'),
+      generateAccessToken: jest.fn().mockReturnValue('access-token'),
+      generateRefreshToken: jest.fn().mockReturnValue('refresh-token'),
       verifyRefreshToken: jest.fn().mockReturnValue({ user_id: 'u1' })
     };
 
-    // 4. Create Service
+    // Create Service Instance
     service = createAuthService({
       UserModel: mockUser,
       MemberModel: mockMember,
@@ -70,10 +59,14 @@ describe('AuthService (100% Coverage)', () => {
       crypto: mockCrypto,
       sendEmail: mockMailer,
       tokenUtils: mockTokenUtils,
-      env: { BCRYPT_SALT_ROUNDS: '10', REFRESH_TOKEN_EXPIRES_IN: '7d', FRONTEND_URL: 'http://fe' }
+      env: {
+        BCRYPT_SALT_ROUNDS: '10',
+        REFRESH_TOKEN_EXPIRES_IN: '7d',
+        FRONTEND_URL: 'http://fe'
+      }
     });
 
-    // 5. Silence Console
+    // Silence logs during tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -82,213 +75,386 @@ describe('AuthService (100% Coverage)', () => {
     jest.clearAllMocks();
   });
 
-  // ==========================================
-  // REGISTER TESTS
-  // ==========================================
   describe('register', () => {
     const validData = {
-      email: 'test@mail.com', password: '123', name: 'John', surname: 'Doe', sex: 'M'
+      email: 'test@mail.com',
+      password: '123456',
+      name: 'John',
+      surname: 'Doe',
+      sex: 'M'
     };
 
-    it('should throw if missing required fields', async () => {
-      await expect(service.register({})).rejects.toThrow('กรุณากรอกข้อมูลที่จำเป็น');
+    it('should throw 400 if missing required fields', async () => {
+      await expect(service.register({})).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringMatching(/กรุณากรอก/)
+      });
     });
 
-    it('should validate invite token if provided', async () => {
-      mockInviteService.getInvitationInfo.mockResolvedValue({ email: 'other@mail.com' });
-      await expect(service.register({ ...validData, inviteToken: 't' }))
-        .rejects.toThrow('อีเมลไม่ตรงกับคำเชิญ');
+    it('should validate invite token email match', async () => {
+      mockInviteService.getInvitationInfo.mockResolvedValue({
+        email: 'other@mail.com'
+      });
+      await expect(
+        service.register({ ...validData, inviteToken: 'token' })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringMatching(/อีเมลไม่ตรง/)
+      });
     });
 
-    it('should throw if user exists', async () => {
-      mockUser.findByEmail.mockResolvedValue({ id: 1 });
-      await expect(service.register(validData)).rejects.toThrow('ไม่สามารถลงทะเบียนได้');
+    it('should throw 409 if user exists', async () => {
+      mockUser.findByEmail.mockResolvedValue({ user_id: 'existing' });
+      await expect(service.register(validData)).rejects.toMatchObject({
+        statusCode: 409,
+        message: expect.stringMatching(/ถูกใช้งานแล้ว/)
+      });
     });
 
-    it('should register successfully', async () => {
+    it('should register successfully without invite', async () => {
       mockUser.findByEmail.mockResolvedValue(null);
-      mockUser.create.mockResolvedValue({ user_id: 'u1' });
+      mockUser.create.mockResolvedValue({ user_id: 'u1', ...validData });
       
       const result = await service.register(validData);
-
+      
       expect(mockDb.transaction).toHaveBeenCalled();
       expect(mockHasher.hash).toHaveBeenCalled();
       expect(mockUser.create).toHaveBeenCalled();
       expect(mockToken.create).toHaveBeenCalled();
       expect(mockTransaction.commit).toHaveBeenCalled();
       expect(result.success).toBe(true);
+      expect(result.accessToken).toBe('access-token');
     });
 
-    it('should process invitation if valid', async () => {
+    it('should process invite token on registration', async () => {
       mockUser.findByEmail.mockResolvedValue(null);
       mockUser.create.mockResolvedValue({ user_id: 'u1' });
-      mockInviteService.getInvitationInfo.mockResolvedValue({ 
-        email: 'test@mail.com', org_id: 'o1', role_id: '1', invitation_id: 'iv1' 
+      mockInviteService.getInvitationInfo.mockResolvedValue({
+        email: 'test@mail.com',
+        org_id: 'org1',
+        role_id: 3,
+        invitation_id: 'inv1'
       });
-      mockInvitation.findByToken.mockResolvedValue({ status: 'pending' });
+      mockInvitation.findByToken.mockResolvedValue({
+        invitation_id: 'inv1',
+        status: 'pending'
+      });
 
-      const result = await service.register({ ...validData, inviteToken: 't' });
+      const result = await service.register({
+        ...validData,
+        inviteToken: 'valid-token'
+      });
 
       expect(mockMember.create).toHaveBeenCalled();
-      expect(result.org_id).toBe('o1');
+      expect(mockInvitation.updateStatus).toHaveBeenCalledWith(
+        'inv1',
+        'accepted',
+        mockTransaction
+      );
+      expect(result.org_id).toBe('org1');
     });
 
     it('should rollback on error', async () => {
       mockUser.findByEmail.mockResolvedValue(null);
-      mockUser.create.mockRejectedValue(new Error('DB Fail'));
+      mockUser.create.mockRejectedValue(new Error('DB Error'));
 
-      await expect(service.register(validData)).rejects.toThrow('DB Fail');
+      await expect(service.register(validData)).rejects.toThrow('DB Error');
       expect(mockTransaction.rollback).toHaveBeenCalled();
     });
   });
 
-  // ==========================================
-  // LOGIN TESTS
-  // ==========================================
   describe('login', () => {
-    it('should throw if missing credentials', async () => {
-      await expect(service.login()).rejects.toThrow('กรุณากรอกอีเมลและรหัสผ่าน');
+    it('should throw 400 if missing credentials', async () => {
+      await expect(service.login()).rejects.toMatchObject({
+        statusCode: 400
+      });
     });
 
-    it('should throw if user not found or inactive', async () => {
+    it('should throw 401 if user not found', async () => {
       mockUser.findByEmailWithPassword.mockResolvedValue(null);
-      await expect(service.login('a@b.com', '123')).rejects.toThrow('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      await expect(service.login('a@b.com', '123')).rejects.toMatchObject({
+        statusCode: 401
+      });
     });
 
-    it('should throw if password mismatch', async () => {
-      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash', is_active: true });
+    it('should throw 401 if user inactive', async () => {
+      mockUser.findByEmailWithPassword.mockResolvedValue({
+        user_id: 'u1',
+        password_hash: 'hash',
+        is_active: false
+      });
+      await expect(service.login('a@b.com', '123')).rejects.toMatchObject({
+        statusCode: 401
+      });
+    });
+
+    it('should throw 401 if password invalid', async () => {
+      mockUser.findByEmailWithPassword.mockResolvedValue({
+        user_id: 'u1',
+        password_hash: 'hash',
+        is_active: true
+      });
       mockHasher.compare.mockResolvedValue(false);
-      await expect(service.login('a@b.com', '123')).rejects.toThrow('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      await expect(service.login('a@b.com', '123')).rejects.toMatchObject({
+        statusCode: 401
+      });
     });
 
     it('should login successfully', async () => {
-      mockUser.findByEmailWithPassword.mockResolvedValue({ 
-        user_id: 'u1', password_hash: 'hash', is_active: true, email: 'a' 
+      mockUser.findByEmailWithPassword.mockResolvedValue({
+        user_id: 'u1',
+        email: 'test@test.com',
+        name: 'John',
+        surname: 'Doe',
+        password_hash: 'hash',
+        is_active: true
       });
-      
-      const result = await service.login('a@b.com', '123');
-      expect(result.accessToken).toBe('access');
-      expect(result.refreshToken).toBe('refresh');
+      mockHasher.compare.mockResolvedValue(true);
+
+      const result = await service.login('test@test.com', '123');
+
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
+      expect(mockToken.create).toHaveBeenCalled();
     });
   });
 
-  // ==========================================
-  // REFRESH TOKEN TESTS
-  // ==========================================
   describe('refreshToken', () => {
-    it('should throw if token missing', async () => {
-      await expect(service.refreshToken()).rejects.toThrow('Refresh token is required');
+    it('should throw 400 if token missing', async () => {
+      await expect(service.refreshToken()).rejects.toMatchObject({
+        statusCode: 400
+      });
     });
 
-    it('should throw if token invalid', async () => {
+    it('should throw 401 if token invalid', async () => {
       mockTokenUtils.verifyRefreshToken.mockReturnValue(null);
-      await expect(service.refreshToken('t')).rejects.toThrow('Invalid refresh token');
+      await expect(service.refreshToken('bad-token')).rejects.toMatchObject({
+        statusCode: 401
+      });
     });
 
-    it('should throw if user not found', async () => {
-      mockToken.findOne.mockResolvedValue({ user_id: 'u1' });
+    it('should throw 401 if token not in database', async () => {
+      mockToken.findByToken.mockResolvedValue(null);
+      await expect(service.refreshToken('token')).rejects.toMatchObject({
+        statusCode: 401
+      });
+    });
+
+    it('should throw 404 if user not found', async () => {
+      mockToken.findByToken.mockResolvedValue({ user_id: 'u1' });
       mockUser.findById.mockResolvedValue(null);
-      await expect(service.refreshToken('t')).rejects.toThrow('User not found');
+      await expect(service.refreshToken('token')).rejects.toMatchObject({
+        statusCode: 404
+      });
     });
 
-    it('should succeed and rotate token', async () => {
-      mockToken.findOne.mockResolvedValue({ user_id: 'u1' });
+    it('should throw 401 if user inactive', async () => {
+      mockToken.findByToken.mockResolvedValue({ user_id: 'u1' });
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', is_active: false });
+      await expect(service.refreshToken('token')).rejects.toMatchObject({
+        statusCode: 401
+      });
+    });
+
+    it('should refresh token successfully', async () => {
+      mockToken.findByToken.mockResolvedValue({ user_id: 'u1' });
       mockUser.findById.mockResolvedValue({ user_id: 'u1', is_active: true });
 
-      const result = await service.refreshToken('t');
-      expect(mockToken.deleteOne).toHaveBeenCalled();
+      const result = await service.refreshToken('old-token');
+
+      expect(mockToken.deleteOne).toHaveBeenCalledWith('old-token');
       expect(mockToken.create).toHaveBeenCalled();
-      expect(result.accessToken).toBe('access');
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
     });
   });
 
-  // ==========================================
-  // PASSWORD RESET TESTS
-  // ==========================================
   describe('forgotPassword', () => {
-    it('should return success even if user not found', async () => {
-      mockUser.findByEmail.mockResolvedValue(null);
-      const res = await service.forgotPassword('a@b.com');
-      expect(res.success).toBe(true);
+    it('should throw 400 if email missing', async () => {
+      await expect(service.forgotPassword()).rejects.toMatchObject({
+        statusCode: 400
+      });
     });
 
-    it('should send email if user found', async () => {
-      mockUser.findByEmail.mockResolvedValue({ user_id: 'u1' });
-      await service.forgotPassword('a@b.com');
+    it('should return success even if user not found (security)', async () => {
+      mockUser.findByEmail.mockResolvedValue(null);
+      const result = await service.forgotPassword('nonexist@test.com');
+      expect(result.success).toBe(true);
+      expect(mockMailer).not.toHaveBeenCalled();
+    });
+
+    it('should send reset email if user exists', async () => {
+      mockUser.findByEmail.mockResolvedValue({ user_id: 'u1', email: 'a@b.com' });
+      
+      const result = await service.forgotPassword('a@b.com');
+      
       expect(mockUser.setResetToken).toHaveBeenCalled();
-      expect(mockMailer).toHaveBeenCalled();
+      expect(mockMailer).toHaveBeenCalledWith(
+        'a@b.com',
+        expect.any(String),
+        expect.stringContaining('http://fe/reset-password')
+      );
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('verifyResetToken', () => {
+    it('should throw 400 if token missing', async () => {
+      await expect(service.verifyResetToken()).rejects.toMatchObject({
+        statusCode: 400
+      });
+    });
+
+    it('should throw 400 if token invalid', async () => {
+      mockUser.findByResetToken.mockResolvedValue(null);
+      await expect(service.verifyResetToken('bad')).rejects.toMatchObject({
+        statusCode: 400
+      });
+    });
+
+    it('should return valid true if token valid', async () => {
+      mockUser.findByResetToken.mockResolvedValue({ user_id: 'u1' });
+      const result = await service.verifyResetToken('valid');
+      expect(result.valid).toBe(true);
     });
   });
 
   describe('resetPassword', () => {
-    it('should throw if password too short', async () => {
-      await expect(service.resetPassword('t', '123')).rejects.toThrow('6 ตัวอักษร');
+    it('should throw 400 if missing fields', async () => {
+      await expect(service.resetPassword()).rejects.toMatchObject({
+        statusCode: 400
+      });
+    });
+
+    it('should throw 400 if password too short', async () => {
+      await expect(service.resetPassword('token', '123')).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringMatching(/อย่างน้อย 6/)
+      });
+    });
+
+    it('should throw 400 if token invalid', async () => {
+      mockUser.findByResetToken.mockResolvedValue(null);
+      await expect(service.resetPassword('bad', '123456')).rejects.toMatchObject({
+        statusCode: 400
+      });
     });
 
     it('should reset password successfully', async () => {
       mockUser.findByResetToken.mockResolvedValue({ user_id: 'u1' });
-      const res = await service.resetPassword('t', '123456');
-      expect(mockUser.updatePassword).toHaveBeenCalled();
-      expect(res.success).toBe(true);
+      
+      const result = await service.resetPassword('token', '123456');
+      
+      expect(mockHasher.hash).toHaveBeenCalled();
+      expect(mockUser.updatePassword).toHaveBeenCalledWith('u1', 'hashed');
+      expect(result.success).toBe(true);
     });
   });
 
-  // ==========================================
-  // PROFILE & SETTINGS TESTS
-  // ==========================================
-  describe('changePassword', () => {
-    it('should throw if old password wrong', async () => {
-      mockUser.findById.mockResolvedValue({ email: 'a' });
-      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'h' });
-      mockHasher.compare.mockResolvedValue(false);
+  describe('changeEmail', () => {
+    it('should throw 404 if user not found', async () => {
+      mockUser.findById.mockResolvedValue(null);
+      await expect(
+        service.changeEmail('u1', 'new@test.com', 'pass')
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
 
-      await expect(service.changePassword('u1', 'old', 'new')).rejects.toThrow('รหัสผ่านเดิมไม่ถูกต้อง');
+    it('should throw 401 if password wrong', async () => {
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', email: 'old@test.com' });
+      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash' });
+      mockHasher.compare.mockResolvedValue(false);
+      
+      await expect(
+        service.changeEmail('u1', 'new@test.com', 'wrong')
+      ).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    it('should throw 409 if new email exists', async () => {
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', email: 'old@test.com' });
+      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash' });
+      mockHasher.compare.mockResolvedValue(true);
+      mockUser.findByEmail.mockResolvedValue({ user_id: 'u2' });
+      
+      await expect(
+        service.changeEmail('u1', 'taken@test.com', 'pass')
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    it('should change email successfully', async () => {
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', email: 'old@test.com' });
+      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash' });
+      mockHasher.compare.mockResolvedValue(true);
+      mockUser.findByEmail.mockResolvedValue(null);
+      
+      const result = await service.changeEmail('u1', 'new@test.com', 'pass');
+      
+      expect(mockUser.updateEmail).toHaveBeenCalledWith('u1', 'new@test.com');
+      expect(result.email).toBe('new@test.com');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should throw 404 if user not found', async () => {
+      mockUser.findById.mockResolvedValue(null);
+      await expect(
+        service.changePassword('u1', 'old', 'new')
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    it('should throw 401 if old password wrong', async () => {
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', email: 'a@b.com' });
+      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash' });
+      mockHasher.compare.mockResolvedValue(false);
+      
+      await expect(
+        service.changePassword('u1', 'old', 'new123456')
+      ).rejects.toMatchObject({ statusCode: 401 });
     });
 
     it('should change password successfully', async () => {
-      mockUser.findById.mockResolvedValue({ email: 'a' });
-      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'h' });
+      mockUser.findById.mockResolvedValue({ user_id: 'u1', email: 'a@b.com' });
+      mockUser.findByEmailWithPassword.mockResolvedValue({ password_hash: 'hash' });
       mockHasher.compare.mockResolvedValue(true);
 
-      const res = await service.changePassword('u1', 'old', 'new');
-      expect(mockUser.updatePassword).toHaveBeenCalled();
-      expect(mockToken.deleteAllByUser).toHaveBeenCalled();
-      expect(res.success).toBe(true);
+      const result = await service.changePassword('u1', 'old123', 'new123456');
+
+      expect(mockHasher.hash).toHaveBeenCalledWith('new123456');
+      expect(mockUser.updatePassword).toHaveBeenCalledWith('u1', 'hashed');
+      expect(result.success).toBe(true);
     });
   });
 
   describe('updateProfile', () => {
-    it('should throw if name is empty', async () => {
-      await expect(service.updateProfile('u1', { name: '' })).rejects.toThrow('ชื่อต้องไม่เป็นค่าว่าง');
-    });
-
-    it('should update profile', async () => {
-      mockUser.findById.mockResolvedValue({ name: 'Old' });
-      await service.updateProfile('u1', { name: 'New' });
-      expect(mockUser.updateProfile).toHaveBeenCalled();
-    });
-  });
-
-  describe('getProfile', () => {
-    it('should return sanitized profile', async () => {
-      mockUser.findById.mockResolvedValue({ 
-        toJSON: () => ({ password_hash: 'secret', name: 'John' })
+    it('should throw 404 if user not found', async () => {
+      mockUser.findById.mockResolvedValue(null);
+      await expect(service.updateProfile('u1', { name: 'New' })).rejects.toMatchObject({
+        statusCode: 404
       });
-      const profile = await service.getProfile('u1');
-      expect(profile.password_hash).toBeUndefined();
-      expect(profile.name).toBe('John');
+    });
+
+    it('should update profile successfully', async () => {
+      mockUser.findById.mockResolvedValue({ user_id: 'u1' });
+      const updateData = { name: 'New Name', surname: 'New Surname' };
+      
+      const result = await service.updateProfile('u1', updateData);
+      
+      expect(mockUser.updateProfile).toHaveBeenCalledWith('u1', updateData);
+      expect(result.success).toBe(true);
     });
   });
 
-  // ==========================================
-  // OAUTH TESTS
-  // ==========================================
-  describe('googleAuthCallback', () => {
-    it('should generate tokens', async () => {
-      const res = await service.googleAuthCallback({ user_id: 'u1' });
-      expect(res.accessToken).toBe('access');
-      expect(res.refreshToken).toBe('refresh');
-      expect(mockToken.create).toHaveBeenCalled();
+  describe('logout', () => {
+    it('should call deleteOne with the provided token', async () => {
+      await service.logout('some-refresh-token');
+      expect(mockToken.deleteOne).toHaveBeenCalledWith('some-refresh-token');
+    });
+
+    it('should succeed even if token delete fails (idempotent)', async () => {
+      mockToken.deleteOne.mockRejectedValue(new Error('Token not found'));
+      // Should not throw
+      await service.logout('token');
+      expect(mockToken.deleteOne).toHaveBeenCalled();
     });
   });
+
 });

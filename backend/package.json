@@ -17,7 +17,6 @@
     "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js --ci --coverage --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.17",
     "bcrypt": "^5.1.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -35,15 +34,13 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "pg": "^8.10.0",
-    "postcss": "^8.5.6",
     "sequelize": "^6.37.1",
     "sequelize-cli": "^6.6.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "tailwindcss": "^4.1.17",
     "uuid": "^9.0.0",
     "winston": "^3.18.3",
-    "xss-clean": "^0.1.1"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.8",

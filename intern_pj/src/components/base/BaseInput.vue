@@ -39,18 +39,20 @@
       </div>
     </div>
 
-    <!-- ❗ Password Thai Warning -->
-    <p
-      v-if="thaiWarning && isPassword"
-      class="text-xs text-red-500 mt-0.5"
-    >
-      ไม่อนุญาตให้ใช้ตัวอักษรภาษาไทยในรหัสผ่าน
-    </p>
+    <div class="h-3 mt-0.5">
+      <!-- ❗ Password Thai Warning -->
+      <p
+        v-if="thaiWarning && isPassword"
+        class="text-xs text-red-500"
+      >
+        ไม่อนุญาตให้ใช้ตัวอักษรภาษาไทยในรหัสผ่าน
+      </p>
 
-    <!-- Error Message (จาก props) -->
-    <p v-if="error" class="text-xs text-red-500 mt-0.5">
-      {{ error }}
-    </p>
+      <!-- Error Message (จาก props) -->
+      <p v-if="error" class="text-xs text-red-500">
+        {{ error }}
+      </p>
+    </div>
   </div>
 </template>
 

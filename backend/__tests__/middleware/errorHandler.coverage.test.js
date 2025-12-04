@@ -1,299 +1,659 @@
-// test/middleware/errorHandler.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { 
-  createErrorHandlerMiddleware, 
-  AppError, 
-  createError, 
-  asyncHandler 
-} from '../../src/middleware/errorHandler.js';
+import { createErrorHandlerMiddleware, createError, AppError } from '../../src/middleware/errorHandler.js';
 
-// Mock Error Classes for Sequelize
-class MockValidationError extends Error {
-  constructor(errors) { super('Validation Error'); this.errors = errors; }
-}
-class MockUniqueConstraintError extends Error {
-  constructor(errors) { super('Unique Error'); this.errors = errors; }
-}
-class MockForeignKeyConstraintError extends Error {
-  constructor(fields) { super('FK Error'); this.fields = fields; }
-}
-class MockDatabaseError extends Error {
-  constructor(msg) { super(msg); }
-}
-
-describe('ErrorHandler Middleware (100% Coverage)', () => {
+describe('ErrorHandlerMiddleware (100% Coverage)', () => {
   let middleware;
   let mockLogger;
-  let req, res, next;
-  let consoleErrorSpy, consoleWarnSpy;
-  let originalEnv;
+  let req, mockRes, mockNext;
+  let mockSeqErrors;
+  const originalEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
-    // 1. Mock Dependencies
+    jest.clearAllMocks();
+    process.env.NODE_ENV = 'development'; // Default to development
+    
     mockLogger = { suspiciousActivity: jest.fn() };
     
-    // 2. Inject Mocks via Factory
-    middleware = createErrorHandlerMiddleware({
-      securityLogger: mockLogger,
-      SequelizeErrors: {
-        ValidationError: MockValidationError,
-        UniqueConstraintError: MockUniqueConstraintError,
-        ForeignKeyConstraintError: MockForeignKeyConstraintError,
-        DatabaseError: MockDatabaseError
+    // Mock Sequelize Error Classes
+    mockSeqErrors = {
+      ValidationError: class extends Error { 
+        constructor(errors) { 
+          super('Validation Error'); 
+          this.name = 'SequelizeValidationError'; 
+          this.errors = errors; 
+        } 
+      },
+      UniqueConstraintError: class extends Error { 
+        constructor(errors) { 
+          super('Unique Constraint Error'); 
+          this.name = 'SequelizeUniqueConstraintError'; 
+          this.errors = errors; 
+        } 
+      },
+      ForeignKeyConstraintError: class extends Error { 
+        constructor(fields) { 
+          super('Foreign Key Error'); 
+          this.name = 'SequelizeForeignKeyConstraintError'; 
+          this.fields = fields; 
+        } 
+      },
+      DatabaseError: class extends Error { 
+        constructor(msg) { 
+          super(msg); 
+          this.name = 'SequelizeDatabaseError'; 
+        } 
       }
-    });
-
-    // 3. Mock Express
-    req = {
-      path: '/test',
-      method: 'GET',
-      ip: '127.0.0.1',
-      clientInfo: { ipAddress: '127.0.0.1', userAgent: 'Jest' },
-      user: { user_id: 'u1' }
     };
-    res = {
-      status: jest.fn().mockReturnThis(),
+
+    middleware = createErrorHandlerMiddleware({ 
+      securityLogger: mockLogger,
+      SequelizeErrors: mockSeqErrors
+    });
+    
+    req = { 
+      path: '/test', 
+      method: 'GET', 
+      ip: '127.0.0.1',
+      clientInfo: { ipAddress: '1.1.1.1', userAgent: 'test-agent' }, 
+      user: { user_id: 'u1' } 
+    };
+    
+    mockRes = { 
+      status: jest.fn().mockReturnThis(), 
       json: jest.fn().mockReturnThis()
     };
-    next = jest.fn();
-
-    // 4. Spy on Console
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
-    // Save env
-    originalEnv = process.env.NODE_ENV;
+    
+    mockNext = jest.fn();
+    
+    // Silence console for clean test output
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    process.env.NODE_ENV = originalEnv;
+    process.env.NODE_ENV = originalEnv; // Restore original
+    jest.restoreAllMocks();
   });
 
-  // ==========================================
-  // 1. Utilities Tests
-  // ==========================================
-  describe('Utilities', () => {
-    it('AppError should construct correctly', () => {
-      const err = new AppError('Msg', 400, 'CODE');
-      expect(err.statusCode).toBe(400);
-      expect(err.code).toBe('CODE');
-      expect(err.isOperational).toBe(true);
-    });
-
-    it('createError helpers should return AppError', () => {
-      expect(createError.notFound().status).toBe(404);
-      expect(createError.unauthorized().status).toBe(401);
-      expect(createError.forbidden().status).toBe(403);
-      expect(createError.badRequest().status).toBe(400);
-      expect(createError.conflict().status).toBe(409);
-      expect(createError.internal().status).toBe(500);
-      
-      const valErr = createError.validation('Val', { f: 1 });
-      expect(valErr.status).toBe(400);
-      expect(valErr.details).toEqual({ f: 1 });
-    });
-
-    it('asyncHandler should catch errors', async () => {
-      const err = new Error('Async Fail');
-      const fn = async () => { throw err; };
-      const wrapper = asyncHandler(fn);
-      
-      await wrapper(req, res, next);
-      expect(next).toHaveBeenCalledWith(err);
-    });
-  });
-
-  // ==========================================
-  // 2. Not Found Handler
-  // ==========================================
+  // ========================================
+  // notFoundHandler Tests
+  // ========================================
   describe('notFoundHandler', () => {
-    it('should create 404 error', () => {
-      middleware.notFoundHandler(req, res, next);
-      expect(next).toHaveBeenCalledWith(expect.objectContaining({
-        message: expect.stringContaining('Route not found'),
-        status: 404
-      }));
+    it('should handle standard 404 and pass error to next()', () => {
+      req.method = 'POST';
+      req.path = '/api/unknown';
+      
+      middleware.notFoundHandler(req, mockRes, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+          status: 404,
+          message: expect.stringContaining('POST /api/unknown')
+        })
+      );
     });
 
-    it('should log suspicious paths', () => {
-      req.path = '/admin/login';
-      middleware.notFoundHandler(req, res, next);
+    it('should log suspicious 404s with path traversal', () => {
+      req.path = '/../../../etc/passwd';
+      
+      middleware.notFoundHandler(req, mockRes, mockNext);
+      
       expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
         'Suspicious path access attempt',
-        expect.anything(), expect.anything(), expect.anything()
+        '1.1.1.1',
+        'test-agent',
+        expect.objectContaining({ path: req.path })
+      );
+    });
+
+    it('should log suspicious admin path access', () => {
+      req.path = '/admin/dashboard';
+      
+      middleware.notFoundHandler(req, mockRes, mockNext);
+      
+      expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
+    });
+
+    it('should log phpmyadmin access attempts', () => {
+      req.path = '/phpmyadmin/index.php';
+      
+      middleware.notFoundHandler(req, mockRes, mockNext);
+      
+      expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
+    });
+
+    it('should fallback to req.ip when clientInfo is missing', () => {
+      req.clientInfo = undefined;
+      req.path = '/../admin';
+      
+      middleware.notFoundHandler(req, mockRes, mockNext);
+      
+      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+        expect.any(String),
+        '127.0.0.1', // ← ใช้ req.ip
+        'unknown',
+        expect.any(Object)
       );
     });
   });
 
-  // ==========================================
-  // 3. Error Handler
-  // ==========================================
+  // ========================================
+  // errorHandler Tests
+  // ========================================
   describe('errorHandler', () => {
-    // --- Sequelize ---
-    it('should handle Sequelize ValidationError', () => {
-      const err = new MockValidationError([{ path: 'email', message: 'Invalid', type: 'val', value: 'x' }]);
-      middleware.errorHandler(err, req, res, next);
+    
+    // --- Development vs Production Mode ---
+    describe('Environment-specific behavior', () => {
+      it('should include stack trace in development mode', () => {
+        process.env.NODE_ENV = 'development';
+        const err = new Error('Dev Error');
+        err.statusCode = 500;
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Validation error' }));
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Validation error', expect.anything(), expect.anything(), expect.anything());
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        const response = mockRes.json.mock.calls[0][0];
+        expect(response.stack).toBeDefined();
+        expect(response.stack).toContain('Dev Error');
+      });
+
+      it('should NOT include stack trace in production mode', () => {
+        process.env.NODE_ENV = 'production';
+        const err = new Error('Prod Error');
+        err.statusCode = 500;
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        const response = mockRes.json.mock.calls[0][0];
+        expect(response.stack).toBeUndefined();
+      });
     });
 
-    it('should handle Sequelize UniqueConstraintError', () => {
-      const err = new MockUniqueConstraintError([{ path: 'email', value: 'dup@mail.com' }]);
-      middleware.errorHandler(err, req, res, next);
+    // --- AppError and Custom Errors ---
+    describe('AppError handling', () => {
+      it('should handle AppError with all properties', () => {
+        const err = new AppError('Not Found', 404, 'RESOURCE_NOT_FOUND');
 
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Duplicate entry' }));
-      expect(consoleWarnSpy).toHaveBeenCalled();
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(404);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            success: false,
+            error: 'Not Found'
+          })
+        );
+      });
+
+      it('should preserve details from validation errors', () => {
+        const err = createError.validation('Invalid input', [
+          { field: 'email', message: 'Invalid email' }
+        ]);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            details: expect.arrayContaining([
+              expect.objectContaining({ field: 'email' })
+            ])
+          })
+        );
+      });
     });
 
-    it('should handle Sequelize ForeignKeyConstraintError', () => {
-      const err = new MockForeignKeyConstraintError(['user_id']);
-      middleware.errorHandler(err, req, res, next);
+    // --- Sequelize Errors ---
+    describe('Sequelize Error handling', () => {
+      it('should handle ValidationError with field details', () => {
+        const err = new mockSeqErrors.ValidationError([
+          { path: 'email', message: 'Invalid email', type: 'isEmail', value: 'bad-email' },
+          { path: 'password', message: 'Too short', type: 'len', value: '123' }
+        ]);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid reference' }));
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Validation error',
+            details: expect.arrayContaining([
+              expect.objectContaining({ field: 'email', message: 'Invalid email' }),
+              expect.objectContaining({ field: 'password', message: 'Too short' })
+            ])
+          })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
+      });
+
+      it('should handle UniqueConstraintError with field info', () => {
+        const err = new mockSeqErrors.UniqueConstraintError([
+          { path: 'email', value: 'duplicate@test.com' }
+        ]);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(409);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Duplicate entry',
+            details: expect.objectContaining({ 
+              field: 'email',
+              message: 'email already exists'
+            })
+          })
+        );
+      });
+
+      it('should handle UniqueConstraintError with missing path', () => {
+        const err = new mockSeqErrors.UniqueConstraintError([{}]);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            details: expect.objectContaining({ field: 'unknown' })
+          })
+        );
+      });
+
+      it('should handle ForeignKeyConstraintError', () => {
+        const err = new mockSeqErrors.ForeignKeyConstraintError(['org_id']);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Invalid reference',
+            details: expect.objectContaining({
+              field: 'org_id',
+              message: 'Referenced record does not exist'
+            })
+          })
+        );
+      });
+
+      it('should handle ForeignKeyConstraintError with missing fields', () => {
+        const err = new mockSeqErrors.ForeignKeyConstraintError(undefined);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            details: expect.objectContaining({ field: 'unknown' })
+          })
+        );
+      });
+
+      it('should handle DatabaseError in development mode', () => {
+        process.env.NODE_ENV = 'development';
+        const err = new mockSeqErrors.DatabaseError('Connection timeout');
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            error: 'Connection timeout' // ← แสดง message ใน dev
+          })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
+      });
+
+      it('should handle DatabaseError in production mode', () => {
+        process.env.NODE_ENV = 'production';
+        const err = new mockSeqErrors.DatabaseError('SQL Syntax Error');
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            error: 'Database error' // ← ซ่อน message ใน prod
+          })
+        );
+      });
     });
 
-    it('should handle Sequelize DatabaseError (Production)', () => {
-      process.env.NODE_ENV = 'production';
-      const err = new MockDatabaseError('Connection died');
-      middleware.errorHandler(err, req, res, next);
+    // --- JWT Errors ---
+    describe('JWT Error handling', () => {
+      it('should handle JsonWebTokenError', () => {
+        const err = new Error('jwt malformed');
+        err.name = 'JsonWebTokenError';
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Database error' }));
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Database error', expect.anything(), expect.anything(), expect.anything());
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Invalid token' })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+          'Invalid JWT token attempt',
+          '1.1.1.1',
+          'test-agent',
+          expect.objectContaining({ path: '/test' })
+        );
+      });
+
+      it('should handle TokenExpiredError', () => {
+        const err = new Error('jwt expired');
+        err.name = 'TokenExpiredError';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Token expired' })
+        );
+      });
     });
 
-    it('should handle Sequelize DatabaseError (Development)', () => {
-      process.env.NODE_ENV = 'development';
-      const err = new MockDatabaseError('Connection died');
-      middleware.errorHandler(err, req, res, next);
+    // --- Multer Errors ---
+    describe('Multer Error handling', () => {
+      it('should handle LIMIT_FILE_SIZE', () => {
+        const err = new Error('File too large');
+        err.name = 'MulterError';
+        err.code = 'LIMIT_FILE_SIZE';
 
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Connection died' }));
-    });
+        middleware.errorHandler(err, req, mockRes, mockNext);
 
-    // --- JWT ---
-    it('should handle JsonWebTokenError', () => {
-      const err = new Error('Invalid');
-      err.name = 'JsonWebTokenError';
-      middleware.errorHandler(err, req, res, next);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            error: 'File too large',
+            details: expect.objectContaining({ maxSize: '10MB' })
+          })
+        );
+      });
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Invalid JWT token attempt', expect.anything(), expect.anything(), expect.anything());
-    });
-
-    it('should handle TokenExpiredError', () => {
-      const err = new Error('Expired');
-      err.name = 'TokenExpiredError';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Token expired' }));
-    });
-
-    // --- Multer ---
-    it('should handle Multer limit error', () => {
-      const err = new Error('Limit');
-      err.name = 'MulterError';
-      err.code = 'LIMIT_FILE_SIZE';
-      middleware.errorHandler(err, req, res, next);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'File too large' }));
-    });
-
-    it('should handle Multer file count error', () => {
-        const err = new Error('Count');
+      it('should handle LIMIT_FILE_COUNT', () => {
+        const err = new Error('Too many');
         err.name = 'MulterError';
         err.code = 'LIMIT_FILE_COUNT';
-        middleware.errorHandler(err, req, res, next);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Too many files' }));
-    });
 
-    it('should handle Multer unexpected file', () => {
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Too many files' })
+        );
+      });
+
+      it('should handle LIMIT_UNEXPECTED_FILE', () => {
         const err = new Error('Unexpected');
         err.name = 'MulterError';
         err.code = 'LIMIT_UNEXPECTED_FILE';
-        middleware.errorHandler(err, req, res, next);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Unexpected file field' }));
-    });
 
-    it('should handle generic Multer error', () => {
-        const err = new Error('Generic Multer');
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Unexpected file field' })
+        );
+      });
+
+      it('should handle generic MulterError', () => {
+        const err = new Error('Upload failed');
         err.name = 'MulterError';
-        middleware.errorHandler(err, req, res, next);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Generic Multer' }));
+        err.code = 'UNKNOWN_ERROR';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Upload failed' })
+        );
+      });
     });
 
-    // --- Custom Codes ---
-    it('should handle USER_EXISTS', () => {
-      const err = new Error('Dup');
-      err.code = 'USER_EXISTS';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(409);
+    // --- Custom Error Codes ---
+    describe('Custom Error Code handling', () => {
+      it('should handle USER_EXISTS', () => {
+        const err = new Error('User exists');
+        err.code = 'USER_EXISTS';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(409);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'User already exists' })
+        );
+      });
+
+      it('should handle INSUFFICIENT_PERMISSIONS', () => {
+        const err = new Error('No access');
+        err.code = 'INSUFFICIENT_PERMISSIONS';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Insufficient permissions' })
+        );
+      });
+
+      it('should handle RESOURCE_NOT_FOUND', () => {
+        const err = new Error('User not found');
+        err.code = 'RESOURCE_NOT_FOUND';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(404);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'User not found' })
+        );
+      });
+
+      it('should handle RESOURCE_NOT_FOUND with default message', () => {
+        const err = new Error();
+        err.code = 'RESOURCE_NOT_FOUND';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Resource not found' })
+        );
+      });
+
+      it('should handle SUSPICIOUS_ACTIVITY', () => {
+        const err = new Error('Bot detected');
+        err.code = 'SUSPICIOUS_ACTIVITY';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Suspicious activity detected' })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+          'Blocked suspicious activity',
+          '1.1.1.1',
+          'test-agent',
+          expect.objectContaining({ error: 'Bot detected' })
+        );
+      });
     });
 
-    it('should handle INSUFFICIENT_PERMISSIONS', () => {
-      const err = new Error('Perm');
-      err.code = 'INSUFFICIENT_PERMISSIONS';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(403);
+    // --- Rate Limit Errors ---
+    describe('Rate Limit handling', () => {
+      it('should handle RateLimitError by name', () => {
+        const err = new Error('Rate limit');
+        err.name = 'RateLimitError';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(429);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            error: 'Too many requests, please try again later' 
+          })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
+      });
+
+      it('should handle error with status 429', () => {
+        const err = new Error('Too many');
+        err.status = 429;
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(429);
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+          'Rate limit exceeded',
+          expect.any(String),
+          expect.any(String),
+          expect.objectContaining({ path: '/test' })
+        );
+      });
     });
 
-    it('should handle RESOURCE_NOT_FOUND', () => {
-      const err = new Error('Missing');
-      err.code = 'RESOURCE_NOT_FOUND';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(404);
+    // --- Generic 500 Errors ---
+    describe('Generic 500 Error handling', () => {
+      it('should handle unexpected 500 error in development', () => {
+        process.env.NODE_ENV = 'development';
+        const err = new Error('Unexpected crash');
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            success: false,
+            error: 'Unexpected crash', // ← แสดง message ใน dev
+            stack: expect.any(String)
+          })
+        );
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+          'Unexpected server error',
+          expect.any(String),
+          expect.any(String),
+          expect.objectContaining({ error: 'Unexpected crash' })
+        );
+      });
+
+      it('should handle error with missing message', () => {
+        const err = new Error();
+        
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Internal Server Error' })
+        );
+      });
+
+      it('should handle error with missing statusCode', () => {
+        const err = new Error('Something broke');
+        
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+      });
     });
 
-    it('should handle SUSPICIOUS_ACTIVITY', () => {
-      const err = new Error('Bot');
-      err.code = 'SUSPICIOUS_ACTIVITY';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Blocked suspicious activity', expect.anything(), expect.anything(), expect.anything());
+    // --- Request ID and Additional Fields ---
+    describe('Additional response fields', () => {
+      it('should include requestId if present', () => {
+        req.id = 'req-12345';
+        const err = new AppError('Error', 400);
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        const response = mockRes.json.mock.calls[0][0];
+        expect(response.requestId).toBe('req-12345');
+      });
+
+      it('should work without user in request', () => {
+        req.user = undefined;
+        const err = new Error('Public error');
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        // ไม่ crash
+      });
+
+      it('should work without clientInfo in request', () => {
+        req.clientInfo = undefined;
+        const err = new Error('Error');
+        err.name = 'JsonWebTokenError';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
+          expect.any(String),
+          '127.0.0.1', // ← Fallback to req.ip
+          'unknown',   // ← Fallback for userAgent
+          expect.any(Object)
+        );
+      });
+    });
+  });
+
+  // ========================================
+  // createError Helper Tests
+  // ========================================
+  describe('createError helpers', () => {
+    it('should create notFound error', () => {
+      const err = createError.notFound('User not found');
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(404);
+      expect(err.message).toBe('User not found');
+      expect(err.code).toBe('RESOURCE_NOT_FOUND');
     });
 
-    // --- Rate Limit ---
-    it('should handle RateLimitError', () => {
-      const err = new Error('Rate');
-      err.name = 'RateLimitError';
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(429);
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Rate limit exceeded', expect.anything(), expect.anything(), expect.anything());
+    it('should create unauthorized error', () => {
+      const err = createError.unauthorized();
+      expect(err.statusCode).toBe(401);
+      expect(err.code).toBe('UNAUTHORIZED');
     });
 
-    it('should handle status 429', () => {
-        const err = new Error('Rate');
-        err.statusCode = 429;
-        middleware.errorHandler(err, req, res, next);
-        expect(res.status).toHaveBeenCalledWith(429);
+    it('should create forbidden error', () => {
+      const err = createError.forbidden('Access denied');
+      expect(err.statusCode).toBe(403);
+      expect(err.message).toBe('Access denied');
     });
 
-    // --- Generic / Fallback ---
-    it('should handle generic 500 error', () => {
-      const err = new Error('Boom');
-      middleware.errorHandler(err, req, res, next);
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(consoleErrorSpy).toHaveBeenCalledWith('💥 Unexpected error:', expect.anything());
-      expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith('Unexpected server error', expect.anything(), expect.anything(), expect.anything());
+    it('should create badRequest error', () => {
+      const err = createError.badRequest('Invalid data');
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe('BAD_REQUEST');
     });
 
-    it('should include stack trace in development', () => {
-      process.env.NODE_ENV = 'development';
-      const err = new Error('Stack');
-      middleware.errorHandler(err, req, res, next);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stack: expect.any(String) }));
+    it('should create conflict error', () => {
+      const err = createError.conflict('Already exists');
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe('CONFLICT');
     });
 
-    it('should include requestId if present', () => {
-      req.id = 'req-123';
-      const err = new Error('Err');
-      middleware.errorHandler(err, req, res, next);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'req-123' }));
+    it('should create internal error', () => {
+      const err = createError.internal();
+      expect(err.statusCode).toBe(500);
+      expect(err.code).toBe('INTERNAL_ERROR');
+    });
+
+    it('should create validation error with details', () => {
+      const details = [{ field: 'email', message: 'Invalid' }];
+      const err = createError.validation('Validation failed', details);
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe('VALIDATION_ERROR');
+      expect(err.details).toEqual(details);
+    });
+  });
+
+  // ========================================
+  // AppError Class Tests
+  // ========================================
+  describe('AppError class', () => {
+    it('should create operational error', () => {
+      const err = new AppError('Test error', 400, 'TEST_CODE');
+      expect(err.message).toBe('Test error');
+      expect(err.statusCode).toBe(400);
+      expect(err.status).toBe(400);
+      expect(err.code).toBe('TEST_CODE');
+      expect(err.isOperational).toBe(true);
+      expect(err.stack).toBeDefined();
+    });
+
+    it('should work without error code', () => {
+      const err = new AppError('Simple error', 500);
+      expect(err.code).toBeNull();
     });
   });
 });

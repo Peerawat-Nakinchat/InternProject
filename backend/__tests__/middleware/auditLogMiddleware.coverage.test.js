@@ -1,185 +1,225 @@
-// test/middleware/auditLogMiddleware.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { createAuditLogMiddleware, inferTargetTable, determineCategory, determineSeverity } from '../../src/middleware/auditLogMiddleware.js';
+import { 
+  createAuditLogMiddleware, 
+  inferTargetTable, 
+  determineSeverity, 
+  determineCategory 
+} from '../../src/middleware/auditLogMiddleware.js';
 
-describe('AuditLog Middleware (Coverage)', () => {
+describe('AuditLogMiddleware (100% Exact Coverage)', () => {
+  let middleware;
   let mockAuditService;
   let mockUuid;
-  let middleware;
   let req, res, next;
-  let consoleSpy;
 
   beforeEach(() => {
-    // 1. Mock Dependencies
-    mockAuditService = {
-      log: jest.fn().mockResolvedValue(true),
-      logDataChange: jest.fn().mockResolvedValue(true)
-    };
-    mockUuid = jest.fn().mockReturnValue('mock-uuid-1234');
-
-    // 2. Inject Mocks via Factory
-    middleware = createAuditLogMiddleware({
-      AuditLogService: mockAuditService,
-      uuid: mockUuid
+    mockAuditService = { log: jest.fn(), logDataChange: jest.fn() };
+    mockUuid = jest.fn().mockReturnValue('test-uuid');
+    
+    middleware = createAuditLogMiddleware({ 
+      AuditLogService: mockAuditService, 
+      uuid: mockUuid 
     });
 
-    // 3. Mock Req/Res/Next
     req = {
       headers: {},
       params: {},
       query: {},
-      body: {},
       method: 'GET',
-      url: '/test',
-      originalUrl: '/test',
+      originalUrl: '/api/test',
       ip: '127.0.0.1',
       connection: { remoteAddress: '127.0.0.1' },
-      user: { user_id: 'user-1', email: 'test@mail.com' }
+      user: { user_id: 'u1', email: 'test@mail.com' },
+      clientInfo: {}
     };
-
+    
     res = {
       statusCode: 200,
       setHeader: jest.fn(),
-      send: jest.fn()
+      send: jest.fn(), // จะถูก override
+      on: jest.fn()
     };
-
     next = jest.fn();
 
-    // 4. Setup Timers & Console
-    jest.useFakeTimers();
-    jest.spyOn(global, 'setImmediate');
-    consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Mock setImmediate ให้รันทันทีเพื่อให้ test จับผลลัพธ์ได้
+    jest.spyOn(global, 'setImmediate').mockImplementation((cb) => cb());
+    jest.spyOn(console, 'error').mockImplementation(() => {}); // ปิด log error
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-    jest.useRealTimers();
-  });
+  afterEach(() => { jest.clearAllMocks(); });
 
-  // --- Tests ---
-  
+  // --- 1. Helper Functions Coverage ---
   describe('Helper Functions', () => {
-    it('inferTargetTable should return correct tables', () => {
+    it('inferTargetTable should map keys correctly', () => {
       expect(inferTargetTable('USER')).toBe('sys_users');
-      expect(inferTargetTable('UNKNOWN')).toBeNull();
+      expect(inferTargetTable('COMPANY')).toBe('sys_organizations');
+      expect(inferTargetTable('MEMBER')).toBe('sys_organization_members');
+      expect(inferTargetTable('INVITATION')).toBe('sys_invitations');
+      expect(inferTargetTable('TOKEN')).toBe('sys_refresh_tokens');
+      expect(inferTargetTable('UNKNOWN')).toBeNull(); // Test default
     });
 
-    it('determineSeverity should handle all levels', () => {
-      expect(determineSeverity(500, 'TEST')).toBe('ERROR');
-      expect(determineSeverity(400, 'TEST')).toBe('WARNING');
+    it('determineSeverity should handle status codes and actions', () => {
+      expect(determineSeverity(500)).toBe('ERROR');
+      expect(determineSeverity(404)).toBe('WARNING');
       expect(determineSeverity(200, 'DELETE_USER')).toBe('WARNING');
-      expect(determineSeverity(200, 'TRANSFER_MONEY')).toBe('WARNING');
-      expect(determineSeverity(200, 'VIEW')).toBe('INFO');
+      expect(determineSeverity(200, 'TRANSFER_OWNER')).toBe('WARNING');
+      expect(determineSeverity(200, 'GET_USER')).toBe('INFO');
     });
 
-    it('determineCategory should handle all categories', () => {
+    it('determineCategory should handle keywords', () => {
       expect(determineCategory(null)).toBe('BUSINESS');
       expect(determineCategory('USER_LOGIN')).toBe('SECURITY');
-      expect(determineCategory('SYSTEM_UPDATE')).toBe('SYSTEM');
-      expect(determineCategory('SUSPICIOUS_ACTIVITY')).toBe('SECURITY');
-      expect(determineCategory('ORDER_CREATE')).toBe('BUSINESS');
-    });
-  });
-  
-  describe('addCorrelationId', () => {
-    it('should set new correlation id', () => {
-      middleware.addCorrelationId(req, res, next);
-      expect(mockUuid).toHaveBeenCalled();
-      expect(res.setHeader).toHaveBeenCalledWith('X-Correlation-ID', 'mock-uuid-1234');
-      expect(next).toHaveBeenCalled();
-    });
-
-    it('should use existing correlation id', () => {
-      req.headers['x-correlation-id'] = 'existing';
-      middleware.addCorrelationId(req, res, next);
-      expect(req.correlationId).toBe('existing');
+      expect(determineCategory('SYSTEM_BACKUP')).toBe('SYSTEM');
+      expect(determineCategory('FAILED_LOGIN')).toBe('SECURITY');
+      expect(determineCategory('SUSPICIOUS_ACT')).toBe('SECURITY');
+      expect(determineCategory('CREATE_ORDER')).toBe('BUSINESS');
     });
   });
 
-  describe('auditLog', () => {
-    it('should log success response asynchronously', async () => {
-      const mw = middleware.auditLog('VIEW', 'USER');
-      await mw(req, res, next);
+  // --- 2. Middleware Functions Coverage ---
+  describe('Middleware Functions', () => {
+    it('addCorrelationId should use header or generate new', () => {
+      // Case 1: New
+      middleware.addCorrelationId(req, res, next);
+      expect(req.correlationId).toBe('test-uuid');
+      expect(res.setHeader).toHaveBeenCalledWith('X-Correlation-ID', 'test-uuid');
 
-      res.send(JSON.stringify({ data: { id: 1 } }));
+      // Case 2: Existing
+      req.headers['x-correlation-id'] = 'existing-id';
+      middleware.addCorrelationId(req, res, next);
+      expect(req.correlationId).toBe('existing-id');
+    });
+
+    it('addSessionId should check multiple sources', () => {
+      // Source 1: Header
+      req.headers['x-session-id'] = 'sess-1';
+      middleware.addSessionId(req, res, next);
+      expect(req.sessionId).toBe('sess-1');
+
+      // Source 2: Cookie
+      req.headers = {}; 
+      req.cookies = { sessionId: 'sess-2' };
+      middleware.addSessionId(req, res, next);
+      expect(req.sessionId).toBe('sess-2');
+    });
+
+    it('clientInfoMiddleware should parse headers correctly', () => {
+      req.headers['x-forwarded-for'] = '10.0.0.1, 10.0.0.2';
+      req.headers['user-agent'] = 'TestAgent';
+      req.headers['sec-ch-ua-platform'] = 'Windows';
       
-      jest.runAllTimers(); 
+      middleware.clientInfoMiddleware(req, res, next);
+
+      expect(req.clientInfo.ipAddress).toBe('10.0.0.1');
+      expect(req.clientInfo.userAgent).toBe('TestAgent');
+      expect(req.clientInfo.platform).toBe('Windows');
+    });
+  });
+
+  // --- 3. Main Logic (auditLog) Coverage ---
+  describe('auditLog', () => {
+    it('should intercept res.send and log success', () => {
+      const handler = middleware.auditLog('TEST_ACTION', 'USER');
+      handler(req, res, next);
+
+      // Simulate Controller sending JSON
+      const body = JSON.stringify({ data: { id: 999 } });
+      res.send(body);
 
       expect(mockAuditService.log).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'VIEW',
+        action: 'TEST_ACTION',
+        target_id: 999, // Extracted from parsedData.data.id
         status: 'SUCCESS',
-        user_id: 'user-1'
+        severity: 'INFO'
       }));
     });
 
-    it('should log failure response when forceLog/logAll is enabled', async () => {
-      // ✅ แก้ไข 1: เพิ่ม option { logAll: true } เพื่อบังคับให้ Log 500
-      const mw = middleware.auditLog('VIEW', null, { logAll: true });
-      await mw(req, res, next);
+    it('should log failure when status >= 400', () => {
+      const handler = middleware.auditLog('TEST_FAIL', 'USER');
+      handler(req, res, next);
 
-      res.statusCode = 500;
-      res.send(JSON.stringify({ error: 'Boom' }));
-      
-      jest.runAllTimers();
+      res.statusCode = 400;
+      res.send(JSON.stringify({ error: 'Bad Request' }));
 
       expect(mockAuditService.log).toHaveBeenCalledWith(expect.objectContaining({
         status: 'FAILED',
-        severity: 'ERROR'
+        severity: 'WARNING',
+        error_message: 'Bad Request'
       }));
     });
 
-    it('should handle non-JSON response gracefully', async () => {
-      const mw = middleware.auditLog('VIEW');
-      await mw(req, res, next);
-
-      res.send('Plain Text');
+    it('should handle JSON parse error gracefully', () => {
+      const handler = middleware.auditLog('TEST');
+      handler(req, res, next);
       
-      jest.runAllTimers();
-
-      expect(mockAuditService.log).toHaveBeenCalled();
+      // Send raw string (not JSON)
+      res.send('Raw String'); 
+      
+      expect(mockAuditService.log).toHaveBeenCalled(); // Should still log
     });
 
-    it('should catch errors in logging service', async () => {
-      mockAuditService.log.mockRejectedValue(new Error('DB Error'));
-      const mw = middleware.auditLog('VIEW');
-      await mw(req, res, next);
+    it('should extract targetId from various sources (params)', () => {
+      const handler = middleware.auditLog('TEST');
+      req.params = { userId: 'u-123' }; // Test req.params.userId extraction
+      handler(req, res, next);
       
       res.send('{}');
       
-      // ✅ แก้ไข 2: Flush Microtask Queue
-      jest.runAllTimers(); 
-      await Promise.resolve(); // รอให้ Promise rejection ใน setImmediate ทำงานจบ
-      await Promise.resolve(); // เผื่อไว้สำหรับ chain ที่ซ้อนกัน
+      expect(mockAuditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        target_id: 'u-123'
+      }));
+    });
 
+    it('should catch error in log service', async () => {
+      const handler = middleware.auditLog('TEST');
+      mockAuditService.log.mockRejectedValue(new Error('DB Error'));
+      handler(req, res, next);
+      
+      res.send('{}');
+      // Expect console.error to be called (mocked) without crashing app
       expect(console.error).toHaveBeenCalled();
     });
   });
 
+  // --- 4. auditChange Coverage ---
   describe('auditChange', () => {
-    it('should log data changes', async () => {
+    it('should fetch before-data and log change', async () => {
+      const mockFind = jest.fn().mockResolvedValue({ id: 1, name: 'old' });
+      const handler = middleware.auditChange('USER', mockFind);
+      
       req.method = 'PUT';
       req.params.id = '1';
-      const mockFind = jest.fn().mockResolvedValue({ id: 1, val: 'old' });
-      
-      const mw = middleware.auditChange('USER', mockFind);
-      await mw(req, res, next);
 
-      res.send(JSON.stringify({ data: { id: 1, val: 'new' } }));
+      await handler(req, res, next);
       
-      jest.runAllTimers();
-      await Promise.resolve(); // Flush microtasks
-
       expect(mockFind).toHaveBeenCalledWith('1');
+      expect(req.auditBeforeData).toEqual({ id: 1, name: 'old' });
+
+      // Simulate response
+      res.send(JSON.stringify({ data: { id: 1, name: 'new' } }));
+
       expect(mockAuditService.logDataChange).toHaveBeenCalledWith(
-        'USER_UPDATE', 
-        'USER', 
-        '1', 
-        expect.any(String),
-        { id: 1, val: 'old' },
-        { id: 1, val: 'new' },
-        'user-1',
-        expect.any(Object)
+        'USER_UPDATE',
+        'USER',
+        '1',
+        'sys_users',
+        { id: 1, name: 'old' },
+        { id: 1, name: 'new' },
+        'u1',
+        expect.anything()
       );
+    });
+
+    it('should handle find resource error gracefully', async () => {
+      const mockFind = jest.fn().mockRejectedValue(new Error('DB Error'));
+      const handler = middleware.auditChange('USER', mockFind);
+      req.method = 'DELETE';
+      req.params.id = '1';
+
+      await handler(req, res, next);
+      // Should not crash, just continue without beforeData
+      expect(next).toHaveBeenCalled();
     });
   });
 });
