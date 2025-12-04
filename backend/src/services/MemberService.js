@@ -91,18 +91,25 @@ export const createMemberService = (deps = {}) => {
     return await Member.findByOrganizationPaginated(orgId, options);
   };
 
-  const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
+const bulkRemoveMembers = async (orgId, actorRoleId, userIds) => {
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      throw createError.badRequest("กรุณาระบุรายชื่อสมาชิกที่ต้องการลบ");
+    }
+
     if (actorRoleId !== ROLE_ID.OWNER) {
       throw createError.forbidden("เฉพาะ OWNER เท่านั้นที่สามารถลบสมาชิกหลายคนได้");
     }
 
-    for (const userId of userIds) {
-      const role = await Member.getRole(orgId, userId);
-      if (role === ROLE_ID.OWNER) throw createError.forbidden("ไม่สามารถลบ OWNER ได้");
+    const targetMembers = await Member.findRolesInList(orgId, userIds);
+    const hasOwner = targetMembers.some(member => member.roleId === ROLE_ID.OWNER);
+    
+    if (hasOwner) {
+      throw createError.forbidden("พบ OWNER อยู่ในรายการลบ: ไม่สามารถลบ OWNER ได้ กรุณาโอนสิทธิ์ก่อน");
     }
+    const deletedCount = await Member.bulkRemove(orgId, userIds);
 
-    const deleted = await Member.bulkRemove(orgId, userIds);
-    return { deleted, success: true };
+    return { success: true, deleted: deletedCount };
   };
 
   return {

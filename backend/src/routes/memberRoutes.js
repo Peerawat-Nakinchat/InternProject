@@ -1,6 +1,6 @@
 // src/routes/memberRoutes.js
 import express from "express";
-import { MemberController } from "../controllers/MemberController.js";
+import  MemberController  from "../controllers/MemberController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireOrganization, requireOrgRole } from "../middleware/companyMiddleware.js";
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";

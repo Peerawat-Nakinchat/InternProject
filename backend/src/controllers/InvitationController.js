@@ -1,67 +1,62 @@
-// src/controllers/InvitationController.js
 import InvitationService from "../services/InvitationService.js";
+import { ResponseHandler } from "../utils/responseHandler.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import defaultController from "./AuthController.js";
 
 export const createInvitationController = (service = InvitationService) => {
   
-  // POST /api/invitations
   const sendInvitation = asyncHandler(async (req, res) => {
-    const { email, org_id, role_id } = req.body;
-    const invited_by = req.user.user_id;
-
-    const result = await service.sendInvitation(email, org_id, role_id, invited_by);
-    res.json(result);
+    // Assumes validation middleware checks for email, org_id, role_id
+    const result = await service.sendInvitation(
+      req.body.email, 
+      req.body.org_id, 
+      req.body.role_id, 
+      req.user.user_id
+    );
+    return ResponseHandler.created(res, result);
   });
 
-  // GET /api/invitations/:token
   const getInvitationInfo = asyncHandler(async (req, res) => {
-    const { token } = req.params;
-    const info = await service.getInvitationInfo(token);
-    res.json(info);
+    const info = await service.getInvitationInfo(req.params.token);
+    return ResponseHandler.success(res, info);
   });
 
-  // POST /api/invitations/accept
   const acceptInvitation = asyncHandler(async (req, res) => {
-    const { token } = req.body;
-    const userId = req.user.user_id;
-
-    const result = await service.acceptInvitation(token, userId);
-    res.json(result);
+    const result = await service.acceptInvitation(req.body.token, req.user.user_id);
+    return ResponseHandler.success(res, result);
   });
 
-  // POST /api/invitations/cancel
   const cancelInvitation = asyncHandler(async (req, res) => {
-    const { token } = req.body;
-    const userId = req.user.user_id;
-
-    const result = await service.cancelInvitation(token, userId);
-    res.json(result);
+    const result = await service.cancelInvitation(req.body.token, req.user.user_id);
+    return ResponseHandler.success(res, result);
   });
 
-  // POST /api/invitations/resend
   const resendInvitation = asyncHandler(async (req, res) => {
-    const { email, org_id, role_id } = req.body;
-
-    const result = await service.resendInvitation(email, org_id, role_id);
-    res.json(result);
+    const result = await service.resendInvitation(
+      req.body.email, 
+      req.body.org_id, 
+      req.body.role_id
+    );
+    return ResponseHandler.success(res, result);
   });
 
-  // GET /api/invitations/organization/:org_id
   const getOrganizationInvitations = asyncHandler(async (req, res) => {
-    const { org_id } = req.params;
-    const invitations = await service.getOrganizationInvitations(org_id);
-    res.json({ success: true, invitations });
+    const invitations = await service.getOrganizationInvitations(req.params.org_id);
+    return ResponseHandler.success(res, { invitations });
   });
 
   return {
-    sendInvitation, getInvitationInfo, acceptInvitation, 
+    sendInvitation, getInvitationInfo, acceptInvitation,
     cancelInvitation, resendInvitation, getOrganizationInvitations
   };
 };
 
-const defaultController = createInvitationController();
+const InvitationController = createInvitationController();
 
 export const {
-  sendInvitation, getInvitationInfo, acceptInvitation, 
-  cancelInvitation, resendInvitation, getOrganizationInvitations
-} = defaultController;
+  sendInvitation, getInvitationInfo, acceptInvitation,
+    cancelInvitation, resendInvitation, getOrganizationInvitations
+} = InvitationController
+
+export default InvitationController
+

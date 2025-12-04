@@ -3,7 +3,7 @@ import express from "express";
 import {
   registerUser, loginUser, getProfile, logoutUser, refreshToken, logoutAllUser,
   googleAuthCallback, forgotPassword, verifyResetToken, resetPassword,
-  changeEmail, changePassword, updateProfile,
+  changeEmail, changePassword, updateProfile
 } from "../controllers/AuthController.js";
 import passport from "passport";
 import { refreshAccessToken } from "../middleware/refreshTokenMiddleware.js";

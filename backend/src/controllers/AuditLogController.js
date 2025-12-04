@@ -1,32 +1,34 @@
-// src/controllers/AuditLogController.js
 import AuditLogService from '../services/AuditLogService.js';
+import { ResponseHandler } from '../utils/responseHandler.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
+
+// Helper: แปลง Query Params เป็น Filter Object
+const prepareFilters = (query) => {
+  const allowedFilters = [
+    'user_id', 'user_email', 'action', 'target_type', 'target_id',
+    'status', 'severity', 'category', 'organization_id', 'ip_address', 'correlation_id'
+  ];
+
+  const filters = {};
+  
+  // 1. Map basic fields
+  allowedFilters.forEach(field => {
+    if (query[field]) filters[field] = query[field];
+  });
+
+  // 2. Handle Dates
+  if (query.start_date) filters.startDate = new Date(query.start_date);
+  if (query.end_date) filters.endDate = new Date(query.end_date);
+
+  return filters;
+};
 
 export const createAuditLogController = (service = AuditLogService) => {
   
   // GET /api/audit-logs
   const queryAuditLogs = asyncHandler(async (req, res) => {
-    const filters = {
-      user_id: req.query.user_id,
-      user_email: req.query.user_email,
-      action: req.query.action,
-      target_type: req.query.target_type,
-      target_id: req.query.target_id,
-      status: req.query.status,
-      severity: req.query.severity,
-      category: req.query.category,
-      organization_id: req.query.organization_id,
-      ip_address: req.query.ip_address,
-      startDate: req.query.start_date ? new Date(req.query.start_date) : null,
-      endDate: req.query.end_date ? new Date(req.query.end_date) : null,
-      correlation_id: req.query.correlation_id
-    };
-
-    // Remove null/undefined values
-    Object.keys(filters).forEach(key => {
-      if (filters[key] == null) delete filters[key];
-    });
-
+    const filters = prepareFilters(req.query);
+    
     const options = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 50,
@@ -35,106 +37,79 @@ export const createAuditLogController = (service = AuditLogService) => {
     };
 
     const result = await service.query(filters, options);
-    res.json({ success: true, ...result });
+    return ResponseHandler.success(res, result);
   });
 
   // GET /api/audit-logs/user/:userId
   const getUserActivity = asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const limit = parseInt(req.query.limit) || 50;
-
-    // Check permission
-    if (req.user.user_id !== userId && req.user.role_id !== 1) {
+    
+    // Security Check (ควรย้ายไป Middleware แต่ถ้ายังไม่มี ให้คงไว้ที่นี่)
+    if (req.user.user_id !== userId && req.user.role_id !== 1) { 
       throw createError.forbidden('ไม่มีสิทธิ์ดูประวัติของผู้ใช้อื่น');
     }
 
-    const logs = await service.getUserActivity(userId, limit);
-    res.json({ success: true, data: logs, total: logs.length });
+    const logs = await service.getUserActivity(userId, parseInt(req.query.limit) || 50);
+    return ResponseHandler.success(res, { data: logs, total: logs.length });
   });
 
   // GET /api/audit-logs/me
   const getMyActivity = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    const logs = await service.getUserActivity(req.user.user_id, limit);
-    res.json({ success: true, data: logs, total: logs.length });
+    const logs = await service.getUserActivity(req.user.user_id, parseInt(req.query.limit) || 50);
+    return ResponseHandler.success(res, { data: logs, total: logs.length });
   });
 
   // GET /api/audit-logs/recent
   const getRecentActivity = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 100;
-    const logs = await service.getRecentActivity(limit);
-    res.json({ success: true, data: logs, total: logs.length });
+    const logs = await service.getRecentActivity(parseInt(req.query.limit) || 100);
+    return ResponseHandler.success(res, { data: logs, total: logs.length });
   });
 
   // GET /api/audit-logs/security
   const getSecurityEvents = asyncHandler(async (req, res) => {
-    const startDate = req.query.start_date 
-      ? new Date(req.query.start_date) 
-      : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = req.query.start_date ? new Date(req.query.start_date) : new Date(Date.now() - 7 * 86400000);
+    const endDate = req.query.end_date ? new Date(req.query.end_date) : new Date();
     
-    const endDate = req.query.end_date 
-      ? new Date(req.query.end_date) 
-      : new Date();
-
-    const limit = parseInt(req.query.limit) || 100;
-    const logs = await service.getSecurityEvents(startDate, endDate, limit);
-    res.json({ success: true, data: logs, total: logs.length });
+    const logs = await service.getSecurityEvents(startDate, endDate, parseInt(req.query.limit) || 100);
+    return ResponseHandler.success(res, { data: logs, total: logs.length });
   });
 
   // GET /api/audit-logs/failed
   const getFailedActions = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 100;
-    const logs = await service.getFailedActions(limit);
-    res.json({ success: true, data: logs, total: logs.length });
+    const logs = await service.getFailedActions(parseInt(req.query.limit) || 100);
+    return ResponseHandler.success(res, { data: logs, total: logs.length });
   });
 
   // GET /api/audit-logs/suspicious
   const getSuspiciousActivity = asyncHandler(async (req, res) => {
-    const hours = parseInt(req.query.hours) || 24;
-    const result = await service.getSuspiciousActivity(hours);
-    res.json({ success: true, ...result });
+    const result = await service.getSuspiciousActivity(parseInt(req.query.hours) || 24);
+    return ResponseHandler.success(res, result);
   });
 
   // GET /api/audit-logs/stats
   const getStatistics = asyncHandler(async (req, res) => {
-    const startDate = req.query.start_date 
-      ? new Date(req.query.start_date) 
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    const endDate = req.query.end_date 
-      ? new Date(req.query.end_date) 
-      : new Date();
+    const startDate = req.query.start_date ? new Date(req.query.start_date) : new Date(Date.now() - 30 * 86400000);
+    const endDate = req.query.end_date ? new Date(req.query.end_date) : new Date();
 
     const stats = await service.getStatistics(startDate, endDate);
-    res.json({ success: true, data: stats });
+    return ResponseHandler.success(res, stats);
   });
 
   // GET /api/audit-logs/correlation/:correlationId
   const getCorrelatedActions = asyncHandler(async (req, res) => {
-    const { correlationId } = req.params;
-    const result = await service.getCorrelatedActions(correlationId);
-    res.json({ success: true, ...result });
+    const result = await service.getCorrelatedActions(req.params.correlationId);
+    return ResponseHandler.success(res, result);
   });
 
   // GET /api/audit-logs/export
   const exportLogs = asyncHandler(async (req, res) => {
-    const filters = {
-      startDate: req.query.start_date ? new Date(req.query.start_date) : null,
-      endDate: req.query.end_date ? new Date(req.query.end_date) : null,
-      user_id: req.query.user_id,
-      action: req.query.action,
-      organization_id: req.query.organization_id
-    };
-
-    Object.keys(filters).forEach(key => {
-      if (!filters[key]) delete filters[key];
-    });
-
+    const filters = prepareFilters(req.query);
     const logs = await service.exportLogs(filters);
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename=audit-logs-${Date.now()}.json`);
     
+    // สำหรับ File Download ส่งเป็น json ตรงๆ หรือ stream จะดีกว่า ResponseHandler
     res.json({
       success: true,
       exported_at: new Date(),
@@ -147,12 +122,8 @@ export const createAuditLogController = (service = AuditLogService) => {
   const cleanupLogs = asyncHandler(async (req, res) => {
     const retentionDays = parseInt(req.body.retention_days) || 90;
     const result = await service.cleanup(retentionDays);
-
-    res.json({
-      success: true,
-      message: `ลบ audit logs ที่เก่ากว่า ${retentionDays} วัน สำเร็จ`,
-      deleted: result.deleted
-    });
+    
+    return ResponseHandler.success(res, { deleted: result.deleted }, result.message);
   });
 
   return {
@@ -162,12 +133,12 @@ export const createAuditLogController = (service = AuditLogService) => {
   };
 };
 
-const defaultController = createAuditLogController();
+const AuditLogController = createAuditLogController();
 
 export const {
-  queryAuditLogs, getUserActivity, getMyActivity, getRecentActivity,
-  getSecurityEvents, getFailedActions, getSuspiciousActivity, getStatistics,
-  getCorrelatedActions, exportLogs, cleanupLogs
-} = defaultController;
+    queryAuditLogs, getUserActivity, getMyActivity, getRecentActivity,
+    getSecurityEvents, getFailedActions, getSuspiciousActivity, getStatistics,
+    getCorrelatedActions, exportLogs, cleanupLogs
+} = AuditLogController
 
-export default defaultController;
+export default AuditLogController
