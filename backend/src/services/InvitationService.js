@@ -83,7 +83,7 @@ export const createInvitationService = (deps = {}) => {
       }
 
       const frontendUrl = (env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
-      const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
+      const inviteLink = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(email)}`;
 
       const html = `
 <!DOCTYPE html>
