@@ -31,6 +31,7 @@ import userRoutes from "./src/routes/memberRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
+import profileRoutes from "./src/routes/profileRoutes.js";
 
 const app = express();
 const httpServer = createServer(app); 
@@ -131,6 +132,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env.bak
+.env.*
 secrets/
 
 # Vault Agent Configuration (contains sensitive tokens)

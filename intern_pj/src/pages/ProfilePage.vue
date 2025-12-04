@@ -32,7 +32,8 @@
             <div class="flex items-end gap-4 -mt-12">
 
               <div class="relative">
-                <img v-if="form.profile_image_url" :src="form.profile_image_url"
+                <img v-if="profileImageUrl && !imageError" :src="profileImageUrl"
+                  @error="onImageError"
                   class="w-28 h-28 rounded-full object-cover border-4 border-white shadow" />
 
                 <div v-else
@@ -316,6 +317,9 @@ const isLoading = ref(false)
 const openGender = ref(false)
 const openIntegrate = ref(false)
 
+// Image error state
+const imageError = ref(false)
+
 // Email Popup State (สำหรับหน้าต่างกรอกอีเมลใหม่)
 const showEmailPopup = ref(false)
 const newEmail = ref('')
@@ -353,6 +357,19 @@ const userInitials = computed(() => {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 })
 
+// Computed: Profile image URL - use directly from Supabase
+const profileImageUrl = computed(() => {
+  const url = form.profile_image_url
+  if (!url) return ''
+  return url
+})
+
+// Handle image loading error
+const onImageError = () => {
+  console.warn('Failed to load profile image, showing default avatar')
+  imageError.value = true
+}
+
 const getRoleName = (roleId?: number) => {
   const roles: Record<number, string> = {
     1: 'เจ้าของ (Owner)', 2: 'ผู้ดูแลระบบ (Admin)', 3: 'ผู้ใช้ (User)', 4: 'ผู้ดู (Viewer)', 5: 'ผู้ตรวจสอบ (Auditor)',
@@ -377,6 +394,10 @@ const onImageUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
+
+  // Reset image error state when uploading new image
+  imageError.value = false
+
   const reader = new FileReader()
   reader.onload = () => { form.profile_image_url = reader.result as string }
   reader.readAsDataURL(file)

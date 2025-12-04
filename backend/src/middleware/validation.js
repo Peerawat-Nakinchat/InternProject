@@ -14,7 +14,7 @@ export const handleValidationErrors = (req, res, next) => {
       message: err.msg,
       value: err.value
     }));
-    
+
     // โยนไปให้ Global Error Handler (จะได้ 400 Bad Request)
     return next(createError.validation('ข้อมูลไม่ถูกต้อง (Validation Error)', details));
   }
@@ -112,7 +112,21 @@ export const validateUpdateProfile = [
     .isIn(['M', 'F', 'O', '']).withMessage('เพศต้องเป็น M, F, หรือ O'),
   body('profile_image_url')
     .optional({ values: 'falsy' })
-    .isURL().withMessage('URL รูปโปรไฟล์ไม่ถูกต้อง'),
+    .custom((value) => {
+      // Allow Base64 data URLs (will be processed by AuthService)
+      if (value && value.startsWith('data:image/')) {
+        return true;
+      }
+      // Allow regular URLs
+      if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
+        return true;
+      }
+      // Allow empty/null values
+      if (!value) {
+        return true;
+      }
+      throw new Error('URL รูปโปรไฟล์ไม่ถูกต้อง');
+    }),
   handleValidationErrors,
 ];
 

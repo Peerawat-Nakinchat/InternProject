@@ -17,6 +17,8 @@
     "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js --ci --coverage --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.86.0",
+    "@tailwindcss/postcss": "^4.1.17",
     "bcrypt": "^5.1.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -28,6 +30,7 @@
     "helmet": "^8.1.0",
     "isomorphic-dompurify": "^2.5.0",
     "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.11",
     "passport": "^0.7.0",

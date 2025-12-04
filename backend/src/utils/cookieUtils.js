@@ -5,7 +5,7 @@
  */
 
 // Cookie configuration สำหรับ tokens
-const isProduction = process.env.NODE_ENV === 'development';
+const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Cookie options สำหรับ Access Token
