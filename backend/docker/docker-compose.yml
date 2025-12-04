@@ -1,5 +1,9 @@
 version: '3.8'
 
+# Development docker-compose
+# Run from backend/docker/: docker compose up -d --build
+# Or from repo root: docker compose -f backend/docker/docker-compose.yml up -d --build
+
 services:
   vault:
     image: hashicorp/vault:latest
@@ -20,12 +24,19 @@ services:
       retries: 3
 
   backend:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: backend
     ports:
       - "3000:3000"
     volumes:
-      - ./secrets/.env:/usr/src/app/.env
+      # Bind .env from backend folder
+      - ../.env:/usr/src/app/.env
+      # Mount entrypoint script
+      - ./docker-entrypoint.sh:/usr/src/app/docker-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/usr/src/app/docker-entrypoint.sh"]
+    command: ["npm", "start"]
     depends_on:
       vault:
         condition: service_healthy

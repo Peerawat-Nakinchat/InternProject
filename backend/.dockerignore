@@ -1,0 +1,58 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test and coverage
+__tests__
+coverage
+*.test.js
+*.spec.js
+jest.config.js
+jest.integration.config.js
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Logs
+logs
+*.log
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Build artifacts
+dist
+build
+
+# Secrets (never include in Docker image)
+secrets
+vault-agent-config/role-id
+vault-agent-config/secret-id
+vault-agent-config/token
+vault-agent-config/token-sink
+
+# Uploads (should be mounted as volume)
+uploads
+
+# PowerShell scripts (not needed in container)
+*.ps1
