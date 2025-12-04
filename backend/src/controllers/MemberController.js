@@ -1,64 +1,56 @@
-// src/controllers/MemberController.js
 import MemberService from "../services/MemberService.js";
-import { asyncHandler, createError } from "../middleware/errorHandler.js";
+import { ResponseHandler } from "../utils/responseHandler.js";
+import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const createMemberController = (service = MemberService) => {
   
-  // GET /api/members/:orgId?
-  const listMembers = asyncHandler(async (req, res) => {
-    const orgId = req.params.orgId || req.user?.current_org_id;
-
-    if (!orgId) throw createError.badRequest("orgId required");
-
-    const roleId = req.user?.org_role_id;
-    const members = await service.getMembers(orgId, roleId);
-
-    res.json({ success: true, data: members });
+  // Helper extraction function to clean up controller methods
+  const getContext = (req) => ({
+    orgId: req.params.orgId || req.user.current_org_id,
+    userId: req.user.user_id,
+    roleId: req.user.org_role_id
   });
 
-  // POST /api/members/:orgId?/invite
+  const listMembers = asyncHandler(async (req, res) => {
+    const { orgId, roleId } = getContext(req);
+    const members = await service.getMembers(orgId, roleId);
+    return ResponseHandler.success(res, members);
+  });
+
   const inviteMemberToCompany = asyncHandler(async (req, res) => {
-    const orgId = req.params.orgId || req.user?.current_org_id;
-    const { invitedUserId, roleId } = req.body;
+    const { orgId, userId, roleId } = getContext(req);
+    const { invitedUserId, roleId: targetRoleId } = req.body;
 
     const newMember = await service.inviteMember(
-      orgId, req.user.user_id, req.user.org_role_id, invitedUserId, roleId
+      orgId, userId, roleId, invitedUserId, targetRoleId
     );
 
-    res.status(201).json({ success: true, message: "เชิญสมาชิกสำเร็จ", member: newMember });
+    return ResponseHandler.created(res, newMember, "เชิญสมาชิกสำเร็จ");
   });
 
-  // PUT /api/members/:orgId?/change-role/:memberId
   const changeMemberRole = asyncHandler(async (req, res) => {
-    const orgId = req.params.orgId || req.user?.current_org_id;
-    const memberId = req.params.memberId;
-    const { newRoleId } = req.body;
-
+    const { orgId, userId, roleId } = getContext(req);
     const updatedMember = await service.changeMemberRole(
-      orgId, req.user.user_id, req.user.org_role_id, memberId, newRoleId
+      orgId, userId, roleId, 
+      req.params.memberId, 
+      req.body.newRoleId
     );
-
-    res.json({ success: true, message: "เปลี่ยนสิทธิ์สำเร็จ", member: updatedMember });
+    
+    return ResponseHandler.success(res, updatedMember, "เปลี่ยนสิทธิ์สำเร็จ");
   });
 
-  // DELETE /api/members/:orgId?/remove/:memberId
   const removeMember = asyncHandler(async (req, res) => {
-    const orgId = req.params.orgId || req.user?.current_org_id;
-    const memberId = req.params.memberId;
-
-    await service.removeMember(orgId, req.user.user_id, req.user.org_role_id, memberId);
-
-    res.json({ success: true, message: "ลบสมาชิกสำเร็จ" });
+    const { orgId, userId, roleId } = getContext(req);
+    await service.removeMember(orgId, userId, roleId, req.params.memberId);
+    
+    return ResponseHandler.success(res, null, "ลบสมาชิกสำเร็จ");
   });
 
-  // POST /api/members/:orgId?/transfer-ownership
   const transferOwner = asyncHandler(async (req, res) => {
-    const orgId = req.params.orgId || req.user?.current_org_id;
-    const { newOwnerUserId } = req.body;
-
-    await service.transferOwner(orgId, req.user.user_id, req.user.org_role_id, newOwnerUserId);
-
-    res.json({ success: true, message: "โอนสิทธิ์เจ้าของสำเร็จ" });
+    const { orgId, userId, roleId } = getContext(req);
+    await service.transferOwner(orgId, userId, roleId, req.body.newOwnerUserId);
+    
+    return ResponseHandler.success(res, null, "โอนสิทธิ์เจ้าของสำเร็จ");
   });
 
   return {
@@ -67,14 +59,11 @@ export const createMemberController = (service = MemberService) => {
   };
 };
 
-const defaultController = createMemberController();
+const MemberController = createMemberController();
 
-export const MemberController = {
-  listMembers: defaultController.listMembers,
-  inviteMemberToCompany: defaultController.inviteMemberToCompany,
-  changeMemberRole: defaultController.changeMemberRole,
-  removeMember: defaultController.removeMember,
-  transferOwner: defaultController.transferOwner,
-};
+export const {
+    listMembers, inviteMemberToCompany, changeMemberRole,
+    removeMember, transferOwner
+} = MemberController
 
-export default MemberController;
+export default MemberController

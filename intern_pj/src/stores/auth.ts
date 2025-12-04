@@ -10,16 +10,17 @@ const API_BASE_URL = '/api'
 // ✅ สำคัญ: ต้องตั้งค่า axios ให้ส่ง cookies
 axios.defaults.withCredentials = true
 
+// --- Interfaces ---
 export interface User {
   user_id: string
   email: string
   full_name: string
   name?: string
+  surname?: string
   sex?: "M" | "F" | "O"
   user_address_1?: string
   user_address_2?: string
   user_address_3?: string
-  surname?: string
   role_id: number
   profile_image_url?: string
   is_active?: boolean
@@ -67,37 +68,32 @@ export interface ProfileUpdateData {
 let initAuthPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', () => {
-  // State
+  // --- State ---
   const user = ref<User | null>(null)
-  // ✅ Tokens ยังคงเก็บใน memory สำหรับ state management
-  // แต่ไม่ได้เก็บใน localStorage อีกต่อไป (cookies จะจัดการ)
   const accessToken = ref<string | null>(null)
   const refreshToken = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  // ✅ เพิ่ม state เพื่อบอกว่า auth ถูก check แล้วหรือยัง
   const authReady = ref(false)
 
-  // Computed
+  // --- Computed ---
   const isAuthenticated = computed(() => !!user.value)
   const userName = computed(() => user.value?.full_name || user.value?.email || 'Guest')
 
-  // ✅ Initialize from server (ไม่ใช่ localStorage อีกต่อไป)
-  // เราจะ check auth status จาก backend โดยใช้ cookies
+  // --- Actions ---
+
+  // 1. Initialize Auth
   const initAuth = async () => {
-    // ✅ ถ้า auth ถูก check แล้ว ไม่ต้องทำซ้ำ
-    if (authReady.value) {
-      return
-    }
+    if (authReady.value) return
 
     try {
-      // ลอง fetch profile เพื่อ check ว่า cookies ยัง valid อยู่ไหม
       const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
         withCredentials: true
       })
 
-      if (response.data.success && response.data.user) {
-        user.value = response.data.user
+      // ✅ แก้ไข: เจาะเข้า data.data.user
+      if (response.data.success && response.data.data?.user) {
+        user.value = response.data.data.user
         console.log('✅ Auth initialized from cookies - user found')
       }
     } catch (err: unknown) {
@@ -107,42 +103,42 @@ export const useAuthStore = defineStore('auth', () => {
         if (axiosErr.response?.status === 401) {
           console.log('ℹ️ Access token expired, trying refresh...')
           const refreshed = await tryRefreshOnInit()
-          if (refreshed) {
-            return // refresh สำเร็จ authReady จะถูก set ใน tryRefreshOnInit
-          }
+          if (refreshed) return
         }
       }
-      // ถ้า error แปลว่า ไม่มี valid session
+      // ถ้าไม่เจอ user หรือ refresh ไม่ได้
       console.log('ℹ️ No valid session found')
       user.value = null
       accessToken.value = null
       refreshToken.value = null
     } finally {
-      // ✅ บอกว่า auth check เสร็จแล้ว
       authReady.value = true
     }
   }
 
-  // ✅ ลอง refresh token เมื่อ init (ถ้า access token หมดอายุแต่ยังมี refresh token)
+  // 2. Try Refresh on Init
   const tryRefreshOnInit = async (): Promise<boolean> => {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
         withCredentials: true
       })
 
-      if (response.data.success) {
-        accessToken.value = response.data.accessToken
-        if (response.data.refreshToken) {
-          refreshToken.value = response.data.refreshToken
+      // ✅ แก้ไข: ดึงจาก response.data.data
+      const data = response.data.data
+      if (response.data.success && data) {
+        accessToken.value = data.accessToken
+        if (data.refreshToken) {
+          refreshToken.value = data.refreshToken
         }
 
-        // ลอง fetch profile อีกครั้งหลัง refresh
+        // Fetch profile again
         const profileResponse = await axios.get(`${API_BASE_URL}/auth/profile`, {
           withCredentials: true
         })
 
-        if (profileResponse.data.success && profileResponse.data.user) {
-          user.value = profileResponse.data.user
+        // ✅ แก้ไข: เจาะเข้า data.data.user
+        if (profileResponse.data.success && profileResponse.data.data?.user) {
+          user.value = profileResponse.data.data.user
           console.log('✅ Auth restored via refresh token')
           authReady.value = true
           return true
@@ -150,115 +146,79 @@ export const useAuthStore = defineStore('auth', () => {
       }
       return false
     } catch (err) {
-      console.log('ℹ️ Refresh token also invalid/expired')
       return false
     }
   }
 
-  // ✅ รอ initAuth เสร็จ (ใช้ใน router guard)
   const waitForAuthReady = (): Promise<void> => {
-    if (authReady.value) {
-      return Promise.resolve()
-    }
-
-    // ถ้ายังไม่มี promise ให้สร้างใหม่
-    if (!initAuthPromise) {
-      initAuthPromise = initAuth()
-    }
-
+    if (authReady.value) return Promise.resolve()
+    if (!initAuthPromise) initAuthPromise = initAuth()
     return initAuthPromise
   }
 
-  // Login
+  // 3. Login
   const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string; rateLimited?: boolean; retryAfter?: number; needsConsent?: boolean }> => {
     isLoading.value = true
     error.value = null
 
-    // ✅ ตรวจสอบ Cookie Consent ก่อน login
     if (!hasEssentialConsent()) {
       isLoading.value = false
-      return {
-        success: false,
-        error: 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ',
-        needsConsent: true
-      }
+      return { success: false, error: 'กรุณายอมรับการใช้คุกกี้ก่อนเข้าสู่ระบบ', needsConsent: true }
     }
 
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email: credentials.email,
         password: credentials.password,
-      }, {
-        withCredentials: true // ✅ สำคัญ: เพื่อให้ browser เก็บ cookies
-      })
-
-          // ✅ Debug: ตรวจสอบ Response
-        console.group('🔐 Login Response Debug')
-        console.log('Success:', response.data.success)
-        console.log('Has User?', !!response.data.user)
-        console.log('User ID:', response.data.user?.user_id)
-        console.log('🍪 Cookies will be set automatically by browser')
-        console.groupEnd()
+      }, { withCredentials: true })
 
       if (response.data.success) {
-        // ✅ เก็บใน memory state เท่านั้น (ไม่เก็บใน localStorage อีกต่อไป)
-        // Tokens จะถูกเก็บใน HTTP-Only cookies โดย backend
-        accessToken.value = response.data.accessToken
-        refreshToken.value = response.data.refreshToken
-        user.value = response.data.user
+        // ✅ แก้ไข: ดึงข้อมูลจากชั้น .data
+        const responseData = response.data.data
+        
+        accessToken.value = responseData.accessToken
+        refreshToken.value = responseData.refreshToken
+        user.value = responseData.user
 
-        // ✅ ไม่ใช้ localStorage อีกต่อไป - ใช้ cookies แทน
-        // localStorage.setItem('accessToken', response.data.accessToken)
-        // localStorage.setItem('refreshToken', response.data.refreshToken)
-        // localStorage.setItem('user', JSON.stringify(response.data.user))
-        console.log('✅ Login สำเร็จ - Tokens stored in HTTP-Only cookies')
-
+        console.log('✅ Login สำเร็จ')
         return { success: true }
       }
 
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
     } catch (err: unknown) {
-      // Check for rate limit (429)
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } } }
+        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string; error?: string } } }
 
+        // Handle Rate Limit
         if (axiosErr.response?.status === 429) {
           const retryAfter = axiosErr.response.headers?.['retry-after']
           error.value = 'คุณพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่'
           return {
             success: false,
-            error: error.value ?? undefined,
+            error: error.value,
             rateLimited: true,
             retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined
           }
         }
 
-        error.value = axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+        // Handle Other Errors (Backend now sends error inside 'error' property)
+        error.value = axiosErr.response?.data?.error || axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
       } else {
         error.value = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
       }
-      return { success: false, error: error.value ?? undefined }
+      return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
   }
 
-  // Register
+  // 4. Register
   const register = async (data: RegisterData): Promise<{ success: boolean; message?: string; error?: string }> => {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, {
-        email: data.email,
-        password: data.password,
-        name: data.name,
-        surname: data.surname,
-        sex: data.sex,
-        user_address_1: data.user_address_1,
-        user_address_2: data.user_address_2,
-        user_address_3: data.user_address_3,
-      })
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, data)
 
       if (response.data.success) {
         return { success: true, message: 'ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ' }
@@ -266,66 +226,43 @@ export const useAuthStore = defineStore('auth', () => {
 
       return { success: false, error: 'ลงทะเบียนไม่สำเร็จ' }
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
-      return { success: false, error: error.value ?? undefined }
+      error.value = err.response?.data?.error || err.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
+      return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
   }
 
-  // Logout
+  // 5. Logout
   const logout = async () => {
     isLoading.value = true
-
     try {
-      // ✅ ส่ง request ไป logout โดยไม่ต้องส่ง refreshToken ใน body
-      // เพราะ backend จะอ่านจาก cookies
-      await axios.post(
-        `${API_BASE_URL}/auth/logout`,
-        {}, // ไม่ต้องส่ง body
-        {
-          withCredentials: true, // ✅ ส่ง cookies ไปด้วย
-        }
-      )
+      await axios.post(`${API_BASE_URL}/auth/logout`, {}, { withCredentials: true })
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
-      // Clear state
       user.value = null
       accessToken.value = null
       refreshToken.value = null
-
-      // ✅ ไม่ใช้ localStorage อีกต่อไป - cookies จะถูก clear โดย backend
-      // localStorage.removeItem('accessToken')
-      // localStorage.removeItem('refreshToken')
-      // localStorage.removeItem('user')
-      // localStorage.removeItem('rememberMe')
-      console.log('✅ Logout สำเร็จ - Cookies cleared by backend')
-
-      // Reset Company Store
+      
       const companyStore = useCompanyStore()
       companyStore.reset()
-
+      
+      console.log('✅ Logout สำเร็จ')
       isLoading.value = false
     }
   }
 
-  // Fetch Profile
+  // 6. Fetch Profile
   const fetchProfile = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
-        withCredentials: true // ✅ ใช้ cookies แทน Authorization header
-      })
+      const response = await axios.get(`${API_BASE_URL}/auth/profile`, { withCredentials: true })
 
-      console.log("🔍 Fetch profile result:", response.data.user)
-
-      if (response.data.success) {
-        user.value = response.data.user
-        // ✅ ไม่เก็บใน localStorage อีกต่อไป
-        // localStorage.setItem('user', JSON.stringify(response.data.user))
+      // ✅ แก้ไข: เจาะเข้า data.data.user
+      if (response.data.success && response.data.data?.user) {
+        user.value = response.data.data.user
       }
     } catch (err: unknown) {
-      console.error('Fetch profile error:', err)
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosErr = err as { response?: { status?: number } }
         if (axiosErr.response?.status === 401) {
@@ -335,157 +272,113 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Refresh Access Token
+  // 7. Refresh Access Token
   const refreshAccessToken = async (): Promise<boolean> => {
     try {
-      // ✅ ไม่ต้องส่ง refreshToken ใน body อีกต่อไป - ใช้ cookies
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
-        withCredentials: true
-      })
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+      
+      // ✅ แก้ไข: ดึง data ออกมาก่อน
+      const data = response.data.data
 
-      if (response.data.success && response.data.accessToken) {
-        accessToken.value = response.data.accessToken
-        // ✅ ไม่เก็บใน localStorage อีกต่อไป
-        // localStorage.setItem('accessToken', response.data.accessToken)
-
-        // อัปเดต refresh token ใหม่ถ้ามี (token rotation)
-        if (response.data.refreshToken) {
-          refreshToken.value = response.data.refreshToken
-          // localStorage.setItem('refreshToken', response.data.refreshToken)
+      if (response.data.success && data?.accessToken) {
+        accessToken.value = data.accessToken
+        if (data.refreshToken) {
+          refreshToken.value = data.refreshToken
         }
-
         console.log('✅ Token refreshed successfully')
         return true
       }
       return false
     } catch (err) {
-      console.error('Refresh token error:', err)
-      // ✅ Clear state แต่ไม่ต้องเรียก logout() เพราะอาจทำให้ loop
       user.value = null
       accessToken.value = null
       refreshToken.value = null
       return false
     }
   }
-  // ********** Action: Change Email **********
+
+  // 8. Update Profile & Change Email/Password
   const changeEmail = async (data: ChangeEmailData): Promise<{ success: boolean; error?: string }> => {
-  isLoading.value = true
-  error.value = null
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.put(`${API_BASE_URL}/auth/change-email`, data, { withCredentials: true })
 
-  try {
-    const response = await axios.put(`${API_BASE_URL}/auth/change-email`, data, {
-      withCredentials: true // ✅ ใช้ cookies แทน Authorization header
-    })
-
-    if (response.data.success) {
-      // อัปเดตอีเมลใน Store เท่านั้น (ไม่ใช้ localStorage)
-      if (user.value) {
-        user.value.email = response.data.user.email
-        // ✅ ไม่เก็บใน localStorage อีกต่อไป
-        // localStorage.setItem('user', JSON.stringify(user.value))
+      if (response.data.success) {
+        // ✅ แก้ไข: data.data.user
+        if (user.value && response.data.data?.user) {
+          user.value.email = response.data.data.user.email
+        }
+        return { success: true }
       }
-      return { success: true }
+      return { success: false, error: response.data.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
+    } catch (err: any) {
+      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
-
-    return { success: false, error: response.data.error || 'เปลี่ยนอีเมลไม่สำเร็จ' }
-  } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosErr = err as { response?: { data?: { error?: string } } }
-      error.value = axiosErr.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
-    } else {
-      error.value = 'เกิดข้อผิดพลาดในการเปลี่ยนอีเมล'
-    }
-    return { success: false, error: error.value ?? undefined }
-  } finally {
-    isLoading.value = false
   }
-}
 
-// ********** Action: Change Password **********
-const changePassword = async (data: ChangePasswordData): Promise<{ success: boolean; error?: string }> => {
-  isLoading.value = true
-  error.value = null
+  const changePassword = async (data: ChangePasswordData): Promise<{ success: boolean; error?: string }> => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.put(`${API_BASE_URL}/auth/change-password`, data, { withCredentials: true })
 
-  try {
-    const response = await axios.put(`${API_BASE_URL}/auth/change-password`, data, {
-      withCredentials: true // ✅ ใช้ cookies แทน Authorization header
-    })
-
-    if (response.data.success) {
-      // **สำคัญ:** การเปลี่ยนรหัสผ่านจะบังคับ logout ทุกอุปกรณ์
-      await logout()
-      return { success: true }
+      if (response.data.success) {
+        await logout()
+        return { success: true }
+      }
+      return { success: false, error: response.data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
+    } catch (err: any) {
+      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
-
-    return { success: false, error: response.data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
-  } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosErr = err as { response?: { data?: { error?: string } } }
-      error.value = axiosErr.response?.data?.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
-    } else {
-      error.value = 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
-    }
-    return { success: false, error: error.value ?? undefined }
-  } finally {
-    isLoading.value = false
   }
-}
 
-const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolean; error?: string }> => {
-  isLoading.value = true
-  error.value = null
+  const updateProfile = async (data: ProfileUpdateData): Promise<{ success: boolean; error?: string }> => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await axios.put(`${API_BASE_URL}/auth/update-profile`, data, { withCredentials: true })
 
-  try {
-    const response = await axios.put(`${API_BASE_URL}/auth/update-profile`, data, {
-      withCredentials: true // ✅ ใช้ cookies แทน Authorization header
-    })
-
-    if (response.data.success) {
-      // อัปเดตข้อมูลผู้ใช้ใน Store เท่านั้น (ไม่ใช้ localStorage)
-      user.value = { ...user.value, ...response.data.user }
-      // ✅ ไม่เก็บใน localStorage อีกต่อไป
-      // localStorage.setItem('user', JSON.stringify(user.value))
-
-      return { success: true }
+      if (response.data.success) {
+        // ✅ แก้ไข: data.data.user
+        if (response.data.data?.user) {
+          user.value = { ...user.value, ...response.data.data.user }
+        }
+        return { success: true }
+      }
+      return { success: false, error: response.data.error || 'บันทึกข้อมูลไม่สำเร็จ' }
+    } catch (err: any) {
+      error.value = err.response?.data?.error || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
-
-    return { success: false, error: response.data.error || 'บันทึกข้อมูลไม่สำเร็จ' }
-  } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosErr = err as { response?: { data?: { error?: string } } }
-      error.value = axiosErr.response?.data?.error || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
-    } else {
-      error.value = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
-    }
-    return { success: false, error: error.value ?? undefined }
-  } finally {
-    isLoading.value = false
   }
-}
 
-  // Initialize on store creation
-  // ✅ เก็บ promise เพื่อให้ router guard รอได้
   initAuthPromise = initAuth()
 
   return {
-    // State
     user,
     accessToken,
     refreshToken,
     isLoading,
     error,
-    authReady, // ✅ เพิ่ม: บอกว่า auth ถูก check แล้วหรือยัง
-    // Computed
+    authReady,
     isAuthenticated,
     userName,
-    // Actions
     login,
     register,
     logout,
     fetchProfile,
     refreshAccessToken,
     initAuth,
-    waitForAuthReady, // ✅ เพิ่ม: รอ auth check เสร็จ
+    waitForAuthReady,
     changeEmail,
     changePassword,
     updateProfile

@@ -1,24 +1,30 @@
-// src/controllers/TokenController.js
-import { asyncHandler } from '../middleware/errorHandler.js';
 import AuthService from '../services/AuthService.js'; 
+import { ResponseHandler } from "../utils/responseHandler.js";
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 export const createTokenController = (deps = {}) => {
   const authService = deps.authService || AuthService;
 
   // POST /api/token/refresh
   const createNewAccessToken = asyncHandler(async (req, res) => {
-    // Logic การเช็ค Token และ Refresh จะถูกโยนให้ Service จัดการ
-    // ถ้า Token ไม่ผ่าน Service จะ throw error เอง
-    const result = await authService.refreshToken(req.body.token || req.query.token);
+    const token = req.cookies?.refreshToken || req.body.token;
+    
+    if (!token) {
+       return ResponseHandler.error(res, "Refresh Token Required", 401);
+    }
 
-    res.json({
-      success: true,
-      ...result
-    });
+    const result = await authService.refreshToken(token);
+
+    return ResponseHandler.success(res, result);
   });
 
   return { createNewAccessToken };
 };
 
-const defaultController = createTokenController();
-export const createNewAccessToken = defaultController.createNewAccessToken;
+const TokenController = createTokenController();
+
+export const {
+  createNewAccessToken
+} = TokenController
+
+export default TokenController

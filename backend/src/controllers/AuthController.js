@@ -1,11 +1,11 @@
-// src/controllers/AuthController.js
 import AuthService from "../services/AuthService.js";
 import { securityLogger } from "../utils/logger.js";
 import { recordFailedLogin, clearFailedLogins } from "../middleware/securityMonitoring.js";
 import { 
   setAuthCookies, setAccessTokenCookie, clearAuthCookies, getRefreshToken 
 } from "../utils/cookieUtils.js";
-import { asyncHandler, createError } from "../middleware/errorHandler.js";
+import { ResponseHandler } from "../utils/responseHandler.js";
+import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const createAuthController = (deps = {}) => {
   const service = deps.service || AuthService;
@@ -13,43 +13,29 @@ export const createAuthController = (deps = {}) => {
   const security = deps.security || { recordFailedLogin, clearFailedLogins };
   const cookies = deps.cookies || { setAuthCookies, setAccessTokenCookie, clearAuthCookies, getRefreshToken };
 
-  // POST /api/auth/register
   const registerUser = asyncHandler(async (req, res) => {
-    try {
-      const result = await service.register(req.body);
-      const clientInfo = req.clientInfo || {};
-      
-      logger.registrationSuccess(
-        result.user.user_id, result.user.email,
-        clientInfo.ipAddress || req.ip,
-        clientInfo.userAgent || req.headers["user-agent"]
-      );
+    const result = await service.register(req.body);
+    
+    // Log Success Only
+    const clientInfo = req.clientInfo || {};
+    logger.registrationSuccess(
+      result.user.user_id, result.user.email,
+      clientInfo.ipAddress || req.ip,
+      clientInfo.userAgent || req.headers["user-agent"]
+    );
 
-      res.status(201).json({ success: true, message: "ลงทะเบียนสำเร็จ", ...result });
-    } catch (error) {
-      // Log error business logic ก่อน throw ให้ global handler
-      if (error.code === "USER_EXISTS") {
-        const clientInfo = req.clientInfo || {};
-        logger.registrationFailed(
-          req.body.email,
-          clientInfo.ipAddress || req.ip,
-          clientInfo.userAgent || req.headers["user-agent"],
-          "Email already exists"
-        );
-      }
-      throw error; 
-    }
+    return ResponseHandler.created(res, result, "ลงทะเบียนสำเร็จ");
   });
 
-  // POST /api/auth/login
   const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    
     try {
-      const { email, password } = req.body;
       const result = await service.login(email, password);
-      
       const clientInfo = req.clientInfo || {};
       const ip = clientInfo.ipAddress || req.ip;
 
+      // Success Handling
       logger.loginSuccess(
         result.user.user_id, result.user.email, ip,
         clientInfo.userAgent || req.headers["user-agent"]
@@ -57,144 +43,119 @@ export const createAuthController = (deps = {}) => {
       security.clearFailedLogins(ip);
       cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
 
-      res.json({ success: true, message: "เข้าสู่ระบบสำเร็จ", ...result });
+      return ResponseHandler.success(res, result, "เข้าสู่ระบบสำเร็จ");
+
     } catch (error) {
-      // Log failed login
-      const clientInfo = req.clientInfo || {};
-      const ip = clientInfo.ipAddress || req.ip;
-      logger.loginFailed(req.body.email, ip, clientInfo.userAgent || req.headers["user-agent"], "Invalid login");
+      // Log Fail Only (แล้ว throw ต่อ)
+      const ip = req.clientInfo?.ipAddress || req.ip;
+      logger.loginFailed(email, ip, req.headers["user-agent"], "Invalid login");
       security.recordFailedLogin(ip);
-      
-      throw error;
+      throw error; 
     }
   });
 
-  // PUT /api/auth/refresh-token
   const refreshToken = asyncHandler(async (req, res) => {
     try {
       const token = cookies.getRefreshToken(req);
-      if (!token) throw createError.unauthorized("ไม่พบ Refresh Token");
+      // Validation ย้ายไปอยู่ใน Service หรือ Middleware แต่เช็คเบื้องต้นได้
+      if (!token) {
+        // ให้ชัดเจนว่าไม่มี token ไม่ใช่ error 500
+        return ResponseHandler.error(res, "Refresh Token required", 401);
+      }
 
       const result = await service.refreshToken(token);
+      
       cookies.setAccessTokenCookie(res, result.accessToken);
       if (result.refreshToken) {
         cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
       }
 
-      res.json({ success: true, ...result });
+      return ResponseHandler.success(res, result);
     } catch (error) {
       cookies.clearAuthCookies(res);
       throw error;
     }
   });
 
-  // GET /api/auth/profile
   const getProfile = asyncHandler(async (req, res) => {
     const user = await service.getProfile(req.user.user_id);
-    res.json({ success: true, user });
+    return ResponseHandler.success(res, { user });
   });
 
-  // POST /api/auth/forgot-password
   const forgotPassword = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    await service.forgotPassword(email);
-
+    await service.forgotPassword(req.body.email);
+    
     const clientInfo = req.clientInfo || {};
     logger.passwordResetRequest(
-      email, clientInfo.ipAddress || req.ip,
+      req.body.email, clientInfo.ipAddress || req.ip,
       clientInfo.userAgent || req.headers["user-agent"], true
     );
 
-    res.json({ success: true, message: "ถ้ามีอีเมลนี้ในระบบ จะส่งลิงก์รีเซ็ตรหัสผ่านให้" });
+    return ResponseHandler.success(res, null, "หากอีเมลถูกต้อง ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านไปให้");
   });
 
-  // GET /api/auth/verify-reset-token
   const verifyResetToken = asyncHandler(async (req, res) => {
-    const { token } = req.query;
-    const result = await service.verifyResetToken(token);
-    res.json({ success: true, ...result });
+    const result = await service.verifyResetToken(req.query.token);
+    return ResponseHandler.success(res, result);
   });
 
-  // POST /api/auth/reset-password
   const resetPassword = asyncHandler(async (req, res) => {
-    const { token, password } = req.body;
-    await service.resetPassword(token, password);
-
+    await service.resetPassword(req.body.token, req.body.password);
+    
     const clientInfo = req.clientInfo || {};
     logger.passwordResetSuccess(
-      null, null, clientInfo.ipAddress || req.ip,
+      null, null, clientInfo.ipAddress || req.ip, 
       clientInfo.userAgent || req.headers["user-agent"]
     );
 
-    res.json({ success: true, message: "เปลี่ยนรหัสผ่านสำเร็จ" });
+    return ResponseHandler.success(res, null, "เปลี่ยนรหัสผ่านสำเร็จ");
   });
 
-  // PUT /api/auth/change-email
   const changeEmail = asyncHandler(async (req, res) => {
-    const { newEmail, password } = req.body;
-    const result = await service.changeEmail(req.user.user_id, newEmail, password);
-    res.json({ success: true, message: "เปลี่ยนอีเมลสำเร็จ", user: result });
+    const result = await service.changeEmail(req.user.user_id, req.body.newEmail, req.body.password);
+    return ResponseHandler.success(res, { user: result }, "เปลี่ยนอีเมลสำเร็จ");
   });
 
-  // PUT /api/auth/change-password
   const changePassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.body;
-    await service.changePassword(req.user.user_id, oldPassword, newPassword);
-    res.json({ success: true, message: "เปลี่ยนรหัสผ่านสำเร็จ คุณต้องเข้าสู่ระบบใหม่" });
+    await service.changePassword(req.user.user_id, req.body.oldPassword, req.body.newPassword);
+    return ResponseHandler.success(res, null, "เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่");
   });
 
-  // PUT /api/auth/profile
   const updateProfile = asyncHandler(async (req, res) => {
     const updatedUser = await service.updateProfile(req.user.user_id, req.body);
-    res.json({ success: true, message: "บันทึกข้อมูลสำเร็จ", user: updatedUser });
+    return ResponseHandler.success(res, { user: updatedUser }, "บันทึกข้อมูลสำเร็จ");
   });
 
-  // DELETE /api/auth/logout
   const logoutUser = asyncHandler(async (req, res) => {
-    try {
-      const refreshTokenValue = cookies.getRefreshToken(req);
-      if (refreshTokenValue) await service.logout(refreshTokenValue);
+    const token = cookies.getRefreshToken(req);
+    if (token) await service.logout(token);
 
-      const clientInfo = req.clientInfo || {};
-      if (req.user) {
-        logger.logout(
-          req.user.user_id, clientInfo.ipAddress || req.ip,
-          clientInfo.userAgent || req.headers["user-agent"]
-        );
-      }
-      cookies.clearAuthCookies(res);
-      res.json({ success: true, message: "ออกจากระบบสำเร็จ" });
-    } catch (error) {
-      cookies.clearAuthCookies(res);
-      throw error;
+    const clientInfo = req.clientInfo || {};
+    if (req.user) {
+      logger.logout(
+        req.user.user_id, clientInfo.ipAddress || req.ip,
+        clientInfo.userAgent || req.headers["user-agent"]
+      );
     }
+    
+    cookies.clearAuthCookies(res);
+    return ResponseHandler.success(res, null, "ออกจากระบบสำเร็จ");
   });
 
-  // DELETE /api/auth/logout-all
   const logoutAllUser = asyncHandler(async (req, res) => {
-    try {
-      await service.logoutAll(req.user.user_id);
-      cookies.clearAuthCookies(res);
-      res.json({ success: true, message: "ออกจากระบบทุกอุปกรณ์สำเร็จ" });
-    } catch (error) {
-      cookies.clearAuthCookies(res);
-      throw error;
-    }
+    await service.logoutAll(req.user.user_id);
+    cookies.clearAuthCookies(res);
+    return ResponseHandler.success(res, null, "ออกจากระบบทุกอุปกรณ์สำเร็จ");
   });
 
-  // GET /api/auth/google/callback
   const googleAuthCallback = asyncHandler(async (req, res) => {
     try {
-      const user = req.user;
-      const result = await service.googleAuthCallback(user);
+      const result = await service.googleAuthCallback(req.user);
       cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
-
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      res.redirect(`${frontendUrl}/auth/callback?oauth=success`);
+      res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/auth/callback?oauth=success`);
     } catch (error) {
       console.error("💥 Google Auth Callback error:", error);
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
+      res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=google_auth_failed`);
     }
   });
 
@@ -214,3 +175,5 @@ export const {
   changeEmail, changePassword, updateProfile,
   logoutUser, logoutAllUser, googleAuthCallback
 } = defaultController;
+
+export default defaultController;
