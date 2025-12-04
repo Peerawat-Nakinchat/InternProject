@@ -138,6 +138,7 @@ import userRoutes from "./src/routes/memberRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
+import profileRoutes from "./src/routes/profileRoutes.js";
 
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
@@ -154,6 +155,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -195,10 +197,10 @@ cron.schedule('0 3 * * *', async () => {
   try {
     console.log('🧹 Running scheduled audit log cleanup...');
     const retentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90;
-    
+
     // เปลี่ยนมาใช้ Service เพื่อให้มันบันทึก Log การลบด้วย
     const result = await AuditLogService.cleanup(retentionDays);
-    
+
     console.log(`✅ Cleanup complete. Deleted ${result.deleted} logs.`);
   } catch (error) {
     console.error('❌ Error in scheduled audit log cleanup:', error);
@@ -213,6 +215,7 @@ cron.schedule('0 3 * * *', async () => {
 // ========================================
 
 const PORT = process.env.PORT || 3000;
+let server;
 
 // Initialize database and start server
 const startServer = async () => {
@@ -224,8 +227,8 @@ const startServer = async () => {
     // Sync audit log table
     console.log('✅ Audit log table synced');
 
-    // Start server
-    app.listen(PORT, () => {
+    // Start server with error handling
+    server = app.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
       console.log(`\n🔒 Security Features Enabled:`);
@@ -243,8 +246,23 @@ const startServer = async () => {
       console.log(`   ✓ HTTP-Only Cookies (ISO 27001 Compliant)`);
       console.log(`   ✓ Scheduled Cleanup Tasks`);
       console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-      
+
       logger.info(`Server started on port ${PORT}`);
+    });
+
+    // Handle port already in use error
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`\n❌ Error: Port ${PORT} is already in use!`);
+        console.log(`\n💡 Solutions:`);
+        console.log(`   1. Stop the process using port ${PORT}`);
+        console.log(`   2. Change PORT in your .env file`);
+        console.log(`   3. Run: netstat -ano | findstr :${PORT} (to find the process)`);
+        console.log(`   4. Run: taskkill /PID <process_id> /F (to kill the process)\n`);
+        process.exit(1);
+      } else {
+        throw error;
+      }
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
@@ -258,6 +276,29 @@ startServer();
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   try {
+    // Close server first
+    if (server) {
+      server.close(() => {
+        console.log('✅ Server closed');
+      });
+    }
+    await sequelize.close();
+    console.log('✅ Database connections closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 SIGTERM received, shutting down gracefully...');
+  try {
+    if (server) {
+      server.close(() => {
+        console.log('✅ Server closed');
+      });
+    }
     await sequelize.close();
     console.log('✅ Database connections closed');
     process.exit(0);

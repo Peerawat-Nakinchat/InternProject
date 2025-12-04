@@ -1,4 +1,23 @@
 {
+  "name": "intern-project",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "intern_pj"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=intern_pj",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=intern_pj",
+    "build": "npm run build:backend && npm run build:frontend",
+    "test": "npm test --workspaces",
+    "test:backend": "npm test --workspace=backend",
+    "test:frontend": "npm test --workspace=intern_pj",
+    "install:all": "npm install --workspaces"
+  },
   "dependencies": {
     "@mdi/font": "^7.4.47"
   }

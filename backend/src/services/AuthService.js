@@ -10,6 +10,7 @@ import { sequelize } from "../models/dbModels.js";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/token.js";
 import { sendEmail } from "../utils/mailer.js";
 import { createError } from "../middleware/errorHandler.js"; // ✅ Import Helper
+import StorageService from "./StorageService.js"; // ✅ Import StorageService for image upload
 
 export const createAuthService = (deps = {}) => {
   const User = deps.UserModel || UserModel;
@@ -125,7 +126,7 @@ export const createAuthService = (deps = {}) => {
 
     const accessToken = tokenUtils.generateAccessToken(user.user_id);
     const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
-    
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7));
 
@@ -152,7 +153,7 @@ export const createAuthService = (deps = {}) => {
 
     const newAccessToken = tokenUtils.generateAccessToken(user.user_id);
     const newRefreshToken = tokenUtils.generateRefreshToken(user.user_id);
-    
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace('d', '')) || 7));
 
@@ -237,6 +238,61 @@ export const createAuthService = (deps = {}) => {
       if (data[key] !== undefined && data[key] !== null && data[key] !== "") cleanData[key] = data[key];
     }
 
+    // ✅ Handle Base64 profile image upload to Supabase
+    if (cleanData.profile_image_url && cleanData.profile_image_url.startsWith('data:image/')) {
+      try {
+        console.log('📤 Processing Base64 image upload...');
+
+        // Get current user to delete old image if exists
+        const currentUser = await User.findById(userId);
+        if (currentUser?.profile_image_url && currentUser.profile_image_url.includes('supabase')) {
+          console.log('🗑️ Deleting old Supabase image...');
+          await StorageService.deleteOldProfileImage(currentUser.profile_image_url);
+        }
+
+        // Parse Base64 data URL - support more formats
+        const matches = cleanData.profile_image_url.match(/^data:image\/([a-zA-Z0-9+-]+);base64,(.+)$/);
+        if (!matches) {
+          console.error('❌ Invalid Base64 format:', cleanData.profile_image_url.substring(0, 50));
+          throw createError.badRequest('Invalid image format');
+        }
+
+        let imageType = matches[1]; // e.g., 'png', 'jpeg'
+        // Normalize image type
+        if (imageType === 'jpg') imageType = 'jpeg';
+
+        const base64Data = matches[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        console.log(`📊 Image info: type=${imageType}, size=${buffer.length} bytes`);
+
+        // Validate file size (5MB max)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (buffer.length > maxSize) {
+          throw createError.badRequest('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB');
+        }
+
+        // Upload to Supabase
+        const fileName = `profile_${Date.now()}.${imageType}`;
+        const mimeType = `image/${imageType}`;
+        console.log(`📤 Uploading to Supabase: ${fileName}`);
+        const result = await StorageService.uploadImage(buffer, fileName, mimeType, userId);
+
+        // Replace Base64 with actual URL
+        cleanData.profile_image_url = result.url;
+        console.log('✅ Profile image uploaded to Supabase:', result.url);
+      } catch (error) {
+        console.error('❌ Error uploading profile image:', error.message || error);
+        // If Supabase is not configured, skip image upload but don't fail the entire update
+        if (error.statusCode === 503) {
+          console.warn('⚠️ Supabase not configured, skipping image upload');
+          delete cleanData.profile_image_url;
+        } else {
+          throw error;
+        }
+      }
+    }
+
     try {
       return await User.updateProfile(userId, cleanData);
     } catch (error) {
@@ -258,7 +314,7 @@ export const createAuthService = (deps = {}) => {
   const getProfile = async (userId) => {
     const user = await User.findById(userId);
     if (!user) throw createError.notFound("ไม่พบข้อมูลผู้ใช้");
-    
+
     const userJson = user.toJSON ? user.toJSON() : user;
     delete userJson.password_hash;
     delete userJson.reset_token;
