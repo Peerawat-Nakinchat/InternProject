@@ -1,6 +1,6 @@
 // src/controllers/TokenController.js
 import { asyncHandler } from '../middleware/errorHandler.js';
-import AuthService from '../services/AuthService.js'; // ✅ Import Service
+import AuthService from '../services/AuthService.js'; 
 
 export const createTokenController = (deps = {}) => {
   const authService = deps.authService || AuthService;

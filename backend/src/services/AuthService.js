@@ -9,7 +9,7 @@ import InvitationService from "./InvitationService.js";
 import { sequelize } from "../models/dbModels.js";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/token.js";
 import { sendEmail } from "../utils/mailer.js";
-import { createError } from "../middleware/errorHandler.js"; // ✅ Import Helper
+import { createError } from "../middleware/errorHandler.js"; 
 
 export const createAuthService = (deps = {}) => {
   const User = deps.UserModel || UserModel;
