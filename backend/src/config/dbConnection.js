@@ -1,43 +1,49 @@
+// src/config/dbConnection.js
 import { Sequelize } from 'sequelize';
 import config from './database.js';
+import  logger  from '../utils/logger.js'; 
 
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
-// Create Sequelize instance
+//Instance
 const sequelize = new Sequelize(
   dbConfig.database,
   dbConfig.username,
   dbConfig.password,
   {
-    host: dbConfig.host,
-    port: dbConfig.port,
-    dialect: dbConfig.dialect,
-    logging: dbConfig.logging,
-    pool: dbConfig.pool,
-    dialectOptions: dbConfig.dialectOptions,
+    ...dbConfig,
     define: {
       timestamps: true,
-      underscored: true, // Use snake_case
-      freezeTableName: true // Don't pluralize table names
-    }
+      underscored: true,
+      freezeTableName: true
+    },
+    // Custom logging 
+    logging: (msg) => env === 'development' ? console.log(msg) : false,
   }
 );
 
-// Test connection
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
-  } catch (error) {
-    console.error('❌ Unable to connect to database:', error);
-    process.exit(1);
+//Retry Connection
+const connectWithRetry = async (retries = 5, interval = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await sequelize.authenticate();
+      logger.info('✅ Database connection established successfully.');
+      return; 
+    } catch (error) {
+      logger.error(`❌ Database connection failed (Attempt ${i + 1}/${retries}):`, error.message);
+      if (i === retries - 1) {
+        logger.error('💥 Max retries reached. Exiting...');
+        process.exit(1);
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
   }
 };
 
-// Skip DB connection test in test environment with SKIP_DB_CONNECTION flag
-if (process.env.NODE_ENV !== 'test' || !process.env.SKIP_DB_CONNECTION) {
-  testConnection();
+if (env !== 'test') {
+  connectWithRetry();
 }
+
 
 export default sequelize;
