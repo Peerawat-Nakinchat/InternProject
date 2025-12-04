@@ -52,7 +52,6 @@ export const createAuditLogService = (deps = {}) => {
       logData.created_at = logData.created_at || new Date();
       if (!logData.correlation_id && logData.generateCorrelationId) logData.correlation_id = generateUuid();
 
-      return await Model.create(logData);
     } catch (error) {
       console.error('Failed to create audit log:', error);
       return null; // Audit log fail should not crash the app
