@@ -73,8 +73,8 @@ app.use(cors({
 }));
 
 app.use(cookieParser());
-app.use(express.json({ limit: "100kb" }));
-app.use(express.urlencoded({ limit: "100kb", extended: true }));
+app.use(express.json({ limit: "10mb" }));  // เพิ่ม limit สำหรับ Base64 image upload
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // ========================================
 // RATE LIMITING
