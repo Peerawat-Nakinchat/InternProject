@@ -59,8 +59,8 @@
         </div>
 
         <!-- Gender -->
-        <div class="space-y-1 relative">
-          <label class="text-sm font-medium text-neutral-700">เพศ *</label>
+        <div class="space-y-1 relative mb-6">
+          <label class="text-sm font-medium text-neutral-700 mb-1 block">เพศ *</label>
 
           <!-- Selected box -->
           <div
@@ -117,7 +117,7 @@
 
         <!-- Address -->
         <div class="space-y-2">
-          <label class="text-sm font-medium text-neutral-700">ที่อยู่</label>
+          <label class="text-sm font-medium text-neutral-700 mb-1 block">ที่อยู่</label>
           <BaseInput
             v-model="form.user_address_1"
             placeholder="บ้านเลขที่ / อาคาร / หมู่บ้าน"
@@ -152,7 +152,7 @@
         <!-- Passwords (ใช้ BaseInput) -->
         <div class="space-y-1">
           <!-- Password -->
-          <div class="w-full pb-4">
+          <div class="w-full pb-3">
             <BaseInput
               v-model="form.password"
               label="รหัสผ่าน"

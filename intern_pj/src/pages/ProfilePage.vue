@@ -141,25 +141,25 @@
               <h2 class="text-lg text-gray-800 font-semibold">ความปลอดภัย</h2>
             </div>
 
-            <div class="flex items-end justify-between mb-4 gap-4">
+            <div class="flex items-center gap-4">
               <div class="flex-1">
                 <BaseInput :model-value="authStore.user?.email" label="อีเมล" disabled />
               </div>
 
               <button @click="changeEmail"
-                class="p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md">
+                class="mt-2 p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md">
                 <i class="mdi mdi-email-edit text-xl"></i>
               </button>
             </div>
 
-            <div class="flex items-end justify-between gap-4">
+            <div class="flex items-center gap-4">
               <div class="flex-1">
                 <BaseInput model-value="********" type="password" label="รหัสผ่าน" disabled
                   :hidePasswordToggle="true" />
               </div>
 
               <button @click="changePassword"
-                class="p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md">
+                class="mt-2 p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md">
                 <i class="mdi mdi-lock-reset text-xl"></i>
               </button>
             </div>
@@ -543,6 +543,10 @@ const openPasswordConfirm = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
   if (!oldPassword.value.trim()) { passwordError.value = 'กรุณากรอกรหัสผ่านเดิม'; return }
   if (newPassword.value.length < 6) { passwordError.value = 'รหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร'; return }
+  if (!/[A-Z]/.test(newPassword.value)) { passwordError.value = 'รหัสผ่านใหม่ต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว'; return }
+  if (!/[a-z]/.test(newPassword.value)) { passwordError.value = 'รหัสผ่านใหม่ต้องมีตัวพิมพ์เล็กอย่างน้อย 1 ตัว'; return }
+  if (!/[0-9]/.test(newPassword.value)) { passwordError.value = 'รหัสผ่านใหม่ต้องมีตัวเลขอย่างน้อย 1 ตัว'; return }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value)) { passwordError.value = 'รหัสผ่านใหม่ต้องมีอักขระพิเศษอย่างน้อย 1 ตัว'; return }
   if (newPassword.value !== confirmPassword.value) { passwordError.value = 'รหัสผ่านใหม่ไม่ตรงกัน'; return }
   if (oldPassword.value === newPassword.value) { passwordError.value = 'รหัสผ่านใหม่ต้องไม่ซ้ำกับเดิม'; return }
 
