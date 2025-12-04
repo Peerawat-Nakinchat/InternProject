@@ -51,8 +51,36 @@ export const createInvitationService = (deps = {}) => {
         email, org_id, role_id, token, invited_by, expires_at: expiresAt, status: 'pending'
       }, t);
 
+      // ข้อมูลบริษัท
       const company = await Org.findById(org_id);
       const companyName = company ? company.org_name : "บริษัทของเรา";
+
+      // ข้อมูลผู้เชิญ (ใช้สำหรับรูปโปรไฟล์ในอีเมล)
+      const inviter = await User.findById(invited_by);
+      let inviterName = "";
+      if (inviter) {
+        if (inviter.full_name) {
+          inviterName = inviter.full_name;
+        } else {
+          const namePart = inviter.name || "";
+          const surnamePart = inviter.surname || "";
+          inviterName = `${namePart} ${surnamePart}`.trim();
+        }
+      } else {
+        inviterName = "";
+      }
+      const inviterImageUrl = inviter && inviter.profile_image_url ? inviter.profile_image_url : null;
+
+      let inviterImageHtml = "";
+      if (inviterImageUrl) {
+        inviterImageHtml = `
+              <div style="text-align: center; margin-bottom: 16px;">
+                <img src="${inviterImageUrl}" alt="${inviterName || 'ผู้เชิญ'}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; display:inline-block; border:3px solid #e2e8f0; box-shadow:0 4px 10px rgba(0,0,0,0.12);" />
+              </div>
+          `;
+      } else {
+        inviterImageHtml = "";
+      }
       
       const frontendUrl = (env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
       const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
@@ -83,6 +111,8 @@ export const createInvitationService = (deps = {}) => {
           <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
+              ${inviterImageHtml}
+
               <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 22px; font-weight: 600; text-align: center;">
                 คุณได้รับคำเชิญจาก
               </h2>
