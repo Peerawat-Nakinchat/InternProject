@@ -142,7 +142,7 @@
             label="อีเมล"
             type="email"
             placeholder="your@example.com"
-            :disabled="isLoading || !!form.inviteToken"
+            :disabled="isEmailLocked"
             required
             class="w-full"
             :error="formErrors.email"
@@ -192,6 +192,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getInvitationInfo } from '@/services/useInvitation'
 
 // Components
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -218,15 +219,47 @@ const form = ref({
 
 const route = useRoute() // Get route
 
-onMounted(() => {
-  const token = route.query.token
-  const email = route.query.email
+const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
-  if (token) {
+const allowManualEmail = ref(false)
+const isEmailLocked = computed(() => {
+  if (isLoading.value) return true
+  if (!form.value.inviteToken) return false
+  return !allowManualEmail.value
+})
+
+onMounted(async () => {
+  const tokenQuery = route.query.token
+  const emailQuery = route.query.email
+
+  const token = Array.isArray(tokenQuery) ? tokenQuery[0] : tokenQuery
+  const email = Array.isArray(emailQuery) ? emailQuery[0] : emailQuery
+
+  if (typeof token === 'string' && token.trim()) {
     form.value.inviteToken = token
   }
-  if (email) {
+  if (typeof email === 'string' && email.trim()) {
     form.value.email = email
+  }
+
+  if (form.value.inviteToken && !form.value.email) {
+    try {
+      const response = await getInvitationInfo(form.value.inviteToken)
+      const invitationData = response?.data ?? response
+
+      if (invitationData?.email) {
+        form.value.email = invitationData.email
+      } else {
+        allowManualEmail.value = true
+        errorMessage.value = 'ไม่พบอีเมลจากคำเชิญ กรุณากรอกด้วยตนเอง'
+      }
+    } catch (err) {
+      console.error('ไม่สามารถดึงข้อมูลคำเชิญ:', err)
+      allowManualEmail.value = true
+      errorMessage.value = 'ไม่สามารถดึงอีเมลจากคำเชิญได้ กรุณากรอกด้วยตนเอง'
+    }
   }
 })
 
@@ -256,10 +289,6 @@ const selectSex = (value) => {
   form.value.sex = value
   open.value = false
 }
-
-const isLoading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 
 // อัพเดท full_name อัตโนมัติ
 watch([() => form.value.name, () => form.value.surname], () => {
