@@ -1,8 +1,11 @@
 // src/utils/apiClient.ts
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+
+// ✅ สำหรับจัดการ refresh token ที่กำลังทำงานอยู่ (ป้องกัน race condition)
+let isRefreshing = false
+let refreshPromise: Promise<boolean> | null = null
 
 class ApiClient {
   private baseURL: string
@@ -13,7 +16,8 @@ class ApiClient {
 
   private async request<T = any>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount: number = 0 // ✅ เพิ่ม retry counter เพื่อป้องกัน infinite loop
   ): Promise<T> {
     const auth = useAuthStore()
     const token = auth.accessToken
@@ -22,6 +26,7 @@ class ApiClient {
     console.group('📡 API Request Debug')
     console.log('Endpoint:', endpoint)
     console.log('Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN')
+    console.log('Retry Count:', retryCount)
     console.groupEnd()
 
     // ตั้งค่า headers
@@ -56,18 +61,55 @@ class ApiClient {
             const retryAfterHeader = response.headers.get('retry-after')
             const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined
 
-            // ถ้า 401 = token หมดอายุ
-            if (response.status === 401) {
-              // ลอง refresh token
-              const refreshed = await auth.refreshAccessToken()
+            // ถ้า 401 = token หมดอายุ และยังไม่เคย retry
+            if (response.status === 401 && retryCount < 1) {
+              // ❌ ไม่ต้อง refresh ถ้าเป็น request ไปที่ /auth/refresh หรือ /auth/login
+              if (endpoint.includes('/auth/refresh') || endpoint.includes('/auth/login') || endpoint.includes('/auth/logout')) {
+                throw new Error(errorData.message || 'Authentication failed')
+              }
 
-              if (refreshed) {
-                // ลองเรียก API อีกครั้งด้วย token ใหม่
-                return this.request<T>(endpoint, options)
-              } else {
-                // Refresh ไม่ได้ = ต้อง logout
-                await auth.logout()
-                window.location.href = '/login'
+              // ✅ ถ้ากำลัง refresh อยู่ ให้รอ promise เดียวกัน
+              if (isRefreshing && refreshPromise) {
+                try {
+                  const refreshed = await refreshPromise
+                  if (refreshed) {
+                    // ✅ รอให้ cookies ถูก set สมบูรณ์ก่อน retry
+                    await new Promise(resolve => setTimeout(resolve, 50))
+                    return this.request<T>(endpoint, options, retryCount + 1)
+                  }
+                } catch (err) {
+                  throw err
+                }
+                throw new Error('Refresh token failed')
+              }
+
+              // ✅ เริ่ม refresh token
+              isRefreshing = true
+              console.log('🔄 Token expired, trying to refresh...')
+
+              try {
+                refreshPromise = auth.refreshAccessToken()
+                const refreshed = await refreshPromise
+
+                if (refreshed) {
+                  console.log('✅ Token refreshed successfully, retrying request...')
+                  // ✅ สำคัญ: รอให้ cookies ถูก set สมบูรณ์ก่อน retry
+                  await new Promise(resolve => setTimeout(resolve, 50))
+                  // ลองเรียก API อีกครั้งด้วย token ใหม่
+                  return this.request<T>(endpoint, options, retryCount + 1)
+                } else {
+                  // Refresh ไม่ได้ = ต้อง logout
+                  console.log('❌ Refresh failed, redirecting to login...')
+                  await auth.logout()
+                  const currentPath = window.location.pathname
+                  if (currentPath !== '/login') {
+                    window.location.href = '/login'
+                  }
+                  throw new Error('Session expired. Please login again.')
+                }
+              } finally {
+                isRefreshing = false
+                refreshPromise = null
               }
             }
 
