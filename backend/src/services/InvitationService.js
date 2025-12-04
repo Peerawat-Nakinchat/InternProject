@@ -51,12 +51,40 @@ export const createInvitationService = (deps = {}) => {
         email, org_id, role_id, token, invited_by, expires_at: expiresAt, status: 'pending'
       }, t);
 
+      // ข้อมูลบริษัท
       const company = await Org.findById(org_id);
       const companyName = company ? company.org_name : "บริษัทของเรา";
-      
+
+      // ข้อมูลผู้เชิญ (ใช้สำหรับรูปโปรไฟล์ในอีเมล)
+      const inviter = await User.findById(invited_by);
+      let inviterName = "";
+      if (inviter) {
+        if (inviter.full_name) {
+          inviterName = inviter.full_name;
+        } else {
+          const namePart = inviter.name || "";
+          const surnamePart = inviter.surname || "";
+          inviterName = `${namePart} ${surnamePart}`.trim();
+        }
+      } else {
+        inviterName = "";
+      }
+      const inviterImageUrl = inviter && inviter.profile_image_url ? inviter.profile_image_url : null;
+
+      let inviterImageHtml = "";
+      if (inviterImageUrl) {
+        inviterImageHtml = `
+              <div style="text-align: center; margin-bottom: 16px;">
+                <img src="${inviterImageUrl}" alt="${inviterName || 'ผู้เชิญ'}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; display:inline-block; border:3px solid #e2e8f0; box-shadow:0 4px 10px rgba(0,0,0,0.12);" />
+              </div>
+          `;
+      } else {
+        inviterImageHtml = "";
+      }
+
       const frontendUrl = (env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
       const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
-      
+
       const html = `
 <!DOCTYPE html>
 <html lang="th">
@@ -70,7 +98,7 @@ export const createInvitationService = (deps = {}) => {
     <tr>
       <td style="padding: 40px 20px;">
         <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); overflow: hidden;">
-          
+
           <!-- Header with gradient -->
           <tr>
             <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
@@ -79,32 +107,33 @@ export const createInvitationService = (deps = {}) => {
               </h1>
             </td>
           </tr>
-          
+
           <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
+
               <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 22px; font-weight: 600; text-align: center;">
                 คุณได้รับคำเชิญจาก
               </h2>
-              
+              ${inviterImageHtml}
               <div style="background-color: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 30px; border-radius: 6px;">
                 <p style="margin: 0; color: #2d3748; font-size: 20px; font-weight: 600; text-align: center;">
                   ${companyName}
                 </p>
               </div>
-              
+
               <p style="margin: 0 0 30px; color: #4a5568; font-size: 16px; line-height: 1.6; text-align: center;">
                 ยินดีต้อนรับ! คุณได้รับเชิญให้เข้าร่วมเป็นสมาชิกของบริษัท <strong>${companyName}</strong><br>
                 กรุณาคลิกปุ่มด้านล่างเพื่อตอบรับคำเชิญและเริ่มต้นการทำงานร่วมกับเรา
               </p>
-              
+
               <!-- CTA Button -->
               <div style="text-align: center; margin: 35px 0;">
                 <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 50px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: transform 0.2s;">
                   ✓ ตอบรับคำเชิญ
                 </a>
               </div>
-              
+
               <div style="margin: 30px 0; border-top: 1px solid #e2e8f0; padding-top: 25px;">
                 <p style="margin: 0 0 15px; color: #718096; font-size: 14px; line-height: 1.6;">
                   หรือคัดลอกลิงก์นี้ไปวางในเบราว์เซอร์:
@@ -115,7 +144,7 @@ export const createInvitationService = (deps = {}) => {
                   </a>
                 </div>
               </div>
-              
+
               <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin-top: 25px; border-radius: 6px;">
                 <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
                   ⚠️ <strong>หมายเหตุ:</strong> ลิงก์นี้จะหมดอายุใน 2 วัน หากคุณไม่ได้รับเชิญนี้ กรุณาเพิกเฉยอีเมลนี้
@@ -123,7 +152,7 @@ export const createInvitationService = (deps = {}) => {
               </div>
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
             <td style="background-color: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
@@ -135,7 +164,7 @@ export const createInvitationService = (deps = {}) => {
               </p>
             </td>
           </tr>
-          
+
         </table>
       </td>
     </tr>
