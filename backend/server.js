@@ -1,4 +1,4 @@
-import { createServer } from 'http'; 
+import { createServer } from 'http';
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -9,7 +9,7 @@ import swaggerSpec from "./src/config/swaggerConfig.js";
 import cron from "node-cron";
 
 // Config & Utils
-import "./src/config/loadEnv.js"; 
+import "./src/config/loadEnv.js";
 import sequelize from "./src/config/dbConnection.js";
 import logger from "./src/utils/logger.js";
 
@@ -34,7 +34,7 @@ import invitationRoutes from "./src/routes/invitationRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
 
 const app = express();
-const httpServer = createServer(app); 
+const httpServer = createServer(app);
 
 // ========================================
 // SECURITY & CONFIGURATION
@@ -54,7 +54,7 @@ app.use(helmet({
     includeSubDomains: true,
     preload: true,
   },
-  hidePoweredBy: true 
+  hidePoweredBy: true
 }));
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",");
@@ -73,7 +73,7 @@ app.use(cors({
 }));
 
 app.use(cookieParser());
-app.use(express.json({ limit: "100kb" })); 
+app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
 // ========================================
@@ -89,11 +89,11 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, 
+  max: 10,
   message: { success: false, error: "Too many login attempts, try again after 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, 
+  skipSuccessfulRequests: true,
 });
 
 // ========================================
@@ -123,7 +123,7 @@ app.use("/api/auth/reset-password", authLimiter);
 
 app.use("/api", apiLimiter); // Global API limit
 
-// Docs 
+// Docs
 if (process.env.NODE_ENV !== 'production') {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
@@ -197,10 +197,10 @@ startServer();
 
 const gracefulShutdown = async (signal) => {
   logger.info(`\n🛑 ${signal} received. Closing HTTP server...`);
-  
+
   httpServer.close(async () => {
     logger.info('🛑 HTTP server closed.');
-    
+
     try {
       await sequelize.close();
       logger.info('🔒 Database connection closed.');
