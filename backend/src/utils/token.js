@@ -1,5 +1,6 @@
 // src/utils/token.js
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 export const verifyAccessToken = (token) => {
     try {
@@ -45,4 +46,31 @@ export const verifyRefreshToken = (token) => {
         console.error('❌ Refresh token verification failed:', error.message);
         return null;
     }
+};
+
+
+/**
+ * สร้าง Random Token และค่า Hash สำหรับเก็บลง DB
+ * @returns { token: string, hashedToken: string }
+ */
+export const generateSecureToken = () => {
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+    return { token, hashedToken };
+};
+
+/**
+ * Hash Token ที่รับมาจาก User เพื่อนำไปค้นหาใน DB
+ * @param {string} token - token ดิบที่ user ส่งมา
+ * @returns {string} - token ที่ hash แล้ว
+ */
+export const hashToken = (token) => {
+    return crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
 };

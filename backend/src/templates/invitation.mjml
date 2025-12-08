@@ -1,0 +1,105 @@
+//src/templates/invitation.mjml
+<mjml>
+  <mj-head>
+    <mj-title>คำเชิญเข้าร่วมบริษัท {{companyName}}</mj-title>
+    <mj-preview>คุณได้รับเชิญเข้าร่วมทีมกับ {{companyName}} คลิกเพื่อดูรายละเอียดและตอบรับคำเชิญ...</mj-preview>
+
+    <mj-attributes>
+      <mj-all font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" />
+      <mj-text color="#4a5568" line-height="24px" font-size="16px" />
+      <mj-button background-color="#667eea" color="#ffffff" border-radius="4px" />
+    </mj-attributes>
+
+    <mj-style>
+      /* บังคับสี Link ไม่ให้เพี้ยน */
+      a { color: #667eea; text-decoration: none; }
+      
+      /* Dark Mode Strategy: ใช้ Class เพื่อ override สีเมื่อจำเป็น */
+      @media (prefers-color-scheme: dark) {
+        .body-bg { background-color: #1a202c !important; }
+        .card-bg { background-color: #2d3748 !important; }
+        .text-primary { color: #e2e8f0 !important; }
+        .text-secondary { color: #a0aec0 !important; }
+        .box-bg { background-color: #4a5568 !important; }
+      }
+    </mj-style>
+  </mj-head>
+
+  <mj-body css-class="body-bg" background-color="#f4f7fa">
+    <mj-section padding="20px 0"></mj-section>
+    
+    <mj-wrapper css-class="card-bg" background-color="#ffffff" padding="0px" border-radius="8px">
+      
+      <mj-section padding="40px 30px" background-color="#667eea">
+        <mj-column>
+          <mj-text align="center" color="#ffffff" font-size="24px" font-weight="bold">
+            คำเชิญเข้าร่วมบริษัท
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <mj-section padding="40px 30px 20px 30px">
+        <mj-column>
+          <mj-text css-class="text-primary" align="center" font-size="20px" font-weight="600" color="#1a202c">
+            คุณได้รับคำเชิญจาก
+          </mj-text>
+
+          <mj-raw>
+            {{#if inviterImageUrl}}
+          </mj-raw>
+          <mj-image width="80px" height="80px" border-radius="50%" src="{{inviterImageUrl}}" border="3px solid #e2e8f0" alt="รูปผู้เชิญ" />
+          <mj-raw>
+            {{/if}}
+          </mj-raw>
+
+          <mj-text align="center" padding="10px 0">
+             <div class="box-bg" style="background-color: #edf2f7; padding: 15px; border-radius: 6px; font-weight: bold; color: #2d3748; font-size: 18px;">
+               {{companyName}}
+             </div>
+          </mj-text>
+
+          <mj-text css-class="text-secondary" align="center" padding-top="20px">
+            ยินดีต้อนรับ! เรามีความยินดีที่จะเรียนเชิญคุณเข้าร่วมเป็นส่วนหนึ่งของทีม<br/>
+            กรุณากดยืนยันเพื่อเริ่มต้นใช้งาน
+          </mj-text>
+
+          <mj-button href="{{inviteLink}}" font-size="16px" font-weight="bold" padding-top="30px" padding-bottom="30px" width="100%">
+            ตอบรับคำเชิญ
+          </mj-button>
+
+          <mj-divider border-color="#e2e8f0" border-width="1px" padding="10px 0" />
+
+          <mj-text css-class="text-secondary" font-size="14px" color="#718096" align="center">
+            หรือคัดลอกลิงก์ด้านล่าง:
+          </mj-text>
+
+          <mj-text padding="0px">
+            <div class="box-bg" style="background-color: #f7fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; word-break: break-all; text-align: center; font-size: 13px;">
+              <a href="{{inviteLink}}" style="color: #667eea;">{{inviteLink}}</a>
+            </div>
+          </mj-text>
+
+          <mj-text padding-top="20px">
+             <div style="background-color: #fffbeb; color: #744210; padding: 12px; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #fcd34d;">
+              ⏳ ลิงก์นี้จะหมดอายุใน <strong>2 วัน</strong>
+             </div>
+          </mj-text>
+
+        </mj-column>
+      </mj-section>
+
+      <mj-section background-color="#f7fafc" padding="20px">
+        <mj-column>
+          <mj-text align="center" font-size="12px" color="#a0aec0">
+            © {{year}} {{companyName}}. All rights reserved.
+          </mj-text>
+          <mj-text align="center" font-size="12px" color="#a0aec0" padding-top="0">
+            ส่งถึง: {{email}}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+    </mj-wrapper>
+    <mj-section padding="20px 0"></mj-section>
+  </mj-body>
+</mjml>
