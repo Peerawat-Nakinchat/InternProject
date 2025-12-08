@@ -138,7 +138,7 @@
         <!-- Passwords (ใช้ BaseInput) -->
         <div class="space-y-1">
           <!-- Password -->
-          <div class="w-full pb-3">
+          <div class="w-full">
             <BaseInput
               v-model="form.password"
               label="รหัสผ่าน"
@@ -146,6 +146,90 @@
               placeholder="*********"
               :error="formErrors.password"
             />
+          </div>
+
+          <!-- 🔐 Password Strength Indicator (แสดงตลอด) -->
+          <div class="p-3 bg-gray-50 rounded-lg mb-3">
+            <!-- Progress Bar -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  class="h-full transition-all duration-300 rounded-full"
+                  :style="{ width: passwordStrength.percentage + '%' }"
+                  :class="passwordStrength.colorClass"
+                />
+              </div>
+              <span
+                class="text-xs font-semibold min-w-[55px] text-right"
+                :class="passwordStrength.textClass"
+              >
+                {{ passwordStrength.label }}
+              </span>
+            </div>
+
+            <!-- Checklist -->
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+              <div
+                class="flex items-center gap-1"
+                :class="passwordChecks.hasLength ? 'text-green-600' : 'text-gray-400'"
+              >
+                <i
+                  :class="
+                    passwordChecks.hasLength ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                  "
+                  class="text-xs"
+                ></i>
+                6+ ตัวอักษร
+              </div>
+              <div
+                class="flex items-center gap-1"
+                :class="passwordChecks.hasUpper ? 'text-green-600' : 'text-gray-400'"
+              >
+                <i
+                  :class="
+                    passwordChecks.hasUpper ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                  "
+                  class="text-xs"
+                ></i>
+                ตัวพิมพ์ใหญ่
+              </div>
+              <div
+                class="flex items-center gap-1"
+                :class="passwordChecks.hasLower ? 'text-green-600' : 'text-gray-400'"
+              >
+                <i
+                  :class="
+                    passwordChecks.hasLower ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                  "
+                  class="text-xs"
+                ></i>
+                ตัวพิมพ์เล็ก
+              </div>
+              <div
+                class="flex items-center gap-1"
+                :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-gray-400'"
+              >
+                <i
+                  :class="
+                    passwordChecks.hasNumber ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                  "
+                  class="text-xs"
+                ></i>
+                ตัวเลข
+              </div>
+              <div
+                class="flex items-center gap-1"
+                :class="passwordChecks.hasSpecial ? 'text-green-600' : 'text-gray-400'"
+              >
+                <i
+                  :class="
+                    passwordChecks.hasSpecial ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                  "
+                  class="text-xs"
+                ></i>
+                อักขระพิเศษ
+              </div>
+            </div>
           </div>
 
           <!-- Confirm Password -->
@@ -157,6 +241,18 @@
               placeholder="*********"
               :error="formErrors.confirm_password"
             />
+          </div>
+
+          <!-- Match Indicator -->
+          <div v-if="form.confirm_password" class="text-xs flex items-center gap-1 mt-1">
+            <template v-if="form.password === form.confirm_password">
+              <i class="mdi mdi-check-circle text-green-600"></i>
+              <span class="text-green-600">รหัสผ่านตรงกัน</span>
+            </template>
+            <template v-else>
+              <i class="mdi mdi-close-circle text-red-500"></i>
+              <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
+            </template>
           </div>
         </div>
 
@@ -270,6 +366,60 @@ const selectedSexLabel = computed(() => {
   if (form.value.sex === 'F') return 'หญิง'
   if (form.value.sex === 'O') return 'อื่น ๆ'
   return ''
+})
+
+// 🔐 Password Strength Computed
+const passwordChecks = computed(() => ({
+  hasLength: form.value.password.length >= 6,
+  hasUpper: /[A-Z]/.test(form.value.password),
+  hasLower: /[a-z]/.test(form.value.password),
+  hasNumber: /[0-9]/.test(form.value.password),
+  hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(form.value.password),
+}))
+
+const passwordStrength = computed(() => {
+  // ถ้าไม่มี password ให้แสดง 0% ไม่มีสี
+  if (!form.value.password) {
+    return { percentage: 0, label: '', colorClass: '', textClass: 'text-gray-400' }
+  }
+
+  const checks = passwordChecks.value
+  const score = [
+    checks.hasLength,
+    checks.hasUpper,
+    checks.hasLower,
+    checks.hasNumber,
+    checks.hasSpecial,
+  ].filter(Boolean).length
+
+  if (score <= 1) return { percentage: 20, colorClass: 'bg-red-500', textClass: 'text-red-500' }
+  if (score === 2)
+    return {
+      percentage: 40,
+
+      colorClass: 'bg-orange-500',
+      textClass: 'text-orange-500',
+    }
+  if (score === 3)
+    return {
+      percentage: 60,
+
+      colorClass: 'bg-yellow-500',
+      textClass: 'text-yellow-500',
+    }
+  if (score === 4)
+    return {
+      percentage: 80,
+
+      colorClass: 'bg-blue-500',
+      textClass: 'text-blue-500',
+    }
+  return {
+    percentage: 100,
+
+    colorClass: 'bg-green-500',
+    textClass: 'text-green-500',
+  }
 })
 
 const selectSex = (value) => {

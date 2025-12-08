@@ -271,37 +271,164 @@
               class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
             >
               <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนรหัสผ่าน</h2>
-                <div class="flex flex-col gap-6">
-                  <BaseInput v-model="oldPassword" label="รหัสผ่านเดิม" type="password" />
-                  <hr class="border-t border-gray-300" />
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                  <i class="mdi mdi-lock-reset text-purple-600 mr-2"></i>
+                  เปลี่ยนรหัสผ่าน
+                </h2>
 
-                  <div class="flex flex-col gap-2">
-                    <p class="text-sm text-red-400 text-center mb-2">
-                      *กรอกรหัสผ่านใหม่ที่ต้องการเปลี่ยน*
-                    </p>
+                <!-- รหัสผ่านเดิม -->
+                <BaseInput
+                  v-model="oldPassword"
+                  label="รหัสผ่านเดิม"
+                  type="password"
+                  class="mb-4"
+                />
 
-                    <BaseInput v-model="newPassword" label="รหัสผ่านใหม่" type="password" />
+                <hr class="border-t border-gray-200 mb-4" />
 
-                    <BaseInput
-                      v-model="confirmPassword"
-                      label="ยืนยันรหัสผ่านใหม่"
-                      type="password"
-                    />
+                <!-- รหัสผ่านใหม่ -->
+                <BaseInput
+                  v-model="newPassword"
+                  label="รหัสผ่านใหม่"
+                  type="password"
+                  class="mb-2"
+                />
+
+                <!-- 🔐 Password Strength Indicator (แสดงตลอด) -->
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <!-- Progress Bar -->
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full transition-all duration-300 rounded-full"
+                        :style="{ width: passwordStrength.percentage + '%' }"
+                        :class="passwordStrength.colorClass"
+                      />
+                    </div>
+                    <span
+                      class="text-xs font-semibold min-w-[60px] text-right"
+                      :class="passwordStrength.textClass"
+                    >
+                      {{ passwordStrength.label }}
+                    </span>
                   </div>
-                  <p v-if="passwordError" class="text-red-500 text-sm mt-2">
-                    {{ passwordError }}
-                  </p>
+
+                  <!-- Checklist -->
+                  <div class="grid grid-cols-1 gap-1.5 text-xs">
+                    <div
+                      class="flex items-center gap-2"
+                      :class="passwordChecks.hasLength ? 'text-green-600' : 'text-gray-400'"
+                    >
+                      <i
+                        :class="
+                          passwordChecks.hasLength
+                            ? 'mdi mdi-check-circle'
+                            : 'mdi mdi-circle-outline'
+                        "
+                        class="text-sm"
+                      ></i>
+                      อย่างน้อย 6 ตัวอักษร
+                    </div>
+                    <div
+                      class="flex items-center gap-2"
+                      :class="passwordChecks.hasUpper ? 'text-green-600' : 'text-gray-400'"
+                    >
+                      <i
+                        :class="
+                          passwordChecks.hasUpper
+                            ? 'mdi mdi-check-circle'
+                            : 'mdi mdi-circle-outline'
+                        "
+                        class="text-sm"
+                      ></i>
+                      ตัวพิมพ์ใหญ่ (A-Z)
+                    </div>
+                    <div
+                      class="flex items-center gap-2"
+                      :class="passwordChecks.hasLower ? 'text-green-600' : 'text-gray-400'"
+                    >
+                      <i
+                        :class="
+                          passwordChecks.hasLower
+                            ? 'mdi mdi-check-circle'
+                            : 'mdi mdi-circle-outline'
+                        "
+                        class="text-sm"
+                      ></i>
+                      ตัวพิมพ์เล็ก (a-z)
+                    </div>
+                    <div
+                      class="flex items-center gap-2"
+                      :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-gray-400'"
+                    >
+                      <i
+                        :class="
+                          passwordChecks.hasNumber
+                            ? 'mdi mdi-check-circle'
+                            : 'mdi mdi-circle-outline'
+                        "
+                        class="text-sm"
+                      ></i>
+                      ตัวเลข (0-9)
+                    </div>
+                    <div
+                      class="flex items-center gap-2"
+                      :class="passwordChecks.hasSpecial ? 'text-green-600' : 'text-gray-400'"
+                    >
+                      <i
+                        :class="
+                          passwordChecks.hasSpecial
+                            ? 'mdi mdi-check-circle'
+                            : 'mdi mdi-circle-outline'
+                        "
+                        class="text-sm"
+                      ></i>
+                      อักขระพิเศษ (!@#$%^&*)
+                    </div>
+                  </div>
                 </div>
-                <div class="flex justify-end gap-3 mt-6">
+
+                <!-- ยืนยันรหัสผ่านใหม่ -->
+                <BaseInput
+                  v-model="confirmPassword"
+                  label="ยืนยันรหัสผ่านใหม่"
+                  type="password"
+                  class="mb-2"
+                />
+
+                <!-- แสดง match indicator -->
+                <div v-if="confirmPassword" class="mb-4 text-xs flex items-center gap-1">
+                  <template v-if="newPassword === confirmPassword">
+                    <i class="mdi mdi-check-circle text-green-600"></i>
+                    <span class="text-green-600">รหัสผ่านตรงกัน</span>
+                  </template>
+                  <template v-else>
+                    <i class="mdi mdi-close-circle text-red-500"></i>
+                    <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
+                  </template>
+                </div>
+
+                <!-- Error Message -->
+                <p v-if="passwordError" class="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
+                  <i class="mdi mdi-alert-circle mr-1"></i>
+                  {{ passwordError }}
+                </p>
+
+                <!-- Buttons -->
+                <div class="flex gap-3">
                   <base-button
-                    class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+                    class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
                     @click="closePasswordPopup"
                   >
                     ยกเลิก
                   </base-button>
-
-                  <base-button class="w-full" @click="openPasswordConfirm"> บันทึก </base-button>
+                  <base-button
+                    class="flex-1"
+                    @click="openPasswordConfirm"
+                    :disabled="!isPasswordValid"
+                  >
+                    บันทึก
+                  </base-button>
                 </div>
               </div>
             </div>
@@ -397,7 +524,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { toast } from '@/utils/toast' // ✅ Toast Utility
+import Swal from 'sweetalert2' // ✅ ใช้ SweetAlert2 แทน ConfirmDialog
 // Component Input/Button ยังคงใช้เหมือนเดิม
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -447,11 +574,11 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
-// const showOldPassword = ref(false)
-// const showNewPassword = ref(false)
-// const showConfirmPassword = ref(false)
+const showOldPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 
-// ✅ ใช้ toast utility แทน Swal โดยตรง
+// ❌ ลบตัวแปร show...Confirm ของเดิมออกทั้งหมด เพราะใช้ Swal แล้ว
 
 // =====================================================
 // COMPUTED & HELPERS
@@ -504,6 +631,70 @@ const getRoleName = (roleId?: number) => {
   }
   return roles[roleId || 3] || 'ผู้ใช้'
 }
+
+// 🔐 Password Strength Computed
+const passwordChecks = computed(() => ({
+  hasLength: newPassword.value.length >= 6,
+  hasUpper: /[A-Z]/.test(newPassword.value),
+  hasLower: /[a-z]/.test(newPassword.value),
+  hasNumber: /[0-9]/.test(newPassword.value),
+  hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value),
+}))
+
+const passwordStrength = computed(() => {
+  // ถ้าไม่มี password ให้แสดง 0% ไม่มีสี
+  if (!newPassword.value) {
+    return { percentage: 0, label: '', colorClass: '', textClass: 'text-gray-400' }
+  }
+
+  const checks = passwordChecks.value
+  const score = [
+    checks.hasLength,
+    checks.hasUpper,
+    checks.hasLower,
+    checks.hasNumber,
+    checks.hasSpecial,
+  ].filter(Boolean).length
+
+  if (score <= 1) return { percentage: 20, colorClass: 'bg-red-500', textClass: 'text-red-500' }
+  if (score === 2)
+    return {
+      percentage: 40,
+      colorClass: 'bg-orange-500',
+      textClass: 'text-orange-500',
+    }
+  if (score === 3)
+    return {
+      percentage: 60,
+      colorClass: 'bg-yellow-500',
+      textClass: 'text-yellow-500',
+    }
+  if (score === 4)
+    return {
+      percentage: 80,
+      colorClass: 'bg-blue-500',
+      textClass: 'text-blue-500',
+    }
+  return {
+    percentage: 100,
+    colorClass: 'bg-green-500',
+    textClass: 'text-green-500',
+  }
+})
+
+const isPasswordValid = computed(() => {
+  const checks = passwordChecks.value
+  return (
+    oldPassword.value.trim() !== '' &&
+    checks.hasLength &&
+    checks.hasUpper &&
+    checks.hasLower &&
+    checks.hasNumber &&
+    checks.hasSpecial &&
+    newPassword.value === confirmPassword.value &&
+    oldPassword.value !== newPassword.value
+  )
+})
 
 // =====================================================
 // EVENTS: General (จัดการ Event ทั่วไป)
@@ -558,17 +749,27 @@ const fillFormData = () => {
   form.profile_image_url = u.profile_image_url || ''
 }
 
-// ฟังก์ชันกดปุ่ม "รีเซ็ต" - ใช้ toast utility
+// ฟังก์ชันกดปุ่ม "รีเซ็ต"
 const openResetConfirm = async () => {
-  const confirmed = await toast.confirm(
-    'ข้อมูลในฟอร์มจะถูกคืนค่าเป็นข้อมูลล่าสุดจากระบบ',
-    'ยืนยันการรีเซ็ตข้อมูล',
-    { icon: 'warning', confirmText: 'รีเซ็ตข้อมูล' },
-  )
+  const result = await Swal.fire({
+    title: 'ยืนยันการรีเซ็ตข้อมูล',
+    text: 'ข้อมูลในฟอร์มจะถูกคืนค่าเป็นข้อมูลล่าสุดจากระบบ',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33', // สีแดงสื่อถึงการล้างค่า
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'รีเซ็ตข้อมูล',
+    cancelButtonText: 'ยกเลิก',
+  })
 
-  if (confirmed) {
-    fillFormData()
-    toast.success('รีเซ็ตเรียบร้อย')
+  if (result.isConfirmed) {
+    fillFormData() // เรียกใช้ฟังก์ชันเติมข้อมูล
+    Swal.fire({
+      icon: 'success',
+      title: 'รีเซ็ตเรียบร้อย',
+      timer: 1500,
+      showConfirmButton: false,
+    })
   }
 }
 
@@ -598,24 +799,33 @@ const openEmailConfirm = async () => {
     return
   }
 
-  // ซ่อน Popup กรอกข้อมูลชั่วคราว เพื่อแสดง Toast
+  // ซ่อน Popup กรอกข้อมูลชั่วคราว เพื่อแสดง SweetAlert
   showEmailPopup.value = false
 
   // 2. ถามยืนยัน (Confirmation)
-  const isConfirmed = await toast.confirm(
-    `คุณต้องการเปลี่ยนเป็น <b>${newEmail.value}</b> ใช่หรือไม่?`,
-    'ยืนยันการเปลี่ยนอีเมล',
-    { confirmText: 'ยืนยัน, เปลี่ยนเลย', icon: 'warning' },
-  )
+  const confirmResult = await Swal.fire({
+    title: 'ยืนยันการเปลี่ยนอีเมล',
+    html: `คุณต้องการเปลี่ยนเป็น <b>${newEmail.value}</b> ใช่หรือไม่?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#1C244B',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'ยืนยัน, เปลี่ยนเลย',
+    cancelButtonText: 'ยกเลิก',
+  })
 
   // ถ้ากดยกเลิก -> เปิด Popup กรอกข้อมูลกลับมา
-  if (!isConfirmed) {
+  if (!confirmResult.isConfirmed) {
     showEmailPopup.value = true
     return
   }
 
   // 3. แสดง Loading และเรียก API
-  toast.loading('กำลังตรวจสอบ...')
+  Swal.fire({
+    title: 'กำลังตรวจสอบ...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  })
 
   // เรียก API ผ่าน Store
   const result = await authStore.changeEmail({
@@ -623,11 +833,14 @@ const openEmailConfirm = async () => {
     password: passwordForEmail.value,
   })
 
-  toast.close() // ปิด loading
-
   // 4. จัดการผลลัพธ์ (Result Handling)
   if (result.success) {
-    toast.success('เปลี่ยนอีเมลสำเร็จ!')
+    await Swal.fire({
+      icon: 'success',
+      title: 'เปลี่ยนอีเมลสำเร็จ',
+      timer: 2000,
+      showConfirmButton: false,
+    })
     // (Optional) อาจจะต้อง Redirect หรือทำอะไรต่อที่นี่
   } else {
     // ดักจับ Error message
@@ -638,8 +851,13 @@ const openEmailConfirm = async () => {
       displayError = 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
     }
 
-    // แสดง Error
-    toast.error(displayError)
+    // แสดง Error ใน Swal
+    await Swal.fire({
+      icon: 'error',
+      title: 'เปลี่ยนอีเมลไม่สำเร็จ',
+      text: displayError,
+      confirmButtonText: 'ลองใหม่',
+    })
 
     // เปิด Popup กรอกข้อมูลกลับมา พร้อมแสดง Error
     emailError.value = displayError
@@ -702,19 +920,27 @@ const openPasswordConfirm = async () => {
   showPasswordPopup.value = false
 
   // 2. ถามยืนยัน
-  const isConfirmed = await toast.confirm(
-    'ระบบจะนำคุณออกจากระบบอัตโนมัติหลังเปลี่ยนสำเร็จ',
-    'ยืนยันการเปลี่ยนรหัสผ่าน',
-    { confirmText: 'เปลี่ยนรหัสผ่าน', icon: 'warning' },
-  )
+  const confirmResult = await Swal.fire({
+    title: 'ยืนยันการเปลี่ยนรหัสผ่าน',
+    text: 'ระบบจะนำคุณออกจากระบบอัตโนมัติหลังเปลี่ยนสำเร็จ',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#1C244B',
+    confirmButtonText: 'เปลี่ยนรหัสผ่าน',
+    cancelButtonText: 'ยกเลิก',
+  })
 
-  if (!isConfirmed) {
+  if (!confirmResult.isConfirmed) {
     showPasswordPopup.value = true
     return
   }
 
   // 3. Loading
-  toast.loading('กำลังดำเนินการ...')
+  Swal.fire({
+    title: 'กำลังดำเนินการ...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  })
 
   // 4. เรียก API
   const result = await authStore.changePassword({
@@ -722,13 +948,22 @@ const openPasswordConfirm = async () => {
     newPassword: newPassword.value,
   })
 
-  toast.close() // ปิด loading
-
   if (result.success) {
-    toast.success('เปลี่ยนรหัสผ่านสำเร็จ! กรุณาเข้าสู่ระบบใหม่')
+    await Swal.fire({
+      icon: 'success',
+      title: 'สำเร็จ',
+      text: 'กรุณาเข้าสู่ระบบใหม่ด้วยรหัสผ่านใหม่',
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#01E184',
+      allowOutsideClick: false,
+    })
     router.push('/login')
   } else {
-    toast.error(result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ')
+    await Swal.fire({
+      icon: 'error',
+      title: 'ผิดพลาด',
+      text: result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ',
+    })
     // เปิด Popup กลับมาให้แก้
     passwordError.value = result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ'
     showPasswordPopup.value = true
@@ -741,48 +976,75 @@ const openPasswordConfirm = async () => {
 const updateProfile = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
   if (!form.name.trim() || !form.surname.trim()) {
-    toast.warning('กรุณากรอกชื่อและนามสกุลก่อนบันทึก')
+    Swal.fire({
+      icon: 'warning',
+      title: 'ข้อมูลไม่ครบถ้วน',
+      text: 'กรุณากรอกชื่อและนามสกุลก่อนบันทึก',
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#f59e0b',
+    })
     return
   }
 
   // 2. ถามยืนยัน
-  const isConfirmed = await toast.confirm(
-    'ข้อมูลของคุณจะถูกอัปเดตเข้าระบบ',
-    'ยืนยันการบันทึกข้อมูล?',
-    { confirmText: 'ใช่, บันทึกเลย' },
-  )
+  const result = await Swal.fire({
+    title: 'ยืนยันการบันทึกข้อมูล?',
+    text: 'ข้อมูลของคุณจะถูกอัปเดตเข้าระบบ',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#1C244B',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'ใช่, บันทึกเลย',
+    cancelButtonText: 'ยกเลิก',
+  })
 
-  if (!isConfirmed) return
-
-  // 3. แสดง Loading
-  toast.loading('กำลังบันทึกข้อมูล...')
-
-  try {
-    // เตรียมข้อมูล Full Name
-    form.full_name = fullNameComputed.value
-
-    // 4. เรียก API
-    const apiResult = await authStore.updateProfile({
-      name: form.name,
-      surname: form.surname,
-      full_name: form.full_name,
-      sex: form.sex,
-      user_address_1: form.user_address_1,
-      user_address_2: form.user_address_2,
-      user_address_3: form.user_address_3,
-      profile_image_url: form.profile_image_url,
+  if (result.isConfirmed) {
+    // 3. แสดง Loading
+    Swal.fire({
+      title: 'กำลังบันทึกข้อมูล...',
+      html: 'กรุณารอสักครู่',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
     })
 
-    toast.close() // ปิด loading
+    try {
+      // เตรียมข้อมูล Full Name
+      form.full_name = fullNameComputed.value
 
-    if (apiResult.success) {
-      toast.success('บันทึกสำเร็จ! ข้อมูลของคุณถูกอัปเดตเรียบร้อยแล้ว')
-    } else {
-      throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
+      // 4. เรียก API
+      const apiResult = await authStore.updateProfile({
+        name: form.name,
+        surname: form.surname,
+        full_name: form.full_name,
+        sex: form.sex,
+        user_address_1: form.user_address_1,
+        user_address_2: form.user_address_2,
+        user_address_3: form.user_address_3,
+        profile_image_url: form.profile_image_url,
+        // (Optional) ส่งข้อมูลการเชื่อมต่อระบบอื่นไปด้วยถ้า API รองรับ
+        // user_integrate: form.user_integrate,
+        // ...
+      })
+
+      if (apiResult.success) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'บันทึกสำเร็จ!',
+          text: 'ข้อมูลของคุณถูกอัปเดตเรียบร้อยแล้ว',
+          timer: 2000,
+          showConfirmButton: false,
+        })
+      } else {
+        throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
+      }
+    } catch (err: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'บันทึกไม่สำเร็จ',
+        text: err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+        confirmButtonText: 'ลองใหม่',
+      })
     }
-  } catch (err: any) {
-    toast.close() // ปิด loading
-    toast.error(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
   }
 }
 
