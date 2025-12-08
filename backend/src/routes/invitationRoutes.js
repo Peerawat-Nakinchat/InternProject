@@ -7,6 +7,8 @@ import {
 import { validateEmail } from "../middleware/validation.js";
 import { auditLog } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
+import { inviteLimiter, acceptLimiter } from "../middleware/security/rateLimiters.js";
+
 
 export const createInvitationRoutes = (deps = {}) => {
   const router = express.Router();
@@ -82,6 +84,7 @@ export const createInvitationRoutes = (deps = {}) => {
   router.post(
     "/send",
     authMw.protect,
+    inviteLimiter,
     valMw.validateEmail,
     auditMw.auditLog(AUDIT_ACTIONS.INVITATION.SEND, "INVITATION", { severity: "MEDIUM", category: "MEMBERSHIP" }),
     controller.sendInvitation
@@ -126,6 +129,7 @@ export const createInvitationRoutes = (deps = {}) => {
   router.post(
     "/resend",
     authMw.protect,
+    inviteLimiter,
     valMw.validateEmail,
     auditMw.auditLog(AUDIT_ACTIONS.INVITATION.RESEND, "INVITATION", { severity: "LOW", category: "MEMBERSHIP" }),
     controller.resendInvitation
@@ -172,7 +176,7 @@ export const createInvitationRoutes = (deps = {}) => {
  *       500:
  *         description: Internal server error
  */
-  router.get("/:token", controller.getInvitationInfo);
+  router.get("/:token", acceptLimiter, controller.getInvitationInfo);
 
   /**
  * @swagger

@@ -41,6 +41,10 @@ import invitationRoutes from "./src/routes/invitationRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
 import auditLogRoutes from "./src/routes/auditLogRoutes.js";
 
+//Inviatation
+import { startQueueSystem } from './src/services/queueService.js';
+import InvitationService from "./src/services/InvitationService.js";
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -177,12 +181,20 @@ app.use(errorHandler);
 // ⏰ CRON JOBS
 // ========================================
 
-cron.schedule("0 2 * * *", async () => {
+cron.schedule('0 2 * * *', async () => {
+  logger.info('🕒 Starting daily cleanup jobs...');
+
   try {
-    logger.info("🧹 Running scheduled token cleanup...");
+    // 1. ลบ Token เก่า (ของเดิม)
     await RefreshTokenModel.cleanupExpiredTokens();
+    logger.info('✅ Cleaned up expired refresh tokens');
+
+    // 2. 🔥 เพิ่มใหม่: ลบคำเชิญที่หมดอายุ
+    await InvitationService.cleanupExpiredInvitations();
+    logger.info('✅ Cleaned up expired invitations');
+
   } catch (error) {
-    logger.error("❌ Error in token cleanup:", error);
+    logger.error('❌ Error in daily cleanup job:', error);
   }
 });
 
@@ -197,6 +209,12 @@ const startServer = async () => {
     if (process.env.NODE_ENV === "development") {
       await syncDatabase();
       logger.info("✅ Database synced (Development mode)");
+    }
+
+    try {
+      await startQueueSystem();
+    } catch (queueError) {
+      logger.error('❌ Failed to start Queue System:', queueError);
     }
 
     httpServer.listen(PORT, () => {

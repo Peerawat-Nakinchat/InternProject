@@ -1,6 +1,8 @@
 // src/models/InvitationModel.js
-import { DataTypes } from 'sequelize';
+import { DataTypes, Op } from 'sequelize';
 import sequelize from "../config/dbConnection.js";
+import { ROLE_ID } from "../constants/roles.js"; 
+import { INVITATION_STATUS } from "../constants/invitations.js"; 
 
 export const Invitation = sequelize.define('sys_invitations', {
   invitation_id: {
@@ -12,7 +14,8 @@ export const Invitation = sequelize.define('sys_invitations', {
     type: DataTypes.STRING(255),
     allowNull: false,
     validate: {
-      isEmail: true
+      isEmail: true,
+      notEmpty: true
     }
   },
   org_id: {
@@ -21,7 +24,13 @@ export const Invitation = sequelize.define('sys_invitations', {
   },
   role_id: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    validate: {
+      isIn: {
+        args: [Object.values(ROLE_ID)],
+        msg: "Invalid Role ID"
+      }
+    }
   },
   token: {
     type: DataTypes.STRING(500),
@@ -34,8 +43,9 @@ export const Invitation = sequelize.define('sys_invitations', {
     comment: 'User ID ของคนที่ส่งคำเชิญ'
   },
   status: {
-    type: DataTypes.ENUM('pending', 'accepted', 'rejected', 'expired', 'cancelled'),
-    defaultValue: 'pending'
+    // ใช้ Values จาก Constant มาสร้าง Enum ของ Database
+    type: DataTypes.ENUM(...Object.values(INVITATION_STATUS)),
+    defaultValue: INVITATION_STATUS.PENDING
   },
   expires_at: {
     type: DataTypes.DATE,
@@ -66,9 +76,15 @@ export const Invitation = sequelize.define('sys_invitations', {
   ]
 });
 
-// Model methods
+// ==================== REPOSITORY METHODS ====================
+
 const create = async (data, transaction = null) => {
-  return await Invitation.create(data, { transaction });
+  return await Invitation.create({
+    ...data,
+    email: data.email.toLowerCase().trim(),
+    role_id: data.role_id || ROLE_ID.VIEWER,
+    status: INVITATION_STATUS.PENDING
+  }, { transaction });
 };
 
 const findByToken = async (token) => {
@@ -76,7 +92,11 @@ const findByToken = async (token) => {
 };
 
 const findByEmail = async (email, orgId = null) => {
-  const where = { email, status: 'pending' };
+  const where = { 
+    email: email.toLowerCase().trim(), 
+    status: INVITATION_STATUS.PENDING 
+  };
+  
   if (orgId) where.org_id = orgId;
   
   return await Invitation.findAll({ where });
@@ -86,7 +106,8 @@ const updateStatus = async (invitationId, status, transaction = null) => {
   return await Invitation.update(
     { 
       status,
-      ...(status === 'accepted' && { accepted_at: new Date() })
+      // ถ้าสถานะเป็น Accepted ให้ลงเวลาด้วย
+      ...(status === INVITATION_STATUS.ACCEPTED && { accepted_at: new Date() })
     },
     { 
       where: { invitation_id: invitationId },
@@ -99,19 +120,19 @@ const findPendingByOrg = async (orgId) => {
   return await Invitation.findAll({
     where: { 
       org_id: orgId,
-      status: 'pending',
-      expires_at: { [sequelize.Sequelize.Op.gt]: new Date() }
+      status: INVITATION_STATUS.PENDING,
+      expires_at: { [Op.gt]: new Date() }
     }
   });
 };
 
 const expireOldInvitations = async () => {
   return await Invitation.update(
-    { status: 'expired' },
+    { status: INVITATION_STATUS.EXPIRED },
     {
       where: {
-        status: 'pending',
-        expires_at: { [sequelize.Sequelize.Op.lt]: new Date() }
+        status: INVITATION_STATUS.PENDING,
+        expires_at: { [Op.lt]: new Date() }
       }
     }
   );
@@ -124,6 +145,18 @@ const deleteById = async (invitationId, transaction = null) => {
   });
 };
 
+const existsPending = async (email, orgId) => {
+  const count = await Invitation.count({
+    where: {
+      email: email.toLowerCase().trim(),
+      org_id: orgId,
+      status: INVITATION_STATUS.PENDING,
+      expires_at: { [Op.gt]: new Date() }
+    }
+  });
+  return count > 0;
+};
+
 export const InvitationModel = {
   create,
   findByToken,
@@ -131,7 +164,8 @@ export const InvitationModel = {
   updateStatus,
   findPendingByOrg,
   expireOldInvitations,
-  deleteById
+  deleteById,
+  existsPending
 };
 
 export default InvitationModel;
