@@ -294,8 +294,8 @@
                   class="mb-2"
                 />
 
-                <!-- 🔐 Password Strength Indicator -->
-                <div v-if="newPassword" class="mb-4 p-3 bg-gray-50 rounded-lg">
+                <!-- 🔐 Password Strength Indicator (แสดงตลอด) -->
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
                   <!-- Progress Bar -->
                   <div class="flex items-center gap-2 mb-3">
                     <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -642,6 +642,11 @@ const passwordChecks = computed(() => ({
 }))
 
 const passwordStrength = computed(() => {
+  // ถ้าไม่มี password ให้แสดง 0% ไม่มีสี
+  if (!newPassword.value) {
+    return { percentage: 0, label: '', colorClass: '', textClass: 'text-gray-400' }
+  }
+
   const checks = passwordChecks.value
   const score = [
     checks.hasLength,
@@ -651,32 +656,27 @@ const passwordStrength = computed(() => {
     checks.hasSpecial,
   ].filter(Boolean).length
 
-  if (score <= 1)
-    return { percentage: 20, label: 'อ่อนมาก', colorClass: 'bg-red-500', textClass: 'text-red-500' }
+  if (score <= 1) return { percentage: 20, colorClass: 'bg-red-500', textClass: 'text-red-500' }
   if (score === 2)
     return {
       percentage: 40,
-      label: 'อ่อน',
       colorClass: 'bg-orange-500',
       textClass: 'text-orange-500',
     }
   if (score === 3)
     return {
       percentage: 60,
-      label: 'ปานกลาง',
       colorClass: 'bg-yellow-500',
       textClass: 'text-yellow-500',
     }
   if (score === 4)
     return {
       percentage: 80,
-      label: 'แข็งแรง',
       colorClass: 'bg-blue-500',
       textClass: 'text-blue-500',
     }
   return {
     percentage: 100,
-    label: 'แข็งแรงมาก',
     colorClass: 'bg-green-500',
     textClass: 'text-green-500',
   }
