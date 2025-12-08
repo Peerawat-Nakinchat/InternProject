@@ -1,5 +1,6 @@
 // src/models/dbModels.js
 import sequelize from "../config/dbConnection.js";
+import { ROLE_ID, ROLE_NAME } from "../constants/roles.js";
 import { DataTypes } from 'sequelize';
 
 // ==================== IMPORT MODELS ====================
@@ -99,21 +100,22 @@ const syncDatabase = async () => {
 
 // Seed initial roles
 const seedRoles = async () => {
-  const roles = [
-    { role_id: 1, role_name: 'OWNER' },
-    { role_id: 2, role_name: 'ADMIN' },
-    { role_id: 3, role_name: 'USER' },
-    { role_id: 4, role_name: 'VIEWER' },
-    { role_id: 5, role_name: 'AUDITOR' }
-  ];
+  try {
+    const roles = Object.keys(ROLE_ID).map(key => ({
+      role_id: ROLE_ID[key],     
+      role_name: ROLE_NAME[ROLE_ID[key]]
+    }));
 
-  for (const role of roles) {
-    await Role.findOrCreate({
-      where: { role_id: role.role_id },
-      defaults: role
-    });
+    for (const role of roles) {
+      await Role.findOrCreate({
+        where: { role_id: role.role_id },
+        defaults: role
+      });
+    }
+    console.log('✅ Roles seeded successfully');
+  } catch (error) {
+    console.error('❌ Role seeding error:', error);
   }
-  console.log('✅ Roles seeded successfully');
 };
 
 // ==================== EXPORTS ====================
