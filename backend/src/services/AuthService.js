@@ -123,6 +123,7 @@ export const createAuthService = (deps = {}) => {
           user_address_1,
           user_address_2,
           user_address_3,
+          is_email_verified: !!inviteToken, // ✅ ถ้ามี inviteToken ให้ถือว่า verify แล้ว
         },
         t,
       );
