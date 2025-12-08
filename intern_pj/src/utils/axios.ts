@@ -82,6 +82,12 @@ axiosInstance.interceptors.response.use(
           if (refreshed) {
             // ✅ รอให้ cookies ถูก set สมบูรณ์ก่อน retry
             await new Promise(resolve => setTimeout(resolve, 50))
+            // ✅ อัปเดต header ด้วย token ใหม่ก่อน retry
+            const auth = useAuthStore()
+            const newToken = auth.accessToken
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`
+            }
             // retry request เดิมหลัง refresh สำเร็จ
             return axiosInstance(originalRequest)
           }
@@ -110,13 +116,19 @@ axiosInstance.interceptors.response.use(
           // ช่วยให้ browser มีเวลา process cookies ก่อนส่ง request ใหม่
           await new Promise(resolve => setTimeout(resolve, 50))
 
+          // ✅ อัปเดต header ด้วย token ใหม่ก่อน retry
+          const newToken = auth.accessToken
+          if (newToken) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+          }
+
           // retry request เดิม
           return axiosInstance(originalRequest)
         } else {
-          // refresh ไม่สำเร็จ - logout แล้ว
+          // refresh ไม่สำเร็จ - logout และ redirect
           console.log('❌ Refresh failed, user logged out')
           processQueue(new Error('Refresh token expired'))
-          // ✅ ใช้ router.push แทน window.location เพื่อไม่ให้หน้า reload
+          await auth.logout()
           const currentPath = window.location.pathname
           if (currentPath !== '/login') {
             window.location.href = '/login'
@@ -126,6 +138,8 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         console.error('❌ Refresh error:', refreshError)
         processQueue(refreshError as Error)
+        const auth = useAuthStore()
+        await auth.logout()
         const currentPath = window.location.pathname
         if (currentPath !== '/login') {
           window.location.href = '/login'

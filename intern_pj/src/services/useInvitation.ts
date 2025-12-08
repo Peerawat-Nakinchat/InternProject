@@ -1,33 +1,23 @@
-import axios from 'axios';
+import axiosInstance from '@/utils/axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
-// ✅ ไม่ต้องใช้ getAuthHeader อีกต่อไป - ใช้ cookies แทน
-// const getAuthHeader = () => {
-//   const token = localStorage.getItem('accessToken');
-//   return token ? { Authorization: `Bearer ${token}` } : {};
-// };
-
+// ✅ ใช้ axiosInstance ที่มี refresh token interceptor
 export const sendInvitation = async (email: string, org_id: string, role_id: number) => {
-  const response = await axios.post(
-    `${API_URL}/invitations/send`,
-    { email, org_id, role_id },
-    { withCredentials: true } // ✅ ใช้ cookies แทน Authorization header
+  const response = await axiosInstance.post(
+    '/invitations/send',
+    { email, org_id, role_id }
   );
-  return response.data;
+  return response;
 };
 
 export const getInvitationInfo = async (token: string) => {
-  const response = await axios.get(`${API_URL}/invitations/${token}`);
-  // ✅ API returns { success: true, data: {...} } so we extract .data
-  return response.data.data || response.data;
+  const response = await axiosInstance.get(`/invitations/${token}`);
+  return response.data || response;
 };
 
 export const acceptInvitation = async (token: string) => {
-  const response = await axios.post(
-    `${API_URL}/invitations/accept`,
-    { token },
-    { withCredentials: true } // ✅ ใช้ cookies แทน Authorization header
+  const response = await axiosInstance.post(
+    '/invitations/accept',
+    { token }
   );
-  return response.data;
+  return response;
 };
