@@ -1,6 +1,7 @@
 // src/utils/axios.ts
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { toast } from '@/utils/toast' // ✅ Import toast for global error handling
 
 // 🔥 ใช้ environment variable หรือกำหนดตรงๆ
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -155,6 +156,40 @@ axiosInstance.interceptors.response.use(
       || (error.response?.data as { error?: string; message?: string })?.message
       || error.message
       || 'เกิดข้อผิดพลาด'
+
+    // ✅ Global Toast Error - แสดง toast สำหรับ errors ที่ควรแจ้งผู้ใช้
+    const status = error.response?.status
+    const url = originalRequest?.url || ''
+    
+    // Skip toast for specific cases:
+    // - 401 (handled by refresh logic above)
+    // - Auth routes (login/logout/refresh)
+    // - Silent requests (marked with _silent flag)
+    const shouldShowToast = (
+      status !== 401 &&
+      !url.includes('/auth/login') &&
+      !url.includes('/auth/logout') &&
+      !url.includes('/auth/refresh') &&
+      !(originalRequest as InternalAxiosRequestConfig & { _silent?: boolean })?._silent
+    )
+
+    if (shouldShowToast) {
+      // Show different errors based on status code
+      if (status === 403) {
+        toast.error('คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้')
+      } else if (status === 404) {
+        toast.error('ไม่พบข้อมูลที่ร้องขอ')
+      } else if (status === 422 || status === 400) {
+        toast.warning(message)
+      } else if (status === 500) {
+        toast.error('เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง')
+      } else if (status && status >= 500) {
+        toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+      } else if (!navigator.onLine) {
+        toast.error('ไม่มีการเชื่อมต่ออินเทอร์เน็ต')
+      }
+      // For other errors, components should handle themselves
+    }
 
     return Promise.reject(new Error(message))
   }

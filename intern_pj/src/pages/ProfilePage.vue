@@ -397,8 +397,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import Swal from 'sweetalert2'
-import { toast } from '@/utils/toast' // ✅ Toast Utility (ใช้สำหรับ functions ใหม่)
+import { toast } from '@/utils/toast' // ✅ Toast Utility
 // Component Input/Button ยังคงใช้เหมือนเดิม
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -448,9 +447,9 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
-const showOldPassword = ref(false)
-const showNewPassword = ref(false)
-const showConfirmPassword = ref(false)
+// const showOldPassword = ref(false)
+// const showNewPassword = ref(false)
+// const showConfirmPassword = ref(false)
 
 // ✅ ใช้ toast utility แทน Swal โดยตรง
 
@@ -599,33 +598,24 @@ const openEmailConfirm = async () => {
     return
   }
 
-  // ซ่อน Popup กรอกข้อมูลชั่วคราว เพื่อแสดง SweetAlert
+  // ซ่อน Popup กรอกข้อมูลชั่วคราว เพื่อแสดง Toast
   showEmailPopup.value = false
 
   // 2. ถามยืนยัน (Confirmation)
-  const confirmResult = await Swal.fire({
-    title: 'ยืนยันการเปลี่ยนอีเมล',
-    html: `คุณต้องการเปลี่ยนเป็น <b>${newEmail.value}</b> ใช่หรือไม่?`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#1C244B',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'ยืนยัน, เปลี่ยนเลย',
-    cancelButtonText: 'ยกเลิก',
-  })
+  const isConfirmed = await toast.confirm(
+    `คุณต้องการเปลี่ยนเป็น <b>${newEmail.value}</b> ใช่หรือไม่?`,
+    'ยืนยันการเปลี่ยนอีเมล',
+    { confirmText: 'ยืนยัน, เปลี่ยนเลย', icon: 'warning' },
+  )
 
   // ถ้ากดยกเลิก -> เปิด Popup กรอกข้อมูลกลับมา
-  if (!confirmResult.isConfirmed) {
+  if (!isConfirmed) {
     showEmailPopup.value = true
     return
   }
 
   // 3. แสดง Loading และเรียก API
-  Swal.fire({
-    title: 'กำลังตรวจสอบ...',
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  })
+  toast.loading('กำลังตรวจสอบ...')
 
   // เรียก API ผ่าน Store
   const result = await authStore.changeEmail({
@@ -633,14 +623,11 @@ const openEmailConfirm = async () => {
     password: passwordForEmail.value,
   })
 
+  toast.close() // ปิด loading
+
   // 4. จัดการผลลัพธ์ (Result Handling)
   if (result.success) {
-    await Swal.fire({
-      icon: 'success',
-      title: 'เปลี่ยนอีเมลสำเร็จ',
-      timer: 2000,
-      showConfirmButton: false,
-    })
+    toast.success('เปลี่ยนอีเมลสำเร็จ!')
     // (Optional) อาจจะต้อง Redirect หรือทำอะไรต่อที่นี่
   } else {
     // ดักจับ Error message
@@ -651,13 +638,8 @@ const openEmailConfirm = async () => {
       displayError = 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
     }
 
-    // แสดง Error ใน Swal
-    await Swal.fire({
-      icon: 'error',
-      title: 'เปลี่ยนอีเมลไม่สำเร็จ',
-      text: displayError,
-      confirmButtonText: 'ลองใหม่',
-    })
+    // แสดง Error
+    toast.error(displayError)
 
     // เปิด Popup กรอกข้อมูลกลับมา พร้อมแสดง Error
     emailError.value = displayError
@@ -720,27 +702,19 @@ const openPasswordConfirm = async () => {
   showPasswordPopup.value = false
 
   // 2. ถามยืนยัน
-  const confirmResult = await Swal.fire({
-    title: 'ยืนยันการเปลี่ยนรหัสผ่าน',
-    text: 'ระบบจะนำคุณออกจากระบบอัตโนมัติหลังเปลี่ยนสำเร็จ',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#1C244B',
-    confirmButtonText: 'เปลี่ยนรหัสผ่าน',
-    cancelButtonText: 'ยกเลิก',
-  })
+  const isConfirmed = await toast.confirm(
+    'ระบบจะนำคุณออกจากระบบอัตโนมัติหลังเปลี่ยนสำเร็จ',
+    'ยืนยันการเปลี่ยนรหัสผ่าน',
+    { confirmText: 'เปลี่ยนรหัสผ่าน', icon: 'warning' },
+  )
 
-  if (!confirmResult.isConfirmed) {
+  if (!isConfirmed) {
     showPasswordPopup.value = true
     return
   }
 
   // 3. Loading
-  Swal.fire({
-    title: 'กำลังดำเนินการ...',
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  })
+  toast.loading('กำลังดำเนินการ...')
 
   // 4. เรียก API
   const result = await authStore.changePassword({
@@ -748,22 +722,13 @@ const openPasswordConfirm = async () => {
     newPassword: newPassword.value,
   })
 
+  toast.close() // ปิด loading
+
   if (result.success) {
-    await Swal.fire({
-      icon: 'success',
-      title: 'สำเร็จ',
-      text: 'กรุณาเข้าสู่ระบบใหม่ด้วยรหัสผ่านใหม่',
-      confirmButtonText: 'ตกลง',
-      confirmButtonColor: '#01E184',
-      allowOutsideClick: false,
-    })
+    toast.success('เปลี่ยนรหัสผ่านสำเร็จ! กรุณาเข้าสู่ระบบใหม่')
     router.push('/login')
   } else {
-    await Swal.fire({
-      icon: 'error',
-      title: 'ผิดพลาด',
-      text: result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ',
-    })
+    toast.error(result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ')
     // เปิด Popup กลับมาให้แก้
     passwordError.value = result.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ'
     showPasswordPopup.value = true
@@ -776,75 +741,48 @@ const openPasswordConfirm = async () => {
 const updateProfile = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
   if (!form.name.trim() || !form.surname.trim()) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'ข้อมูลไม่ครบถ้วน',
-      text: 'กรุณากรอกชื่อและนามสกุลก่อนบันทึก',
-      confirmButtonText: 'ตกลง',
-      confirmButtonColor: '#f59e0b',
-    })
+    toast.warning('กรุณากรอกชื่อและนามสกุลก่อนบันทึก')
     return
   }
 
   // 2. ถามยืนยัน
-  const result = await Swal.fire({
-    title: 'ยืนยันการบันทึกข้อมูล?',
-    text: 'ข้อมูลของคุณจะถูกอัปเดตเข้าระบบ',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#1C244B',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'ใช่, บันทึกเลย',
-    cancelButtonText: 'ยกเลิก',
-  })
+  const isConfirmed = await toast.confirm(
+    'ข้อมูลของคุณจะถูกอัปเดตเข้าระบบ',
+    'ยืนยันการบันทึกข้อมูล?',
+    { confirmText: 'ใช่, บันทึกเลย' },
+  )
 
-  if (result.isConfirmed) {
-    // 3. แสดง Loading
-    Swal.fire({
-      title: 'กำลังบันทึกข้อมูล...',
-      html: 'กรุณารอสักครู่',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
+  if (!isConfirmed) return
+
+  // 3. แสดง Loading
+  toast.loading('กำลังบันทึกข้อมูล...')
+
+  try {
+    // เตรียมข้อมูล Full Name
+    form.full_name = fullNameComputed.value
+
+    // 4. เรียก API
+    const apiResult = await authStore.updateProfile({
+      name: form.name,
+      surname: form.surname,
+      full_name: form.full_name,
+      sex: form.sex,
+      user_address_1: form.user_address_1,
+      user_address_2: form.user_address_2,
+      user_address_3: form.user_address_3,
+      profile_image_url: form.profile_image_url,
     })
 
-    try {
-      // เตรียมข้อมูล Full Name
-      form.full_name = fullNameComputed.value
+    toast.close() // ปิด loading
 
-      // 4. เรียก API
-      const apiResult = await authStore.updateProfile({
-        name: form.name,
-        surname: form.surname,
-        full_name: form.full_name,
-        sex: form.sex,
-        user_address_1: form.user_address_1,
-        user_address_2: form.user_address_2,
-        user_address_3: form.user_address_3,
-        profile_image_url: form.profile_image_url,
-        // (Optional) ส่งข้อมูลการเชื่อมต่อระบบอื่นไปด้วยถ้า API รองรับ
-        // user_integrate: form.user_integrate,
-        // ...
-      })
-
-      if (apiResult.success) {
-        await Swal.fire({
-          icon: 'success',
-          title: 'บันทึกสำเร็จ!',
-          text: 'ข้อมูลของคุณถูกอัปเดตเรียบร้อยแล้ว',
-          timer: 2000,
-          showConfirmButton: false,
-        })
-      } else {
-        throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
-      }
-    } catch (err: any) {
-      Swal.fire({
-        icon: 'error',
-        title: 'บันทึกไม่สำเร็จ',
-        text: err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
-        confirmButtonText: 'ลองใหม่',
-      })
+    if (apiResult.success) {
+      toast.success('บันทึกสำเร็จ! ข้อมูลของคุณถูกอัปเดตเรียบร้อยแล้ว')
+    } else {
+      throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
     }
+  } catch (err: any) {
+    toast.close() // ปิด loading
+    toast.error(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
   }
 }
 
