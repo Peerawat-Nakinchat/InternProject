@@ -64,7 +64,7 @@ app.use(
       preload: true,
     },
     hidePoweredBy: true,
-  })
+  }),
 );
 
 const allowedOrigins = (
@@ -78,14 +78,14 @@ app.use(
         callback(null, true);
       } else {
         callback(
-          new Error("CORS policy does not allow access from this origin.")
+          new Error("CORS policy does not allow access from this origin."),
         );
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "x-org-id"],
-  })
+  }),
 );
 
 app.use(cookieParser());
@@ -177,12 +177,27 @@ app.use(errorHandler);
 // ⏰ CRON JOBS
 // ========================================
 
+// Token cleanup - ทุกวันตอนตี 2
 cron.schedule("0 2 * * *", async () => {
   try {
     logger.info("🧹 Running scheduled token cleanup...");
     await RefreshTokenModel.cleanupExpiredTokens();
   } catch (error) {
     logger.error("❌ Error in token cleanup:", error);
+  }
+});
+
+// OTP cleanup - ทุก 10 นาที
+cron.schedule("*/10 * * * *", async () => {
+  try {
+    logger.info("🧹 Running scheduled OTP cleanup...");
+    const { OtpModel } = await import("./src/models/OtpModel.js");
+    const deleted = await OtpModel.cleanupExpired();
+    if (deleted > 0) {
+      logger.info(`✅ Cleaned up ${deleted} expired OTP records`);
+    }
+  } catch (error) {
+    logger.error("❌ Error in OTP cleanup:", error);
   }
 });
 
@@ -201,7 +216,7 @@ const startServer = async () => {
 
     httpServer.listen(PORT, () => {
       logger.info(
-        `🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`
+        `🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`,
       );
       if (process.env.NODE_ENV !== "production") {
         console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);

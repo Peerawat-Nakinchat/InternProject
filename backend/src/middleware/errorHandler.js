@@ -1,12 +1,11 @@
 // src/middleware/errorHandler.js
-import { securityLogger } from '../utils/logger.js';
-import { 
-  ValidationError, 
-  UniqueConstraintError, 
-  ForeignKeyConstraintError, 
-  DatabaseError 
-} from 'sequelize';
-
+import { securityLogger } from "../utils/logger.js";
+import {
+  ValidationError,
+  UniqueConstraintError,
+  ForeignKeyConstraintError,
+  DatabaseError,
+} from "sequelize";
 
 /**
  * Async error wrapper
@@ -35,17 +34,23 @@ export class AppError extends Error {
  * Helper to create specific errors
  */
 export const createError = {
-  notFound: (message = 'Resource not found') => new AppError(message, 404, 'RESOURCE_NOT_FOUND'),
-  unauthorized: (message = 'Unauthorized') => new AppError(message, 401, 'UNAUTHORIZED'),
-  forbidden: (message = 'Forbidden') => new AppError(message, 403, 'FORBIDDEN'),
-  badRequest: (message = 'Bad request') => new AppError(message, 400, 'BAD_REQUEST'),
-  conflict: (message = 'Conflict') => new AppError(message, 409, 'CONFLICT'),
-  internal: (message = 'Internal server error') => new AppError(message, 500, 'INTERNAL_ERROR'),
-  validation: (message = 'Validation error', details = null) => {
-    const error = new AppError(message, 400, 'VALIDATION_ERROR');
+  notFound: (message = "Resource not found") =>
+    new AppError(message, 404, "RESOURCE_NOT_FOUND"),
+  unauthorized: (message = "Unauthorized") =>
+    new AppError(message, 401, "UNAUTHORIZED"),
+  forbidden: (message = "Forbidden") => new AppError(message, 403, "FORBIDDEN"),
+  badRequest: (message = "Bad request") =>
+    new AppError(message, 400, "BAD_REQUEST"),
+  conflict: (message = "Conflict") => new AppError(message, 409, "CONFLICT"),
+  internal: (message = "Internal server error") =>
+    new AppError(message, 500, "INTERNAL_ERROR"),
+  tooManyRequests: (message = "Too many requests") =>
+    new AppError(message, 429, "TOO_MANY_REQUESTS"),
+  validation: (message = "Validation error", details = null) => {
+    const error = new AppError(message, 400, "VALIDATION_ERROR");
     error.details = details;
     return error;
-  }
+  },
 };
 
 // --- Factory Function ---
@@ -57,7 +62,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
     ValidationError,
     UniqueConstraintError,
     ForeignKeyConstraintError,
-    DatabaseError
+    DatabaseError,
   };
 
   /**
@@ -68,12 +73,16 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
     error.status = 404;
 
     // Log suspicious 404s
-    if (req.path.includes('..') || req.path.includes('admin') || req.path.includes('phpmyadmin')) {
+    if (
+      req.path.includes("..") ||
+      req.path.includes("admin") ||
+      req.path.includes("phpmyadmin")
+    ) {
       logger.suspiciousActivity(
-        'Suspicious path access attempt',
+        "Suspicious path access attempt",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { path: req.path },
       );
     }
 
@@ -85,166 +94,166 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
    */
   const errorHandler = (err, req, res, next) => {
     let status = err.status || err.statusCode || 500;
-    let message = err.message || 'Internal Server Error';
+    let message = err.message || "Internal Server Error";
     let details = err.details || null; // Use existing details if present (e.g. from createError.validation)
 
-    console.error('❌ Error occurred:', {
+    console.error("❌ Error occurred:", {
       message: err.message,
       name: err.name,
       status,
       path: req.path,
       method: req.method,
       user: req.user?.user_id,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
 
     // --- Sequelize Errors ---
     if (err instanceof SeqErrors.ValidationError) {
       status = 400;
-      message = 'Validation error';
-      details = err.errors.map(e => ({
+      message = "Validation error";
+      details = err.errors.map((e) => ({
         field: e.path,
         message: e.message,
         type: e.type,
-        value: e.value
+        value: e.value,
       }));
 
       logger.suspiciousActivity(
-        'Validation error',
+        "Validation error",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { path: req.path, details }
+        req.clientInfo?.userAgent || "unknown",
+        { path: req.path, details },
       );
-    }
-    else if (err instanceof SeqErrors.UniqueConstraintError) {
+    } else if (err instanceof SeqErrors.UniqueConstraintError) {
       status = 409;
-      message = 'Duplicate entry';
-      const field = err.errors[0]?.path || 'unknown';
+      message = "Duplicate entry";
+      const field = err.errors[0]?.path || "unknown";
       details = { field, message: `${field} already exists` };
 
-      console.warn('⚠️ Duplicate entry attempt:', {
+      console.warn("⚠️ Duplicate entry attempt:", {
         field,
         value: err.errors[0]?.value,
-        user: req.user?.user_id
+        user: req.user?.user_id,
       });
-    }
-    else if (err instanceof SeqErrors.ForeignKeyConstraintError) {
+    } else if (err instanceof SeqErrors.ForeignKeyConstraintError) {
       status = 400;
-      message = 'Invalid reference';
+      message = "Invalid reference";
       details = {
-        field: err.fields?.[0] || 'unknown',
-        message: 'Referenced record does not exist'
+        field: err.fields?.[0] || "unknown",
+        message: "Referenced record does not exist",
       };
 
-      console.warn('⚠️ Foreign key constraint violation:', {
+      console.warn("⚠️ Foreign key constraint violation:", {
         field: err.fields,
-        user: req.user?.user_id
+        user: req.user?.user_id,
       });
-    }
-    else if (err instanceof SeqErrors.DatabaseError) {
+    } else if (err instanceof SeqErrors.DatabaseError) {
       status = 500;
-      message = process.env.NODE_ENV === 'production' ? 'Database error' : err.message;
+      message =
+        process.env.NODE_ENV === "production" ? "Database error" : err.message;
 
-      console.error('💥 Database error:', err.message);
+      console.error("💥 Database error:", err.message);
       logger.suspiciousActivity(
-        'Database error',
+        "Database error",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { error: err.message, path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { error: err.message, path: req.path },
       );
     }
 
     // --- JWT Errors ---
-    else if (err.name === 'JsonWebTokenError') {
+    else if (err.name === "JsonWebTokenError") {
       status = 401;
-      message = 'Invalid token';
+      message = "Invalid token";
       logger.suspiciousActivity(
-        'Invalid JWT token attempt',
+        "Invalid JWT token attempt",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { path: req.path },
       );
-    }
-    else if (err.name === 'TokenExpiredError') {
+    } else if (err.name === "TokenExpiredError") {
       status = 401;
-      message = 'Token expired';
+      message = "Token expired";
     }
 
     // --- Multer Errors ---
-    else if (err.name === 'MulterError') {
+    else if (err.name === "MulterError") {
       status = 400;
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        message = 'File too large';
-        details = { maxSize: '10MB' };
-      } else if (err.code === 'LIMIT_FILE_COUNT') {
-        message = 'Too many files';
-      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        message = 'Unexpected file field';
+      if (err.code === "LIMIT_FILE_SIZE") {
+        message = "File too large";
+        details = { maxSize: "10MB" };
+      } else if (err.code === "LIMIT_FILE_COUNT") {
+        message = "Too many files";
+      } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
+        message = "Unexpected file field";
       } else {
         message = err.message;
       }
     }
 
     // --- Custom Errors Code Handling ---
-    else if (err.code === 'USER_EXISTS') {
+    else if (err.code === "USER_EXISTS") {
       status = 409;
-      message = 'User already exists';
-    }
-    else if (err.code === 'INSUFFICIENT_PERMISSIONS') {
+      message = "User already exists";
+    } else if (err.code === "INSUFFICIENT_PERMISSIONS") {
       status = 403;
-      message = 'Insufficient permissions';
-    }
-    else if (err.code === 'RESOURCE_NOT_FOUND') {
+      message = "Insufficient permissions";
+    } else if (err.code === "RESOURCE_NOT_FOUND") {
       status = 404;
-      message = err.message || 'Resource not found';
-    }
-    else if (err.code === 'SUSPICIOUS_ACTIVITY') {
+      message = err.message || "Resource not found";
+    } else if (err.code === "SUSPICIOUS_ACTIVITY") {
       status = 403;
-      message = 'Suspicious activity detected';
+      message = "Suspicious activity detected";
       logger.suspiciousActivity(
-        'Blocked suspicious activity',
+        "Blocked suspicious activity",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { error: err.message, path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { error: err.message, path: req.path },
       );
     }
 
     // --- Rate Limit & Generic ---
-    else if (err.name === 'RateLimitError' || status === 429) {
+    else if (err.name === "RateLimitError" || status === 429) {
       status = 429;
-      message = 'Too many requests, please try again later';
+      message = "Too many requests, please try again later";
       logger.suspiciousActivity(
-        'Rate limit exceeded',
+        "Rate limit exceeded",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { path: req.path },
       );
-    }
-    else if (status === 500 && !message.includes('Database error')) {
+    } else if (status === 500 && !message.includes("Database error")) {
       // Catch-all for other 500s
-      console.error('💥 Unexpected error:', {
+      console.error("💥 Unexpected error:", {
         error: err,
         stack: err.stack,
         path: req.path,
         method: req.method,
-        user: req.user?.user_id
+        user: req.user?.user_id,
       });
       logger.suspiciousActivity(
-        'Unexpected server error',
+        "Unexpected server error",
         req.clientInfo?.ipAddress || req.ip,
-        req.clientInfo?.userAgent || 'unknown',
-        { error: err.message, path: req.path }
+        req.clientInfo?.userAgent || "unknown",
+        { error: err.message, path: req.path },
       );
     }
 
     // --- Response Construction ---
     const response = {
       success: false,
-      error: message
+      error: message,
     };
 
+    // Include error code if present (e.g., EMAIL_NOT_VERIFIED)
+    if (err.code) response.code = err.code;
+
+    // Include email if present (for EMAIL_NOT_VERIFIED case)
+    if (err.email) response.email = err.email;
+
     if (details) response.details = details;
-    if (process.env.NODE_ENV === 'development' && err.stack) response.stack = err.stack;
+    if (process.env.NODE_ENV === "development" && err.stack)
+      response.stack = err.stack;
     if (req.id) response.requestId = req.id;
 
     res.status(status).json(response);
@@ -262,5 +271,5 @@ export default {
   notFoundHandler,
   asyncHandler,
   AppError,
-  createError
+  createError,
 };

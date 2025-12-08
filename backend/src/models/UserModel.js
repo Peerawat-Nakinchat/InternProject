@@ -1,150 +1,157 @@
 // src/models/UserModel.js
-import { DataTypes, Op } from 'sequelize';
+import { DataTypes, Op } from "sequelize";
 import sequelize from "../config/dbConnection.js";
 import { ROLE_ID } from "../constants/roles.js";
 
-
 // ==================== USER MODEL ====================
-export const User = sequelize.define('sys_users', {
-  user_id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  email: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true,
-      notEmpty: true
-    }
-  },
-  password_hash: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-  },
-  name: {
-    type: DataTypes.STRING(200),
-    allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [1, 200]
-    }
-  },
-  surname: {
-    type: DataTypes.STRING(200),
-    allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [1, 200]
-    }
-  },
-  full_name: {
-    type: DataTypes.STRING(500),
-    allowNull: true
-  },
-  sex: {
-    type: DataTypes.STRING(10),
-    allowNull: true,
-    validate: {
-    isValidSex(value) {
-        if (value === null || value === "") return;
-        const allowed = ['M', 'F', 'O'];
-        if (!allowed.includes(value)) {
-        throw new Error("ค่าเพศไม่ถูกต้อง");
-        }
-    }   
-    }
-  },
-  user_address_1: {
-    type: DataTypes.STRING(1000),
-    allowNull: true
-  },
-  user_address_2: {
-    type: DataTypes.STRING(1000),
-    allowNull: true
-  },
-  user_address_3: {
-    type: DataTypes.STRING(1000),
-    allowNull: true
-  },
-  profile_image_url: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-    validate: {
-      isUrlOrEmpty(value) {
-      if (!value || value.trim() === '') {
-        return;
-      }
-      const urlPattern = /^https?:\/\/.+/;
-      if (!urlPattern.test(value)) {
-        throw new Error('กรุณากรอก URL ที่ถูกต้อง');
-      }
-    }
-    }
-  },
-  auth_provider: {
-    type: DataTypes.STRING(50),
-    defaultValue: 'local',
-    validate: {
-      isIn: [['local', 'google', 'facebook']]
-    }
-  },
-  provider_id: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  },
-  role_id: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-  validate : {
-    isIn : {
-      args : [Object.values(ROLE_ID)],
-      msg : "Invalid Role ID"
-    }
-  }
-  },
-  is_active: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-  reset_token: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  },
-  reset_token_expire: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-    field: 'created_at'
-  },
-  updated_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-    field: 'updated_at'
-  }
-}, {
-  timestamps: true,
-  tableName: 'sys_users',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-  hooks: {
-    beforeCreate: (user) => {
-      if (user.name && user.surname) {
-        user.full_name = `${user.name} ${user.surname}`;
-      }
+export const User = sequelize.define(
+  "sys_users",
+  {
+    user_id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
-    beforeUpdate: (user) => {
-      if (user.changed('name') || user.changed('surname')) {
-        user.full_name = `${user.name} ${user.surname}`;
-      }
-    }
-  }
-});
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true,
+        notEmpty: true,
+      },
+    },
+    password_hash: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    name: {
+      type: DataTypes.STRING(200),
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+        len: [1, 200],
+      },
+    },
+    surname: {
+      type: DataTypes.STRING(200),
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+        len: [1, 200],
+      },
+    },
+    full_name: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    sex: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+      validate: {
+        isValidSex(value) {
+          if (value === null || value === "") return;
+          const allowed = ["M", "F", "O"];
+          if (!allowed.includes(value)) {
+            throw new Error("ค่าเพศไม่ถูกต้อง");
+          }
+        },
+      },
+    },
+    user_address_1: {
+      type: DataTypes.STRING(1000),
+      allowNull: true,
+    },
+    user_address_2: {
+      type: DataTypes.STRING(1000),
+      allowNull: true,
+    },
+    user_address_3: {
+      type: DataTypes.STRING(1000),
+      allowNull: true,
+    },
+    profile_image_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      validate: {
+        isUrlOrEmpty(value) {
+          if (!value || value.trim() === "") {
+            return;
+          }
+          const urlPattern = /^https?:\/\/.+/;
+          if (!urlPattern.test(value)) {
+            throw new Error("กรุณากรอก URL ที่ถูกต้อง");
+          }
+        },
+      },
+    },
+    auth_provider: {
+      type: DataTypes.STRING(50),
+      defaultValue: "local",
+      validate: {
+        isIn: [["local", "google", "facebook"]],
+      },
+    },
+    provider_id: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    role_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      validate: {
+        isIn: {
+          args: [Object.values(ROLE_ID)],
+          msg: "Invalid Role ID",
+        },
+      },
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    is_email_verified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    reset_token: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    reset_token_expire: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      field: "updated_at",
+    },
+  },
+  {
+    timestamps: true,
+    tableName: "sys_users",
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+    hooks: {
+      beforeCreate: (user) => {
+        if (user.name && user.surname) {
+          user.full_name = `${user.name} ${user.surname}`;
+        }
+      },
+      beforeUpdate: (user) => {
+        if (user.changed("name") || user.changed("surname")) {
+          user.full_name = `${user.name} ${user.surname}`;
+        }
+      },
+    },
+  },
+);
 
 /**
  * Find user by ID
@@ -152,13 +159,15 @@ export const User = sequelize.define('sys_users', {
 const findById = async (userId) => {
   return await User.findByPk(userId, {
     attributes: {
-      exclude: ['password_hash', 'reset_token', 'reset_token_expire']
+      exclude: ["password_hash", "reset_token", "reset_token_expire"],
     },
-    include: [{
-      model: sequelize.models.sys_role,
-      as: 'role',
-      attributes: ['role_id', 'role_name']
-    }]
+    include: [
+      {
+        model: sequelize.models.sys_role,
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
@@ -168,11 +177,13 @@ const findById = async (userId) => {
 const findByEmail = async (email) => {
   return await User.findOne({
     where: { email: email.toLowerCase().trim() },
-    include: [{
-      model: sequelize.models.sys_role,
-      as: 'role',
-      attributes: ['role_id', 'role_name']
-    }]
+    include: [
+      {
+        model: sequelize.models.sys_role,
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
@@ -182,11 +193,13 @@ const findByEmail = async (email) => {
 const findByEmailWithPassword = async (email) => {
   return await User.findOne({
     where: { email: email.toLowerCase().trim() },
-    include: [{
-      model: sequelize.models.sys_role,
-      as: 'role',
-      attributes: ['role_id', 'role_name']
-    }]
+    include: [
+      {
+        model: sequelize.models.sys_role,
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
@@ -194,18 +207,21 @@ const findByEmailWithPassword = async (email) => {
  * Create new user
  */
 const create = async (userData, transaction = null) => {
-  return await User.create({
-    email: userData.email.toLowerCase().trim(),
-    password_hash: userData.passwordHash,
-    name: userData.name.trim(),
-    surname: userData.surname.trim(),
-    sex: userData.sex || 'O',
-    user_address_1: userData.user_address_1 || '',
-    user_address_2: userData.user_address_2 || '',
-    user_address_3: userData.user_address_3 || '',
-    role_id: userData.role_id || ROLE_ID.MEMBER, // Default USER role
-    is_active: true
-  }, { transaction });
+  return await User.create(
+    {
+      email: userData.email.toLowerCase().trim(),
+      password_hash: userData.passwordHash,
+      name: userData.name.trim(),
+      surname: userData.surname.trim(),
+      sex: userData.sex || "O",
+      user_address_1: userData.user_address_1 || "",
+      user_address_2: userData.user_address_2 || "",
+      user_address_3: userData.user_address_3 || "",
+      role_id: userData.role_id || ROLE_ID.MEMBER, // Default USER role
+      is_active: true,
+    },
+    { transaction },
+  );
 };
 
 /**
@@ -216,13 +232,13 @@ const updatePassword = async (userId, passwordHash, transaction = null) => {
     {
       password_hash: passwordHash,
       reset_token: null,
-      reset_token_expire: null
+      reset_token_expire: null,
     },
     {
       where: { user_id: userId },
       returning: true,
-      transaction
-    }
+      transaction,
+    },
   );
 
   return updatedUser;
@@ -235,13 +251,13 @@ const setResetToken = async (userId, token, expireDate, transaction = null) => {
   const [rowsUpdated, [updatedUser]] = await User.update(
     {
       reset_token: token,
-      reset_token_expire: expireDate
+      reset_token_expire: expireDate,
     },
     {
       where: { user_id: userId },
       returning: true,
-      transaction
-    }
+      transaction,
+    },
   );
 
   return updatedUser;
@@ -255,10 +271,10 @@ const findByResetToken = async (token) => {
     where: {
       reset_token: token,
       reset_token_expire: {
-        [Op.gt]: new Date()
-      }
+        [Op.gt]: new Date(),
+      },
     },
-    attributes: ['user_id', 'email', 'reset_token', 'reset_token_expire']
+    attributes: ["user_id", "email", "reset_token", "reset_token_expire"],
   });
 };
 
@@ -268,13 +284,13 @@ const findByResetToken = async (token) => {
 const updateEmail = async (userId, newEmail, transaction = null) => {
   const [rowsUpdated, [updatedUser]] = await User.update(
     {
-      email: newEmail.toLowerCase().trim()
+      email: newEmail.toLowerCase().trim(),
     },
     {
       where: { user_id: userId },
       returning: true,
-      transaction
-    }
+      transaction,
+    },
   );
 
   return updatedUser;
@@ -284,14 +300,17 @@ const updateEmail = async (userId, newEmail, transaction = null) => {
  * Update user profile
  */
 const updateProfile = async (userId, data, transaction = null) => {
-
   const user = await User.findByPk(userId, { transaction });
   if (!user) return null;
 
   const allowedFields = [
-    'name', 'surname', 'sex', 
-    'user_address_1', 'user_address_2', 'user_address_3', 
-    'profile_image_url'
+    "name",
+    "surname",
+    "sex",
+    "user_address_1",
+    "user_address_2",
+    "user_address_3",
+    "profile_image_url",
   ];
 
   let hasChanges = false;
@@ -299,12 +318,12 @@ const updateProfile = async (userId, data, transaction = null) => {
   for (const field of allowedFields) {
     if (data[field] !== undefined) {
       let newValue = data[field];
-      if (newValue === '') {
-         if (field === 'sex' || field === 'profile_image_url') {
-            newValue = null; 
-         } 
+      if (newValue === "") {
+        if (field === "sex" || field === "profile_image_url") {
+          newValue = null;
+        }
       }
-      
+
       if (user[field] !== newValue) {
         user[field] = newValue;
         hasChanges = true;
@@ -325,10 +344,10 @@ const updateProfile = async (userId, data, transaction = null) => {
 const deactivate = async (userId, transaction = null) => {
   const [rowsUpdated] = await User.update(
     { is_active: false },
-    { 
+    {
       where: { user_id: userId },
-      transaction 
-    }
+      transaction,
+    },
   );
 
   return rowsUpdated > 0;
@@ -340,10 +359,10 @@ const deactivate = async (userId, transaction = null) => {
 const activate = async (userId, transaction = null) => {
   const [rowsUpdated] = await User.update(
     { is_active: true },
-    { 
+    {
       where: { user_id: userId },
-      transaction 
-    }
+      transaction,
+    },
   );
 
   return rowsUpdated > 0;
@@ -355,7 +374,7 @@ const activate = async (userId, transaction = null) => {
 const deleteUser = async (userId, transaction = null) => {
   const deleted = await User.destroy({
     where: { user_id: userId },
-    transaction
+    transaction,
   });
 
   return deleted > 0;
@@ -368,8 +387,8 @@ const search = async (filters = {}, options = {}) => {
   const {
     page = 1,
     limit = 10,
-    sortBy = 'created_at',
-    sortOrder = 'DESC'
+    sortBy = "created_at",
+    sortOrder = "DESC",
   } = options;
 
   const where = {};
@@ -382,7 +401,7 @@ const search = async (filters = {}, options = {}) => {
     where[Op.or] = [
       { name: { [Op.iLike]: `${filters.name}%` } },
       { surname: { [Op.iLike]: `${filters.name}%` } },
-      { full_name: { [Op.iLike]: `${filters.name}%` } }
+      { full_name: { [Op.iLike]: `${filters.name}%` } },
     ];
   }
 
@@ -396,24 +415,26 @@ const search = async (filters = {}, options = {}) => {
 
   const { count, rows } = await User.findAndCountAll({
     where,
-    attributes: { 
-      exclude: ['password_hash', 'reset_token', 'reset_token_expire'] 
+    attributes: {
+      exclude: ["password_hash", "reset_token", "reset_token_expire"],
     },
-    include: [{
-      model: sequelize.models.sys_role,
-      as: 'role',
-      attributes: ['role_id', 'role_name']
-    }],
+    include: [
+      {
+        model: sequelize.models.sys_role,
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
     limit,
     offset: (page - 1) * limit,
-    order: [[sortBy, sortOrder]]
+    order: [[sortBy, sortOrder]],
   });
 
   return {
     users: rows,
     total: count,
     page,
-    totalPages: Math.ceil(count / limit)
+    totalPages: Math.ceil(count / limit),
   };
 };
 
@@ -429,7 +450,7 @@ const count = async (where = {}) => {
  */
 const emailExists = async (email, excludeUserId = null) => {
   const where = { email: email.toLowerCase().trim() };
-  
+
   if (excludeUserId) {
     where.user_id = { [Op.ne]: excludeUserId };
   }
@@ -442,20 +463,19 @@ const emailExists = async (email, excludeUserId = null) => {
  * Bulk create users
  */
 const bulkCreate = async (usersData, transaction = null) => {
-
-  const preparedData = usersData.map(u => ({
+  const preparedData = usersData.map((u) => ({
     ...u,
     email: u.email?.toLowerCase().trim(),
     name: u.name?.trim(),
     surname: u.surname?.trim(),
-    role_id: u.role_id || ROLE_ID.MEMBER, 
-    is_active: true
+    role_id: u.role_id || ROLE_ID.MEMBER,
+    is_active: true,
   }));
 
-  return await User.bulkCreate(preparedData, { 
+  return await User.bulkCreate(preparedData, {
     transaction,
     validate: true,
-    individualHooks: true 
+    individualHooks: true,
   });
 };
 
@@ -465,10 +485,29 @@ const bulkCreate = async (usersData, transaction = null) => {
 const updateRole = async (userId, roleId, transaction = null) => {
   const [rowsUpdated] = await User.update(
     { role_id: roleId },
-    { 
+    {
       where: { user_id: userId },
-      transaction 
-    }
+      transaction,
+    },
+  );
+
+  return rowsUpdated > 0;
+};
+
+/**
+ * Set email verified status
+ */
+const setEmailVerified = async (
+  userId,
+  verified = true,
+  transaction = null,
+) => {
+  const [rowsUpdated] = await User.update(
+    { is_email_verified: verified },
+    {
+      where: { user_id: userId },
+      transaction,
+    },
   );
 
   return rowsUpdated > 0;
@@ -491,7 +530,8 @@ export const UserModel = {
   count,
   emailExists,
   bulkCreate,
-  updateRole
+  updateRole,
+  setEmailVerified,
 };
 
 export default UserModel;

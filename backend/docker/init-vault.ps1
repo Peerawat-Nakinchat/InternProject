@@ -30,7 +30,7 @@ docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token
 
 # 5. Add backend/mail
 Write-Host "5. Adding backend/mail..." -ForegroundColor Green
-docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault kv put kv/backend/mail MAIL_HOST=smtp.gmail.com MAIL_PORT=587 MAIL_USER=minlen7k@gmail.com MAIL_PASS=yngytcckhlfabmeb | Out-Null
+docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault kv put kv/backend/mail MAIL_HOST=smtp.gmail.com MAIL_PORT=587 MAIL_USER=minlen7k@gmail.com MAIL_PASS=yngytcckhlfabmeb MAIL_FROM_NAME="ISO Mango System" ` MAIL_FROM_ADDRESS=minlen7k@gmail.com ` MAIL_SECURE=false ` | Out-Null
 
 # 6. Add backend/supabase
 Write-Host "6. Adding backend/supabase..." -ForegroundColor Green

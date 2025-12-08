@@ -143,6 +143,15 @@
         :minutes="rateLimitMinutes"
         @close="showRateLimit = false"
       />
+
+      <!-- OTP Verification Modal (for unverified email) -->
+      <OtpVerificationModal
+        :open="showOtpModal"
+        :email="unverifiedEmail"
+        purpose="email_verification"
+        @close="showOtpModal = false"
+        @verified="onOtpVerified"
+      />
     </AuthLayout>
   </div>
 </template>
@@ -160,7 +169,11 @@ import LoadingMessage from '@/components/loading/LoadingMessage.vue'
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
 import ResetPasswordModal from '@/components/auth/ResetPasswordModal.vue'
 import RateLimitModal from '@/components/base/RateLimitModal.vue'
+import OtpVerificationModal from '@/components/auth/OtpVerificationModal.vue'
 import { hasEssentialConsent } from '@/utils/cookieConsent'
+import axios from 'axios'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 interface LoginForm {
   email: string
@@ -189,6 +202,10 @@ const showReset = ref(false)
 const resetToken = ref('')
 const showRateLimit = ref(false)
 const rateLimitMinutes = ref<number | undefined>(undefined)
+
+// OTP Modal states
+const showOtpModal = ref(false)
+const unverifiedEmail = ref('')
 
 const openForgot = () => {
   showForgot.value = true
@@ -284,7 +301,6 @@ const handleLogin = async () => {
     const result = await authStore.login({
       email: form.email,
       password: form.password,
-      remember: form.remember,
     })
 
     if (result?.success) {
@@ -299,8 +315,29 @@ const handleLogin = async () => {
       return
     }
 
+    // ✅ Handle EMAIL_NOT_VERIFIED from result
+    if (result && 'code' in result && result.code === 'EMAIL_NOT_VERIFIED') {
+      const email = ('email' in result ? result.email : form.email) as string
+      unverifiedEmail.value = email
+
+      // Send OTP to the email
+      try {
+        await axios.post(`${API_BASE_URL}/auth/send-otp`, {
+          email: email,
+          purpose: 'email_verification',
+        })
+        showOtpModal.value = true
+        toast.warning('กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ')
+      } catch (otpErr) {
+        console.error('Error sending OTP:', otpErr)
+        toast.error('ไม่สามารถส่ง OTP ได้ กรุณาลองใหม่')
+      }
+      return
+    }
+
     if (result && 'rateLimited' in result && result.rateLimited) {
-      rateLimitMinutes.value = 'retryAfter' in result ? result.retryAfter : undefined
+      const retryVal = 'retryAfter' in result ? result.retryAfter : undefined
+      rateLimitMinutes.value = typeof retryVal === 'number' ? retryVal : undefined
       showRateLimit.value = true
       return
     }
@@ -339,5 +376,11 @@ const handleMicrosoftLogin = () => {
     return
   }
   alert('Microsoft OAuth ยังไม่พร้อมใช้งาน')
+}
+
+// ✅ Handler เมื่อ OTP ยืนยันสำเร็จ
+const onOtpVerified = () => {
+  toast.success('ยืนยันอีเมลสำเร็จ! กรุณาเข้าสู่ระบบอีกครั้ง')
+  showOtpModal.value = false
 }
 </script>

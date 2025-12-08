@@ -124,9 +124,21 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
       
-      // Check Rate Limit (AxiosError has response property)
+      // Check for Axios error with response
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string> } }
+        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string>; data?: { code?: string; email?: string; error?: string } } }
+        
+        // Check for EMAIL_NOT_VERIFIED
+        if (axiosErr.response?.status === 403 && axiosErr.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+          return { 
+            success: false, 
+            error: 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ',
+            code: 'EMAIL_NOT_VERIFIED',
+            email: axiosErr.response.data.email
+          }
+        }
+        
+        // Check Rate Limit
         if (axiosErr.response?.status === 429) {
           const retryAfter = axiosErr.response.headers?.['retry-after']
           return { success: false, error: error.value, rateLimited: true, retryAfter }

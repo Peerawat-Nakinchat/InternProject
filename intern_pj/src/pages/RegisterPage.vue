@@ -266,22 +266,32 @@
           <router-link to="/login" class="text-purple-600 underline">เข้าสู่ระบบ</router-link>
         </p>
       </form>
+
+      <!-- OTP Verification Modal -->
+      <OtpVerificationModal
+        :open="showOtpModal"
+        :email="registeredEmail"
+        purpose="email_verification"
+        @close="showOtpModal = false"
+        @verified="onOtpVerified"
+      />
     </AuthLayout>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInvitationInfo } from '@/services/useInvitation'
 import { toast } from '@/utils/toast' // ✅ Toast Utility
 
-// Components
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import LoadingMessage from '@/components/loading/LoadingMessage.vue'
+import OtpVerificationModal from '@/components/auth/OtpVerificationModal.vue'
+import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -305,6 +315,11 @@ const route = useRoute() // Get route
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+
+// OTP Modal state
+const showOtpModal = ref(false)
+const registeredEmail = ref('')
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 const allowManualEmail = ref(false)
 const isEmailLocked = computed(() => {
@@ -529,19 +544,32 @@ const submitForm = async () => {
     const data = await response.json()
 
     if (data.success) {
-      toast.success('ลงทะเบียนสำเร็จ!') // ✅ Toast success
+      toast.success('ลงทะเบียนสำเร็จ! กรุณายืนยันอีเมล') // ✅ Toast success
       successMessage.value = 'ลงทะเบียนสำเร็จ!'
-      // ✅ ไม่ใช้ localStorage อีกต่อไป - ใช้ cookies แทน
-      // Tokens จะถูก set เป็น HTTP-Only cookies โดย backend
-      // if (data.accessToken) localStorage.setItem('accessToken', data.accessToken)
-      // if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
+
       if (data.user) {
-        // localStorage.setItem('user', JSON.stringify(data.user))
         authStore.user = data.user
       }
-      console.log('✅ Register สำเร็จ - Redirecting to login')
 
-      setTimeout(() => router.push('/login'), 2000)
+      console.log('✅ Register สำเร็จ - Sending OTP')
+
+      // ส่ง OTP ไปยังอีเมลที่ลงทะเบียน
+      registeredEmail.value = form.value.email
+
+      try {
+        await axios.post(`${API_BASE_URL}/auth/send-otp`, {
+          email: form.value.email,
+          purpose: 'email_verification',
+        })
+
+        // แสดง OTP Modal
+        showOtpModal.value = true
+      } catch (otpErr) {
+        console.error('Error sending OTP:', otpErr)
+        // ถ้าส่ง OTP ไม่ได้ ก็ redirect ไป login เลย
+        toast.warning('ไม่สามารถส่ง OTP ได้ กรุณายืนยันอีเมลภายหลัง')
+        setTimeout(() => router.push('/login'), 2000)
+      }
     } else {
       toast.error(data.error || 'การลงทะเบียนไม่สำเร็จ') // ✅ Toast error
       errorMessage.value = data.error || 'การลงทะเบียนไม่สำเร็จ'
@@ -553,5 +581,12 @@ const submitForm = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// Handler เมื่อ OTP ยืนยันสำเร็จ
+const onOtpVerified = () => {
+  toast.success('ยืนยันอีเมลสำเร็จ! กำลังไปหน้าเข้าสู่ระบบ...')
+  showOtpModal.value = false
+  setTimeout(() => router.push('/login'), 1500)
 }
 </script>

@@ -152,8 +152,15 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    const message = (error.response?.data as { error?: string; message?: string })?.error
-      || (error.response?.data as { error?: string; message?: string })?.message
+    const responseData = error.response?.data as { 
+      error?: string; 
+      message?: string; 
+      code?: string;
+      email?: string;
+    } | undefined
+
+    const message = responseData?.error
+      || responseData?.message
       || error.message
       || 'เกิดข้อผิดพลาด'
 
@@ -165,8 +172,12 @@ axiosInstance.interceptors.response.use(
     // - 401 (handled by refresh logic above)
     // - Auth routes (login/logout/refresh)
     // - Silent requests (marked with _silent flag)
+    // - EMAIL_NOT_VERIFIED (handled by login page)
+    const isEmailNotVerified = responseData?.code === 'EMAIL_NOT_VERIFIED'
+    
     const shouldShowToast = (
       status !== 401 &&
+      !isEmailNotVerified &&
       !url.includes('/auth/login') &&
       !url.includes('/auth/logout') &&
       !url.includes('/auth/refresh') &&
@@ -191,7 +202,17 @@ axiosInstance.interceptors.response.use(
       // For other errors, components should handle themselves
     }
 
-    return Promise.reject(new Error(message))
+    // ✅ Create enhanced error with response data
+    const enhancedError = new Error(message) as Error & { 
+      response?: { data?: typeof responseData; status?: number }
+      code?: string
+      email?: string
+    }
+    enhancedError.response = { data: responseData, status }
+    if (responseData?.code) enhancedError.code = responseData.code
+    if (responseData?.email) enhancedError.email = responseData.email
+
+    return Promise.reject(enhancedError)
   }
 )
 
