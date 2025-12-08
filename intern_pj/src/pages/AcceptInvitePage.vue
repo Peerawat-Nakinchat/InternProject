@@ -138,6 +138,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInvitationInfo, acceptInvitation } from '@/services/useInvitation'
+import { toast } from '@/utils/toast' // ✅ Toast Utility
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseLoadingSpinner from '@/components/base/BaseLoadingSpinner.vue'
@@ -189,11 +190,14 @@ const onAcceptExisting = async () => {
     }
 
     viewState.value = 'success'
+    toast.success('เข้าร่วมบริษัทสำเร็จ!') // ✅ Toast success
   } catch (err: any) {
     if (err.response?.status === 409) {
       errorMessage.value = err.response.data.message
+      toast.error(err.response.data.message) // ✅ Toast error
     } else {
       errorMessage.value = 'เกิดข้อผิดพลาดในการตอบรับคำเชิญ'
+      toast.error('เกิดข้อผิดพลาดในการตอบรับคำเชิญ') // ✅ Toast error
     }
     viewState.value = 'error'
   }

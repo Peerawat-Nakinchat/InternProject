@@ -16,7 +16,7 @@
           <h1 class="mb-4 text-xl font-semibold tracking-tight text-slate-900">เข้าสู่ระบบ</h1>
         </header>
 
-        <!-- Invitation Success Message -->
+        <!-- Invitation Success Message (เก็บไว้เพราะเป็นกรณีพิเศษ) -->
         <div
           v-if="invitationSuccessMessage && !isLoading"
           class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
@@ -24,21 +24,7 @@
           {{ invitationSuccessMessage }}
         </div>
 
-        <!-- Error Message -->
-        <div
-          v-if="errorMessage && !isLoading"
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
-        >
-          {{ errorMessage }}
-        </div>
-
-        <!-- Success Message -->
-        <div
-          v-if="successMessage && !isLoading"
-          class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
-        >
-          {{ successMessage }}
-        </div>
+        <!-- ✅ ลบ Error/Success boxes ออกแล้ว - ใช้ Toast แทน -->
 
         <BaseInput
           v-model="form.email"
@@ -165,6 +151,7 @@
 import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { toast } from '@/utils/toast' // ✅ Toast Utility
 
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -209,6 +196,7 @@ const openForgot = () => {
 
 const onForgotSent = () => {
   showForgot.value = false
+  toast.success('ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว') // ✅ Toast
   successMessage.value = 'ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว'
   setTimeout(() => {
     successMessage.value = ''
@@ -218,6 +206,7 @@ const onForgotSent = () => {
 const onResetSuccess = () => {
   sessionStorage.removeItem('reset_token')
   showReset.value = false
+  toast.success('เปลี่ยนรหัสผ่านสำเร็จ!') // ✅ Toast
   successMessage.value = 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่'
 
   setTimeout(() => {
@@ -237,7 +226,7 @@ onMounted(() => {
   const message = route.query.message as string
   if (message === 'registration_with_invitation_success') {
     invitationSuccessMessage.value = '🎉 ลงทะเบียนและเข้าร่วมองค์กรสำเร็จ! กรุณาเข้าสู่ระบบ'
-    
+
     // Clear message after 5 seconds
     setTimeout(() => {
       invitationSuccessMessage.value = ''
@@ -284,6 +273,7 @@ const handleLogin = async () => {
   invitationSuccessMessage.value = '' // ✅ Clear invitation message
 
   if (!form.email || !form.password) {
+    toast.warning('กรุณากรอกอีเมลและรหัสผ่าน') // ✅ Toast warning
     errorMessage.value = 'กรุณากรอกอีเมลและรหัสผ่าน'
     return
   }
@@ -298,6 +288,7 @@ const handleLogin = async () => {
     })
 
     if (result?.success) {
+      toast.success('เข้าสู่ระบบสำเร็จ!') // ✅ Toast success
       successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
 
       setTimeout(() => {
@@ -320,8 +311,10 @@ const handleLogin = async () => {
       return
     }
 
-    errorMessage.value = result?.error || 'เข้าสู่ระบบไม่สำเร็จ'
+    toast.error('อีเมลหรือรหัสผ่านไม่ถูกต้อง') // ✅ Toast error
+    errorMessage.value = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
   } catch {
+    toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์') // ✅ Toast error
     errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
   } finally {
     if (!successMessage.value) {

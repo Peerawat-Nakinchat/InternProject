@@ -19,7 +19,8 @@ export const sendInvitation = async (email: string, org_id: string, role_id: num
 
 export const getInvitationInfo = async (token: string) => {
   const response = await axios.get(`${API_URL}/invitations/${token}`);
-  return response.data;
+  // ✅ API returns { success: true, data: {...} } so we extract .data
+  return response.data.data || response.data;
 };
 
 export const acceptInvitation = async (token: string) => {

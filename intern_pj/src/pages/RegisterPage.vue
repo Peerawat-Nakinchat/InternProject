@@ -14,21 +14,7 @@
       <form class="w-full max-w-md space-y-2.5" @submit.prevent="submitForm">
         <h2 class="text-xl font-semibold text-center text-slate-900">ลงทะเบียน</h2>
 
-        <!-- แสดง Error Message -->
-        <div
-          v-if="errorMessage && !isLoading"
-          class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
-        >
-          {{ errorMessage }}
-        </div>
-
-        <!-- แสดง Success Message -->
-        <div
-          v-if="successMessage && !isLoading"
-          class="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm"
-        >
-          {{ successMessage }}
-        </div>
+        <!-- ✅ ลบ Error/Success boxes ออกแล้ว - ใช้ Toast แทน -->
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
           <!-- Name -->
@@ -193,6 +179,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInvitationInfo } from '@/services/useInvitation'
+import { toast } from '@/utils/toast' // ✅ Toast Utility
 
 // Components
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -372,6 +359,7 @@ const submitForm = async () => {
   Object.keys(formErrors.value).forEach((field) => validateField(field))
 
   if (Object.values(formErrors.value).some((err) => err !== '')) {
+    toast.warning('กรุณากรอกข้อมูลให้ถูกต้อง') // ✅ Toast warning
     errorMessage.value = 'กรุณากรอกข้อมูลให้ถูกต้อง'
     return
   }
@@ -391,6 +379,7 @@ const submitForm = async () => {
     const data = await response.json()
 
     if (data.success) {
+      toast.success('ลงทะเบียนสำเร็จ!') // ✅ Toast success
       successMessage.value = 'ลงทะเบียนสำเร็จ!'
       // ✅ ไม่ใช้ localStorage อีกต่อไป - ใช้ cookies แทน
       // Tokens จะถูก set เป็น HTTP-Only cookies โดย backend
@@ -404,10 +393,12 @@ const submitForm = async () => {
 
       setTimeout(() => router.push('/login'), 2000)
     } else {
+      toast.error(data.error || 'การลงทะเบียนไม่สำเร็จ') // ✅ Toast error
       errorMessage.value = data.error || 'การลงทะเบียนไม่สำเร็จ'
     }
   } catch (err) {
     console.error('Register error:', err)
+    toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์') // ✅ Toast error
     errorMessage.value = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
   } finally {
     isLoading.value = false
