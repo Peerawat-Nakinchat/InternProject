@@ -34,7 +34,6 @@ export function determineCategory(action) {
  * @param {Object} deps - Dependencies injection
  */
 export const createAuditLogMiddleware = (deps = {}) => {
-  // Inject Dependencies (default to real modules if not provided)
   const auditService = deps.AuditLogService || AuditLogService;
   const generateUuid = deps.uuid || uuidv4;
 

@@ -14,3 +14,19 @@ export const ROLE_NAME = {
   4: 'VIEWER',
   5: 'AUDITOR'
 };
+
+export const ROLE_HIERARCHY = {
+  [ROLE_ID.OWNER]: 100,
+  [ROLE_ID.ADMIN]: 80,
+  [ROLE_ID.AUDITOR]: 60,
+  [ROLE_ID.MEMBER]: 40,
+  [ROLE_ID.VIEWER]: 20
+};
+
+export const ROLE_PERMISSIONS = {
+  [ROLE_ID.OWNER]: ['all'],
+  [ROLE_ID.ADMIN]: ['manage_users', 'view_logs', 'manage_content'],
+  [ROLE_ID.MEMBER]: ['create_content', 'edit_own_content'],
+  [ROLE_ID.AUDITOR]: ['view_logs', 'read_only'],
+  [ROLE_ID.VIEWER]: ['read_only']
+};

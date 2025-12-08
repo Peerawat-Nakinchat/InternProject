@@ -1,7 +1,7 @@
 // src/models/UserModel.js
 import { DataTypes, Op } from 'sequelize';
 import sequelize from "../config/dbConnection.js";
-import Role from "./RoleModel.js";
+import { ROLE_ID } from "../constants/roles.js";
 
 
 // ==================== USER MODEL ====================
@@ -97,7 +97,13 @@ export const User = sequelize.define('sys_users', {
   },
   role_id: {
   type: DataTypes.INTEGER,
-  allowNull: false
+  allowNull: false,
+  validate : {
+    isIn : {
+      args : [Object.values(ROLE_ID)],
+      msg : "Invalid Role ID"
+    }
+  }
   },
   is_active: {
     type: DataTypes.BOOLEAN,
@@ -197,7 +203,7 @@ const create = async (userData, transaction = null) => {
     user_address_1: userData.user_address_1 || '',
     user_address_2: userData.user_address_2 || '',
     user_address_3: userData.user_address_3 || '',
-    role_id: userData.role_id || 3, // Default USER role
+    role_id: userData.role_id || ROLE_ID.MEMBER, // Default USER role
     is_active: true
   }, { transaction });
 };
@@ -278,47 +284,39 @@ const updateEmail = async (userId, newEmail, transaction = null) => {
  * Update user profile
  */
 const updateProfile = async (userId, data, transaction = null) => {
-  // Only update fields that are provided
-  const updateData = {};
-  
+
+  const user = await User.findByPk(userId, { transaction });
+  if (!user) return null;
+
   const allowedFields = [
-    'name',
-    'surname',
-    'full_name',
-    'sex',
-    'user_address_1',
-    'user_address_2',
-    'user_address_3',
+    'name', 'surname', 'sex', 
+    'user_address_1', 'user_address_2', 'user_address_3', 
     'profile_image_url'
   ];
 
+  let hasChanges = false;
+
   for (const field of allowedFields) {
     if (data[field] !== undefined) {
-      if (data[field] === '') {
+      let newValue = data[field];
+      if (newValue === '') {
          if (field === 'sex' || field === 'profile_image_url') {
-            updateData[field] = null; 
-         } else {
-            // สำหรับ name/surname ถ้าส่งมาว่าง ให้คงไว้เพื่อให้ Sequelize ด่า (Validate) ว่าห้ามว่าง
-            updateData[field] = data[field];
-         }
-      } else {
-         // กรณีมีข้อมูลปกติ
-         updateData[field] = data[field];
+            newValue = null; 
+         } 
+      }
+      
+      if (user[field] !== newValue) {
+        user[field] = newValue;
+        hasChanges = true;
       }
     }
   }
 
-  const [rowsUpdated, [updatedUser]] = await User.update(
-    updateData,
-    {
-      where: { user_id: userId },
-      returning: true,
-      validate: true,
-      transaction
-    }
-  );
+  if (hasChanges) {
+    await user.save({ transaction, validate: true });
+  }
 
-  return updatedUser;
+  return user;
 };
 
 /**
@@ -444,9 +442,20 @@ const emailExists = async (email, excludeUserId = null) => {
  * Bulk create users
  */
 const bulkCreate = async (usersData, transaction = null) => {
-  return await User.bulkCreate(usersData, { 
+
+  const preparedData = usersData.map(u => ({
+    ...u,
+    email: u.email?.toLowerCase().trim(),
+    name: u.name?.trim(),
+    surname: u.surname?.trim(),
+    role_id: u.role_id || ROLE_ID.MEMBER, 
+    is_active: true
+  }));
+
+  return await User.bulkCreate(preparedData, { 
     transaction,
-    validate: true 
+    validate: true,
+    individualHooks: true 
   });
 };
 

@@ -7,7 +7,6 @@ import {
   DatabaseError 
 } from 'sequelize';
 
-// --- Utilities (Pure Classes/Functions) ---
 
 /**
  * Async error wrapper

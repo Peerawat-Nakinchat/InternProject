@@ -4,8 +4,6 @@ import { createError } from './errorHandler.js';
 
 export const createSequelizeSecurityMiddleware = (deps = {}) => {
   const purifier = deps.DOMPurify || DOMPurify;
-
-  // --- Sanitization Logic (เก็บไว้เหมือนเดิม ดีแล้ว) ---
   const doSanitize = (value) => {
     if (typeof value === 'string') {
       return purifier.sanitize(value, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();

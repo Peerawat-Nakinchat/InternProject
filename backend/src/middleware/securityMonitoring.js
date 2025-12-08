@@ -24,7 +24,7 @@ export const cleanIp = (rawIp) => {
  * Check for SQL Injection Patterns
  */
 export const checkSqlInjection = (str) => {
-  // Regex ที่ครอบคลุมมากขึ้น
+  // Regex 
   const sqlPatterns = /('[\s\S]*--)|(\s+OR\s+[\w\s]+=)|(;\s*DROP\s+TABLE)|(UNION\s+SELECT)|(\%27)|(\-\-)|(\%23)|(#)/i;
   return sqlPatterns.test(str);
 };
@@ -138,7 +138,6 @@ export const createSecurityMiddleware = (deps = {}) => {
             error: 'Too many login attempts. Please try again later.',
           });
         } else {
-          // Reset counter after lockout duration expired
           failedLoginAttempts.delete(ip);
         }
       }
