@@ -2,6 +2,7 @@ import { ref, reactive } from 'vue'
 import { memberService, type MemberRegisterPayload } from '@/services/memberService'
 import { useRouter } from 'vue-router'
 import type { Router } from 'vue-router'
+import { toast } from '@/utils/toast' // ✅ Toast Utility
 
 export interface MemberRegisterForm {
   membership_id: string
@@ -103,16 +104,20 @@ export function useMemberRegister(routerInstance?: Router) {
       const response = await memberService.register(payload)
 
       if (response.success) {
+        toast.success('ลงทะเบียนสมาชิกสำเร็จ!') // ✅ Toast success
         resetForm()
         // Navigate to success page or login
         router.push('/login')
         return true
       } else {
+        toast.error(response.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก') // ✅ Toast error
         generalError.value = response.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
         return false
       }
     } catch (error: unknown) {
-      generalError.value = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
+      const errorMsg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
+      toast.error(errorMsg) // ✅ Toast error
+      generalError.value = errorMsg
       return false
     } finally {
       isSubmitting.value = false

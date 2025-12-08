@@ -1,12 +1,12 @@
 // stores/auth.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import { useCompanyStore } from './company'
 import { hasEssentialConsent } from '@/utils/cookieConsent'
 
 // ✅ 1. Environment Config (มาตรฐาน)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 // --- Interfaces (คงเดิม) ---
 export interface User {
@@ -31,31 +31,6 @@ export interface ChangeEmailData { newEmail: string; password: string; }
 export interface ChangePasswordData { oldPassword: string; newPassword: string; }
 export interface ProfileUpdateData { name: string; surname: string; full_name: string; sex: string; user_address_1: string; user_address_2: string; user_address_3: string; profile_image_url: string; }
 
-// --- 🛠 Axios Setup (Enterprise Pattern) ---
-// สร้าง Instance แยก เพื่อไม่ให้กระทบ global axios
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // ส่ง Cookies อัตโนมัติ
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// ตัวแปรสำหรับจัดการ Refresh Token Concurrency
-let isRefreshing = false
-let failedQueue: any[] = []
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error)
-    } else {
-      prom.resolve(token)
-    }
-  })
-  failedQueue = []
-}
-
 export const useAuthStore = defineStore('auth', () => {
   // --- State ---
   const user = ref<User | null>(null)
@@ -70,81 +45,45 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value)
   const userName = computed(() => user.value?.full_name || user.value?.email || 'Guest')
 
-  // --- 🛡 Interceptor Logic ---
-  // 1. Request Interceptor: แนบ Access Token (ถ้ามี)
-  api.interceptors.request.use((config) => {
-    if (accessToken.value) {
-      config.headers.Authorization = `Bearer ${accessToken.value}`
-    }
-    return config
-  })
-
-  // 2. Response Interceptor: จัดการ 401 และ Refresh Token
-  api.interceptors.response.use(
-    (response) => response,
-    async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
-
-      // ถ้าเจอ 401 และยังไม่ได้ลอง Retry
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        
-        // ถ้ากำลัง Refresh อยู่ ให้เข้าคิวรอ (ป้องกัน Race Condition)
-        if (isRefreshing) {
-          return new Promise(function(resolve, reject) {
-            failedQueue.push({ resolve, reject })
-          }).then(() => {
-            return api(originalRequest)
-          }).catch(err => {
-            return Promise.reject(err)
-          })
-        }
-
-        originalRequest._retry = true
-        isRefreshing = true
-
-        try {
-          // เรียก Refresh Token Endpoint
-          // หมายเหตุ: Endpoint นี้จะอ่าน Refresh Token จาก Cookie และ Set Access Token ใหม่กลับมา
-          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
-          
-          if (data.success && data.data?.accessToken) {
-            const newToken = data.data.accessToken
-            accessToken.value = newToken
-            
-            // update header สำหรับ request ที่ค้างอยู่
-            api.defaults.headers.common['Authorization'] = 'Bearer ' + newToken
-            
-            // ปล่อยคิวที่รออยู่
-            processQueue(null, newToken)
-            
-            // Retry request เดิม
-            return api(originalRequest)
-          } else {
-            throw new Error('Refresh failed')
-          }
-        } catch (refreshErr) {
-          processQueue(refreshErr, null)
-          await logout() // ถ้า Refresh ไม่ผ่าน คือจบข่าว Logout ทันที
-          return Promise.reject(refreshErr)
-        } finally {
-          isRefreshing = false
-        }
+  // ✅ Refresh Access Token - ถูกเรียกจาก axios interceptor
+  // ใช้ axios ตรงเพื่อหลีกเลี่ยง circular dependency กับ axiosInstance
+  const refreshAccessToken = async (): Promise<boolean> => {
+    try {
+      console.log('🔄 Refreshing access token...')
+      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+      
+      if (data.success && data.data?.accessToken) {
+        accessToken.value = data.data.accessToken
+        console.log('✅ Access token refreshed successfully')
+        return true
       }
-
-      return Promise.reject(error)
+      return false
+    } catch (err) {
+      console.error('❌ Failed to refresh token:', err)
+      // Clear state on refresh failure
+      user.value = null
+      accessToken.value = null
+      return false
     }
-  )
+  }
 
   // --- Actions ---
+
+  // ✅ ใช้ axiosInstance แบบ lazy import เพื่อหลีกเลี่ยง circular dependency
+  const getAxios = async () => {
+    const { default: axiosInstance } = await import('@/utils/axios')
+    return axiosInstance
+  }
 
   // 1. Initialize Auth
   const initAuth = async () => {
     if (authReady.value) return
     try {
+      const axiosInstance = await getAxios()
       // เรียก Profile ตรงๆ เลย ถ้า 401 Interceptor จะทำงานให้เอง!
-      const response = await api.get('/auth/profile')
-      if (response.data.success && response.data.data?.user) {
-        user.value = response.data.data.user
+      const response = await axiosInstance.get('/auth/profile')
+      if (response.success && response.data?.user) {
+        user.value = response.data.user
         console.log('✅ Auth initialized')
       }
     } catch (err) {
@@ -172,25 +111,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      // ใช้ api instance แทน axios ธรรมดา
-      const response = await api.post('/auth/login', credentials)
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.post('/auth/login', credentials)
 
-      if (response.data.success) {
-        const data = response.data.data
+      if (response.success) {
+        const data = response.data
         accessToken.value = data.accessToken
         user.value = data.user
-        // ไม่ต้องเก็บ refreshToken ใน state
         return { success: true }
       }
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
-    } catch (err: any) {
-      // จัดการ Error แบบรวมศูนย์
-      error.value = err.response?.data?.error || err.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
       
-      // Check Rate Limit
-      if (err.response?.status === 429) {
-          const retryAfter = err.response.headers['retry-after']
+      // Check Rate Limit (AxiosError has response property)
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { status?: number; headers?: Record<string, string> } }
+        if (axiosErr.response?.status === 429) {
+          const retryAfter = axiosErr.response.headers?.['retry-after']
           return { success: false, error: error.value, rateLimited: true, retryAfter }
+        }
       }
       
       return { success: false, error: error.value }
@@ -204,13 +144,14 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = null
     try {
-      const response = await api.post('/auth/register', data)
-      if (response.data.success) {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.post('/auth/register', data)
+      if (response.success) {
         return { success: true, message: 'ลงทะเบียนสำเร็จ' }
       }
       return { success: false, error: 'ลงทะเบียนไม่สำเร็จ' }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || 'เกิดข้อผิดพลาด'
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -220,7 +161,8 @@ export const useAuthStore = defineStore('auth', () => {
   // 4. Logout
   const logout = async () => {
     try {
-      await api.post('/auth/logout')
+      const axiosInstance = await getAxios()
+      await axiosInstance.post('/auth/logout')
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
@@ -229,18 +171,16 @@ export const useAuthStore = defineStore('auth', () => {
       
       const companyStore = useCompanyStore()
       companyStore.reset()
-      
-      // Redirect หรือ reload page ถ้าจำเป็น
-      // window.location.href = '/login' 
     }
   }
 
   // 5. General Update Methods (Clean Code)
   const fetchProfile = async () => {
     try {
-      const response = await api.get('/auth/profile')
-      if (response.data.data?.user) {
-        user.value = response.data.data.user
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.get('/auth/profile')
+      if (response.data?.user) {
+        user.value = response.data.user
       }
     } catch (err) {
        // ไม่ต้องทำอะไร Interceptor จัดการ Logout ให้ถ้า Token ตายสนิท
@@ -250,42 +190,45 @@ export const useAuthStore = defineStore('auth', () => {
   const changeEmail = async (data: ChangeEmailData) => {
     isLoading.value = true
     try {
-      const response = await api.put('/auth/change-email', data)
-      if (response.data.success) {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.put('/auth/change-email', data)
+      if (response.success) {
          if (user.value) user.value.email = data.newEmail
          return { success: true }
       }
-      return { success: false, error: response.data.error }
-    } catch (err: any) {
-      return { success: false, error: err.response?.data?.error || 'Failed' }
+      return { success: false, error: response.error }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
     } finally { isLoading.value = false }
   }
 
   const changePassword = async (data: ChangePasswordData) => {
     isLoading.value = true
     try {
-      const response = await api.put('/auth/change-password', data)
-      if (response.data.success) {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.put('/auth/change-password', data)
+      if (response.success) {
         await logout()
         return { success: true }
       }
-      return { success: false, error: response.data.error }
-    } catch (err: any) {
-      return { success: false, error: err.response?.data?.error || 'Failed' }
+      return { success: false, error: response.error }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
     } finally { isLoading.value = false }
   }
 
   const updateProfile = async (data: ProfileUpdateData) => {
     isLoading.value = true
     try {
-      const response = await api.put('/auth/update-profile', data)
-      if (response.data.success && response.data.data?.user) {
-        user.value = { ...user.value, ...response.data.data.user }
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.put('/auth/update-profile', data)
+      if (response.success && response.data?.user) {
+        user.value = { ...user.value, ...response.data.user }
         return { success: true }
       }
-      return { success: false, error: response.data.error }
-    } catch (err: any) {
-      return { success: false, error: err.response?.data?.error || 'Failed' }
+      return { success: false, error: response.error }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
     } finally { isLoading.value = false }
   }
 
@@ -309,6 +252,6 @@ export const useAuthStore = defineStore('auth', () => {
     changeEmail,
     changePassword,
     updateProfile,
-    api 
+    refreshAccessToken // ✅ Export สำหรับ axios interceptor
   }
 })

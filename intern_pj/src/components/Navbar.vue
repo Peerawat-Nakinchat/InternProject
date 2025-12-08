@@ -15,13 +15,12 @@
         <span v-else-if="isTablet">ISO Management System</span>
         <span v-else>ISO: International Organization for Standardization</span>
       </span>
-    </transition> 
+    </transition>
 
     <div class="relative flex justify-end w-[200px]" ref="userMenuRef">
       <button
         @click="toggleUserMenu"
-        class="flex items-center md:w-full px-3 py-1.5 text-sm font-medium rounded-full md:rounded-sm transition-all gap-2
-               sm:w-auto justify-between bg-white text-[#682DB5]  border border-purple-400 md:bg-transparent md:text-white md:border-0 hover:bg-[#8a4ae0]"
+        class="flex items-center md:w-full px-3 py-1.5 text-sm font-medium rounded-full md:rounded-sm transition-all gap-2 sm:w-auto justify-between bg-white text-[#682DB5] border border-purple-400 md:bg-transparent md:text-white md:border-0 hover:bg-[#8a4ae0]"
       >
         <i
           class="mdi mdi-account-circle text-xl transform transition-transform duration-300"
@@ -29,10 +28,7 @@
         ></i>
 
         <transition name="fade-slide">
-          <span
-            v-if="!isMobile"
-            class="flex-1 text-center truncate hidden md:inline"
-          >
+          <span v-if="!isMobile" class="flex-1 text-center truncate hidden md:inline">
             {{ displayName }}
           </span>
         </transition>
@@ -45,10 +41,8 @@
 
       <ul
         v-if="userMenuVisible"
-        class="absolute right-0 top-11 w-[200px] bg-white text-gray-800 
-               rounded-md md:rounded-b-xl md:rounded-t-none shadow-lg overflow-auto border border-purple-400 z-50 origin-top animate-dropdown"
+        class="absolute right-0 top-11 w-[200px] bg-white text-gray-800 rounded-md md:rounded-b-xl md:rounded-t-none shadow-lg overflow-auto border border-purple-400 z-50 origin-top animate-dropdown"
       >
-
         <li class="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <p class="text-xs text-gray-500">ล็อกอินด้วย</p>
           <p class="text-sm font-medium text-gray-800 truncate">{{ userEmail }}</p>
@@ -72,14 +66,13 @@
       </ul>
     </div>
   </header>
-
-  </template>
+</template>
 
 <script setup lang="ts">
 import { inject, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import Swal from 'sweetalert2' // ✅ Import SweetAlert2
+import { toast } from '@/utils/toast' // ✅ ใช้ Toast Utility
 
 // Inject
 const railState = inject('railState')!
@@ -103,9 +96,7 @@ const updateScreen = () => {
 // Rail Logic
 const railOpen = computed(() => {
   const maybeRef: any = railState
-  return typeof maybeRef?.value === 'boolean'
-    ? maybeRef.value
-    : railState
+  return typeof maybeRef?.value === 'boolean' ? maybeRef.value : railState
 })
 
 // Display info
@@ -134,49 +125,30 @@ const editProfile = () => {
 }
 
 // =====================================================
-// LOGOUT LOGIC (SweetAlert2)
+// LOGOUT LOGIC (using Toast Utility)
 // =====================================================
 const handleLogout = async () => {
   // 1. ปิดเมนู Dropdown ก่อน
   userMenuVisible.value = false
 
   // 2. ถามยืนยัน
-  const result = await Swal.fire({
-    title: 'ยืนยันการออกจากระบบ',
-    text: "คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33', // สีแดงสำหรับการ Logout
-    cancelButtonColor: '#6b7280', // สีเทา
-    confirmButtonText: 'ออกจากระบบ',
-    cancelButtonText: 'ยกเลิก',
-    reverseButtons: true // สลับปุ่มให้ Cancel อยู่ซ้าย (ตามสไตล์ modern)
-  })
+  const confirmed = await toast.confirm(
+    'คุณต้องการออกจากระบบจากระบบงาน ISO หรือไม่?',
+    'ยืนยันการออกจากระบบ',
+    { icon: 'warning', confirmText: 'ออกจากระบบ', cancelText: 'ยกเลิก' },
+  )
 
   // 3. ถ้ากดยืนยัน
-  if (result.isConfirmed) {
-    // แสดง Loading
-    Swal.fire({
-      title: 'กำลังออกจากระบบ...',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    })
+  if (confirmed) {
+    toast.loading('กำลังออกจากระบบ...')
 
     try {
-      // เรียก Store Action
       await authStore.logout()
-      
-      // ปิด Loading และ Redirect ไปหน้า Login
-      Swal.close()
+      toast.close()
       router.push('/login')
-      
     } catch (error) {
       console.error('Logout error:', error)
-      Swal.fire({
-        icon: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        text: 'ไม่สามารถออกจากระบบได้ กรุณาลองใหม่อีกครั้ง'
-      })
+      toast.error('ไม่สามารถออกจากระบบได้ กรุณาลองใหม่อีกครั้ง')
     }
   }
 }

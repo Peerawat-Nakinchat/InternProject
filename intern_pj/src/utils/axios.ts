@@ -1,6 +1,7 @@
 // src/utils/axios.ts
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { toast } from '@/utils/toast' // ✅ Import toast for global error handling
 
 // 🔥 ใช้ environment variable หรือกำหนดตรงๆ
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -82,6 +83,12 @@ axiosInstance.interceptors.response.use(
           if (refreshed) {
             // ✅ รอให้ cookies ถูก set สมบูรณ์ก่อน retry
             await new Promise(resolve => setTimeout(resolve, 50))
+            // ✅ อัปเดต header ด้วย token ใหม่ก่อน retry
+            const auth = useAuthStore()
+            const newToken = auth.accessToken
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`
+            }
             // retry request เดิมหลัง refresh สำเร็จ
             return axiosInstance(originalRequest)
           }
@@ -110,13 +117,19 @@ axiosInstance.interceptors.response.use(
           // ช่วยให้ browser มีเวลา process cookies ก่อนส่ง request ใหม่
           await new Promise(resolve => setTimeout(resolve, 50))
 
+          // ✅ อัปเดต header ด้วย token ใหม่ก่อน retry
+          const newToken = auth.accessToken
+          if (newToken) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+          }
+
           // retry request เดิม
           return axiosInstance(originalRequest)
         } else {
-          // refresh ไม่สำเร็จ - logout แล้ว
+          // refresh ไม่สำเร็จ - logout และ redirect
           console.log('❌ Refresh failed, user logged out')
           processQueue(new Error('Refresh token expired'))
-          // ✅ ใช้ router.push แทน window.location เพื่อไม่ให้หน้า reload
+          await auth.logout()
           const currentPath = window.location.pathname
           if (currentPath !== '/login') {
             window.location.href = '/login'
@@ -126,6 +139,8 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         console.error('❌ Refresh error:', refreshError)
         processQueue(refreshError as Error)
+        const auth = useAuthStore()
+        await auth.logout()
         const currentPath = window.location.pathname
         if (currentPath !== '/login') {
           window.location.href = '/login'
@@ -141,6 +156,40 @@ axiosInstance.interceptors.response.use(
       || (error.response?.data as { error?: string; message?: string })?.message
       || error.message
       || 'เกิดข้อผิดพลาด'
+
+    // ✅ Global Toast Error - แสดง toast สำหรับ errors ที่ควรแจ้งผู้ใช้
+    const status = error.response?.status
+    const url = originalRequest?.url || ''
+    
+    // Skip toast for specific cases:
+    // - 401 (handled by refresh logic above)
+    // - Auth routes (login/logout/refresh)
+    // - Silent requests (marked with _silent flag)
+    const shouldShowToast = (
+      status !== 401 &&
+      !url.includes('/auth/login') &&
+      !url.includes('/auth/logout') &&
+      !url.includes('/auth/refresh') &&
+      !(originalRequest as InternalAxiosRequestConfig & { _silent?: boolean })?._silent
+    )
+
+    if (shouldShowToast) {
+      // Show different errors based on status code
+      if (status === 403) {
+        toast.error('คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้')
+      } else if (status === 404) {
+        toast.error('ไม่พบข้อมูลที่ร้องขอ')
+      } else if (status === 422 || status === 400) {
+        toast.warning(message)
+      } else if (status === 500) {
+        toast.error('เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง')
+      } else if (status && status >= 500) {
+        toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+      } else if (!navigator.onLine) {
+        toast.error('ไม่มีการเชื่อมต่ออินเทอร์เน็ต')
+      }
+      // For other errors, components should handle themselves
+    }
 
     return Promise.reject(new Error(message))
   }
