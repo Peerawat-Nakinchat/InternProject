@@ -32,30 +32,34 @@ docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token
 Write-Host "5. Adding backend/mail..." -ForegroundColor Green
 docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault kv put kv/backend/mail MAIL_HOST=smtp.gmail.com MAIL_PORT=587 MAIL_USER=minlen7k@gmail.com MAIL_PASS=yngytcckhlfabmeb | Out-Null
 
-# 6. Create Policy
+# 6. Add backend/supabase
+Write-Host "6. Adding backend/supabase..." -ForegroundColor Green
+docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault kv put kv/backend/supabase SUPABASE_URL=https://iinvjilshrxoabcallua.supabase.co/ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbnZqaWxzaHJ4b2FiY2FsbHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NTcxMjksImV4cCI6MjA4MDMzMzEyOX0.nVkQdmNwcvhtjPvOoZ_OR7y_4rmx-hVxi9uQpySg8lM | Out-Null
+
+# 7. Create Policy
 Write-Host "6. Creating Policy..." -ForegroundColor Green
-docker cp vault-agent-config/policy.hcl vault-server:/tmp/policy.hcl
+docker cp docker/vault-agent-config/policy.hcl vault-server:/tmp/policy.hcl
 docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault policy write backend-dev-policy /tmp/policy.hcl | Out-Null
 
-# 7. Enable AppRole
+# 8. Enable AppRole
 Write-Host "7. Enabling AppRole..." -ForegroundColor Green
 docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault auth enable approle 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "   AppRole already enabled" -ForegroundColor Yellow }
 
-# 8. Create Role (ไม่หมดอายุ, ใช้ซ้ำได้ไม่จำกัด)
+# 9. Create Role (ไม่หมดอายุ, ใช้ซ้ำได้ไม่จำกัด)
 Write-Host "8. Creating AppRole (shared, no expiry)..." -ForegroundColor Green
 docker exec -e VAULT_ADDR='http://127.0.0.1:8200' -e VAULT_TOKEN='dev-root-token-123' vault-server vault write auth/approle/role/backend-dev `
     token_policies="backend-dev-policy" `
-    token_ttl=24h `
-    token_max_ttl=168h `
+    token_ttl=720h `
+    token_max_ttl=0 `
     secret_id_ttl=0 `
     secret_id_num_uses=0 | Out-Null
 # secret_id_ttl=0      = Secret ID ไม่หมดอายุ
 # secret_id_num_uses=0 = ใช้ซ้ำได้ไม่จำกัดครั้ง
-# token_ttl=24h        = Token ใช้ได้ 24 ชั่วโมง (แต่ Agent จะ renew อัตโนมัติ)
-# token_max_ttl=168h   = Token max 7 วัน
+# token_ttl=720h       = Token ใช้ได้ 30 วัน (แต่ Agent จะ renew อัตโนมัติ)
+# token_max_ttl=0      = Token ไม่มี max limit (ใช้ได้ตลอดถ้า renew)
 
-# 9. Get credentials
+# 10. Get credentials
 Write-Host "9. Getting Role ID and Secret ID..." -ForegroundColor Green
 
 # ดึง Role ID
