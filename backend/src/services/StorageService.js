@@ -125,11 +125,36 @@ export const deleteOldProfileImage = async (oldImageUrl) => {
   }
 };
 
+
+export const uploadBase64Image = async (base64String, userId) => {
+  if (!base64String || !base64String.startsWith("data:image/")) return null;
+
+  try {
+    const matches = base64String.match(/^data:image\/([a-zA-Z0-9+-]+);base64,(.+)$/);
+    if (!matches) throw createError.badRequest("Invalid image format");
+
+    let imageType = matches[1] === "jpg" ? "jpeg" : matches[1];
+    const buffer = Buffer.from(matches[2], "base64");
+    
+    // Validate Size (5MB)
+    if (buffer.length > 5 * 1024 * 1024) throw createError.badRequest("ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB");
+
+    const fileName = `profile_${Date.now()}.${imageType}`;
+    const mimeType = `image/${imageType}`;
+
+    return await uploadImage(buffer, fileName, mimeType, userId);
+  } catch (error) {
+    logger.error("❌ Base64 Upload Error:", error);
+    throw error;
+  }
+};
+
 export const StorageService = {
   uploadImage,
   deleteImage,
   getPublicUrl,
-  deleteOldProfileImage
+  deleteOldProfileImage,
+  uploadBase64Image
 };
 
 export default StorageService;

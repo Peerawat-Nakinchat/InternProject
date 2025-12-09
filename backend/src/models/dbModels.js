@@ -1,7 +1,7 @@
 // src/models/dbModels.js
 import sequelize from "../config/dbConnection.js";
 import { ROLE_ID, ROLE_NAME } from "../constants/roles.js";
-import { DataTypes } from "sequelize";
+import logger from "../utils/logger.js";
 
 // ==================== IMPORT MODELS ====================
 // Import เฉพาะ Model definitions (ไม่ใช่ sequelize จากไฟล์อื่น)
@@ -84,18 +84,13 @@ Invitation.belongsTo(Role, {
   as: "role",
 });
 
-// ==================== SYNC DATABASE ====================
-const syncDatabase = async () => {
+const checkConnection = async () => {
   try {
-    if (process.env.NODE_ENV !== "development") {
-      // await sequelize.sync({ alter: true });
-      logger.info("✅ Database synced successfully");
-
-      await seedRoles();
-    }
+    await sequelize.authenticate();
+    logger.info("✅ Database connection established successfully.");
   } catch (error) {
-    logger.error("❌ Database sync error:", error);
-    throw error;
+    logger.error("❌ Unable to connect to the database:", error);
+    process.exit(1); // Fail fast ถ้าต่อ DB ไม่ได้
   }
 };
 
@@ -130,7 +125,7 @@ export {
   AuditLog,
   Invitation,
   Otp,
-  syncDatabase,
+  checkConnection
 };
 
 export default {
@@ -143,5 +138,5 @@ export default {
   AuditLog,
   Invitation,
   Otp,
-  syncDatabase,
+  checkConnection
 };

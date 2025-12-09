@@ -1,11 +1,12 @@
 // src/config/supabase.js
 import { createClient } from '@supabase/supabase-js';
+import logger from '../utils/logger.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️  Supabase credentials not configured. Storage features will be disabled.');
+  logger.warn('⚠️  Supabase credentials not configured. Storage features will be disabled.');
 }
 
 // Create Supabase client

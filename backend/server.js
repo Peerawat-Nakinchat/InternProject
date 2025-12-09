@@ -14,7 +14,8 @@ import sequelize from "./src/config/dbConnection.js";
 import logger from "./src/utils/logger.js";
 
 // Models & Middlewares
-import { syncDatabase } from "./src/models/dbModels.js";
+import { checkConnection } from "./src/models/dbModels.js";
+import { OtpModel } from "./src/models/OtpModel.js";
 import { RefreshTokenModel } from "./src/models/TokenModel.js";
 import {
   addCorrelationId,
@@ -186,11 +187,8 @@ cron.schedule("0 2 * * *", async () => {
   logger.info("🕒 Starting daily cleanup jobs...");
 
   try {
-    // 1. ลบ Token เก่า (ของเดิม)
-    await RefreshTokenModel.cleanupExpiredTokens();
+    await RefreshTokenModel.deleteExpired(); 
     logger.info("✅ Cleaned up expired refresh tokens");
-
-    // 2. 🔥 เพิ่มใหม่: ลบคำเชิญที่หมดอายุ
     await InvitationService.cleanupExpiredInvitations();
     logger.info("✅ Cleaned up expired invitations");
   } catch (error) {
@@ -202,8 +200,8 @@ cron.schedule("0 2 * * *", async () => {
 cron.schedule("*/10 * * * *", async () => {
   try {
     logger.info("🧹 Running scheduled OTP cleanup...");
-    const { OtpModel } = await import("./src/models/OtpModel.js");
-    const deleted = await OtpModel.cleanupExpired();
+    const deleted = await OtpModel.cleanupExpired(); 
+
     if (deleted > 0) {
       logger.info(`✅ Cleaned up ${deleted} expired OTP records`);
     }
@@ -221,7 +219,7 @@ const PORT = process.env.PORT || 3000;
 const startServer = async () => {
   try {
     if (process.env.NODE_ENV === "development") {
-      await syncDatabase();
+      await checkConnection();
       logger.info("✅ Database synced (Development mode)");
     }
 

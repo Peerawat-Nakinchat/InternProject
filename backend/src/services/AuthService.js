@@ -333,9 +333,10 @@ export const createAuthService = (deps = {}) => {
     return { success: true };
   };
 
-  const updateProfile = async (userId, data) => {
+const updateProfile = async (userId, data) => {
     for (const key in data)
       if (typeof data[key] === "string") data[key] = data[key].trim();
+    
     if (data.name === "" || data.surname === "")
       throw createError.badRequest("ชื่อ-นามสกุล ต้องไม่เป็นค่าว่าง");
 
@@ -345,84 +346,26 @@ export const createAuthService = (deps = {}) => {
         cleanData[key] = data[key];
     }
 
-    // ✅ Handle Base64 profile image upload to Supabase
-    if (
-      cleanData.profile_image_url &&
-      cleanData.profile_image_url.startsWith("data:image/")
-    ) {
-      try {
-        logger.info("📤 Processing Base64 image upload...");
-
-        // Get current user to delete old image if exists
-        const currentUser = await User.findById(userId);
-        if (
-          currentUser?.profile_image_url &&
-          currentUser.profile_image_url.includes("supabase")
-        ) {
-          logger.info("🗑️ Deleting old Supabase image...");
-          await StorageService.deleteOldProfileImage(
-            currentUser.profile_image_url,
-          );
+    if (cleanData.profile_image_url && cleanData.profile_image_url.startsWith("data:image/")) {
+        try {
+            const uploadResult = await StorageService.uploadBase64Image(cleanData.profile_image_url, userId);
+            
+            if (uploadResult) {
+                const currentUser = await User.findById(userId);
+                if (currentUser?.profile_image_url) {
+                    await StorageService.deleteOldProfileImage(currentUser.profile_image_url);
+                }
+                cleanData.profile_image_url = uploadResult.url;
+            }
+        } catch (error) {
+            if (error.statusCode === 503) {
+                logger.warn("⚠️ Supabase not configured, skipping image upload");
+                delete cleanData.profile_image_url;
+            } else {
+                throw error; 
+            }
         }
-
-        // Parse Base64 data URL - support more formats
-        const matches = cleanData.profile_image_url.match(
-          /^data:image\/([a-zA-Z0-9+-]+);base64,(.+)$/,
-        );
-        if (!matches) {
-          logger.error(
-            "❌ Invalid Base64 format:",
-            cleanData.profile_image_url.substring(0, 50),
-          );
-          throw createError.badRequest("Invalid image format");
-        }
-
-        let imageType = matches[1]; // e.g., 'png', 'jpeg'
-        // Normalize image type
-        if (imageType === "jpg") imageType = "jpeg";
-
-        const base64Data = matches[2];
-        const buffer = Buffer.from(base64Data, "base64");
-
-        logger.info(
-          `📊 Image info: type=${imageType}, size=${buffer.length} bytes`,
-        );
-
-        // Validate file size (5MB max)
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (buffer.length > maxSize) {
-          throw createError.badRequest("ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB");
-        }
-
-        // Upload to Supabase
-        const fileName = `profile_${Date.now()}.${imageType}`;
-        const mimeType = `image/${imageType}`;
-        logger.info(`📤 Uploading to Supabase: ${fileName}`);
-        const result = await StorageService.uploadImage(
-          buffer,
-          fileName,
-          mimeType,
-          userId,
-        );
-
-        // Replace Base64 with actual URL
-        cleanData.profile_image_url = result.url;
-        logger.info("✅ Profile image uploaded to Supabase:", result.url);
-      } catch (error) {
-        logger.error(
-          "❌ Error uploading profile image:",
-          error.message || error,
-        );
-        // If Supabase is not configured, skip image upload but don't fail the entire update
-        if (error.statusCode === 503) {
-          logger.warn("⚠️ Supabase not configured, skipping image upload");
-          delete cleanData.profile_image_url;
-        } else {
-          throw error;
-        }
-      }
     }
-
     try {
       return await User.updateProfile(userId, cleanData);
     } catch (error) {

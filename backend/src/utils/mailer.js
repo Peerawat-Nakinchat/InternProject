@@ -47,17 +47,17 @@ const generateMessageId = () => {
 };
 
 export const sendEmail = async (to, subject, html) => {
-  logger.log("📧 Preparing to send email...");
-  logger.log("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");
-  logger.log("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");
+  logger.info("📧 Preparing to send email...");
+  logger.info("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");
+  logger.info("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");
 
   // If no mail credentials, log to logger (Mock mode)
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    logger.log("==================================================");
-    logger.log(`[MOCK EMAIL] To: ${to}`);
-    logger.log(`Subject: ${subject}`);
-    logger.log("Body:", html);
-    logger.log("==================================================");
+    logger.info("==================================================");
+    logger.info(`[MOCK EMAIL] To: ${to}`);
+    logger.info(`Subject: ${subject}`);
+    logger.info("Body:", html);
+    logger.info("==================================================");
     return;
   }
 
@@ -91,9 +91,9 @@ export const sendEmail = async (to, subject, html) => {
       replyTo: process.env.MAIL_REPLY_TO || senderEmail,
     });
 
-    logger.log("✅ Email sent successfully!");
-    logger.log("Message ID: %s", info.messageId);
-    logger.log("Accepted: %s", info.accepted?.join(", "));
+    logger.info("✅ Email sent successfully!");
+    logger.info("Message ID: %s", info.messageId);
+    logger.info("Accepted: %s", info.accepted?.join(", "));
 
     return info;
   } catch (error) {
