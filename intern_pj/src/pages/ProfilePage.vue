@@ -5,12 +5,6 @@
       <div class="px-4 mt-4">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3">
-            <Button
-              @click="goBack"
-              class="w-10 h-10 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md hover:bg-white transition cursor-pointer"
-            >
-              <i class="mdi mdi-arrow-left text-gray-700 text-xl"></i>
-            </Button>
             <h1 class="text-2xl font-semibold tracking-tight">
               <span
                 class="bg-linear-to-br from-[#1C244B] to-[#682DB5] bg-clip-text text-transparent inline-flex items-center gap-2"
@@ -21,7 +15,7 @@
             </h1>
           </div>
         </div>
-        <p class="text-neutral-500 text-sm mt-1 pl-15">
+        <p class="text-neutral-500 text-sm mt-1">
           กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ
         </p>
       </div>
@@ -31,7 +25,7 @@
           <div class="h-36 bg-linear-to-r from-purple-600 to-[#1C244B]"></div>
 
           <div class="px-6 pb-6">
-            <div class="flex items-end gap-4 -mt-12">
+            <div class="flex flex-col md:flex-row items-start md:items-end gap-4 -mt-12">
               <div class="relative">
                 <img
                   v-if="profileImageUrl && !imageError"
@@ -48,15 +42,15 @@
                 </div>
 
                 <label
-                  class="absolute bottom-2 right-2 bg-white shadow p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition"
+                  class="absolute bottom-1 right-1 bg-gray-100 shadow p-1.5 rounded-full cursor-pointer hover:bg-gray-200 transition"
                 >
                   <i class="mdi mdi-camera text-gray-700 text-xl"></i>
                   <input type="file" class="hidden" @change="onImageUpload" />
                 </label>
               </div>
 
-              <div class="flex items-center gap-3 w-auto flex-1">
-                <div class="flex-1">
+              <div class="flex flex-col md:flex-row items-center md:items-center gap-3 w-full md:w-auto flex-1">
+                <div class="flex-1 text-left md:text-left">
                   <h1 class="text-2xl font-bold text-gray-900">
                     {{ form.full_name || userInitials }}
                   </h1>
@@ -79,439 +73,449 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
-          <div class="bg-white rounded-xl shadow-sm p-6">
-            <div class="flex items-center gap-4 mb-4">
-              <span
-                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-              >
-                <i class="mdi mdi-account" aria-hidden="true"></i>
-              </span>
-              <h2 class="text-lg text-gray-800 font-semibold">ข้อมูลส่วนตัว</h2>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4">
-              <base-input v-model="form.name" label="ชื่อจริง" placeholder="ชื่อจริง" />
-
-              <base-input v-model="form.surname" label="นามสกุล" placeholder="นามสกุล" />
-
-              <div class="relative">
-                <label class="block text-sm font-medium text-neutral-700 mb-1">เพศ</label>
-
-                <div
-                  class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
-                  @click="openGender = !openGender"
+        <div class="bg-white rounded-xl shadow-sm p-6 mt-6">
+          <div class="flex flex-col md:flex-row gap-6">
+            <!-- ด้านซ้าย: เมนูหมวด -->
+            <div class="hidden md:block md:w-1/3">
+              <h3 class="text-lg font-semibold text-black tracking-wide mb-2">เกี่ยวกับ</h3>
+              <div class="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 shadow-inner">
+                <button
+                  v-for="section in sectionList"
+                  :key="section.key"
+                  class="w-full px-4 py-3 text-left flex items-center justify-between transition"
+                  :class="[
+                    activeSection === section.key
+                      ? 'bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]'
+                      : 'hover:bg-gray-100 text-gray-700',
+                  ]"
+                  @click="activeSection = section.key"
                 >
-                  <span>{{ genderLabel }}</span>
-                  <svg
-                    class="w- h-4 text-slate-500 transition-transform"
-                    :class="openGender ? 'rotate-180' : ''"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-
-                <div
-                  v-if="openGender"
-                  class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
-                >
-                  <div
-                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                    @click="selectGender('M')"
-                  >
-                    ชาย
-                  </div>
-
-                  <div
-                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                    @click="selectGender('F')"
-                  >
-                    หญิง
-                  </div>
-
-                  <div
-                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                    @click="selectGender('O')"
-                  >
-                    อื่น ๆ
-                  </div>
-                </div>
-              </div>
-
-              <base-input
-                :model-value="getRoleName(authStore.user?.role_id)"
-                label="บทบาท"
-                disabled
-              />
-            </div>
-          </div>
-
-          <div class="bg-white rounded-xl shadow-sm p-6">
-            <div class="flex items-center gap-4 mb-4">
-              <span
-                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-              >
-                <i class="mdi mdi-map" aria-hidden="true"></i>
-              </span>
-              <h2 class="text-lg text-gray-800 font-semibold">ที่อยู่</h2>
-            </div>
-
-            <base-input
-              v-model="form.user_address_1"
-              label="ที่อยู่ 1"
-              placeholder="กรอกที่อยู่"
-              class="mb-2"
-            />
-            <base-input
-              v-model="form.user_address_2"
-              label="ที่อาคาร / ชั้น"
-              placeholder="อาคาร / ชั้น"
-              class="mb-2"
-            />
-            <base-input
-              v-model="form.user_address_3"
-              label="ที่อยู่ 3"
-              placeholder="ตำบล / อำเภอ / จังหวัด"
-              class="mb-2"
-            />
-          </div>
-
-          <div class="bg-white rounded-xl shadow-sm p-6">
-            <div class="flex items-center gap-4 mb-4">
-              <span
-                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-              >
-                <i class="mdi mdi-shield-lock" aria-hidden="true"></i>
-              </span>
-              <h2 class="text-lg text-gray-800 font-semibold">ความปลอดภัย</h2>
-            </div>
-
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <BaseInput :model-value="authStore.user?.email" label="อีเมล" disabled />
-              </div>
-
-              <button
-                @click="changeEmail"
-                class="mt-2 p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md"
-              >
-                <i class="mdi mdi-email-edit text-xl"></i>
-              </button>
-            </div>
-
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <BaseInput
-                  model-value="********"
-                  type="password"
-                  label="รหัสผ่าน"
-                  disabled
-                  :hidePasswordToggle="true"
-                />
-              </div>
-
-              <button
-                @click="changePassword"
-                class="mt-2 p-1.5 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded-md"
-              >
-                <i class="mdi mdi-lock-reset text-xl"></i>
-              </button>
-            </div>
-
-            <div
-              v-if="showEmailPopup"
-              class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-            >
-              <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
-
-                <BaseInput
-                  v-model="newEmail"
-                  type="email"
-                  label="อีเมลใหม่"
-                  placeholder="example@mail.com"
-                  class="mb-4"
-                />
-
-                <BaseInput
-                  v-model="passwordForEmail"
-                  type="password"
-                  label="รหัสผ่านปัจจุบัน (เพื่อยืนยัน)"
-                  placeholder="********"
-                />
-
-                <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
-
-                <div class="flex justify-end gap-3 mt-6">
-                  <base-button
-                    class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
-                    @click="closeEmailPopup"
-                    >ยกเลิก</base-button
-                  >
-                  <base-button
-                    class="w-full"
-                    @click="openEmailConfirm"
-                    :disabled="authStore.isLoading"
-                    >บันทึก</base-button
-                  >
-                </div>
-              </div>
-            </div>
-
-            <div
-              v-if="showPasswordPopup"
-              class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-            >
-              <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                  <i class="mdi mdi-lock-reset text-purple-600 mr-2"></i>
-                  เปลี่ยนรหัสผ่าน
-                </h2>
-
-                <!-- รหัสผ่านเดิม -->
-                <BaseInput
-                  v-model="oldPassword"
-                  label="รหัสผ่านเดิม"
-                  type="password"
-                  class="mb-4"
-                />
-
-                <hr class="border-t border-gray-200 mb-4" />
-
-                <!-- รหัสผ่านใหม่ -->
-                <BaseInput
-                  v-model="newPassword"
-                  label="รหัสผ่านใหม่"
-                  type="password"
-                  class="mb-2"
-                />
-
-                <!-- 🔐 Password Strength Indicator (แสดงตลอด) -->
-                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <!-- Progress Bar -->
-                  <div class="flex items-center gap-2 mb-3">
-                    <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        class="h-full transition-all duration-300 rounded-full"
-                        :style="{ width: passwordStrength.percentage + '%' }"
-                        :class="passwordStrength.colorClass"
-                      />
-                    </div>
+                  <div class="flex items-center gap-3">
                     <span
-                      class="text-xs font-semibold min-w-[60px] text-right"
-                      :class="passwordStrength.textClass"
+                      class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white border border-purple-100 text-[#1C244B]"
                     >
-                      {{ passwordStrength.label }}
+                      <i :class="section.icon" class="text-xl"></i>
                     </span>
-                  </div>
-
-                  <!-- Checklist -->
-                  <div class="grid grid-cols-1 gap-1.5 text-xs">
-                    <div
-                      class="flex items-center gap-2"
-                      :class="passwordChecks.hasLength ? 'text-green-600' : 'text-gray-400'"
-                    >
-                      <i
-                        :class="
-                          passwordChecks.hasLength
-                            ? 'mdi mdi-check-circle'
-                            : 'mdi mdi-circle-outline'
-                        "
-                        class="text-sm"
-                      ></i>
-                      อย่างน้อย 6 ตัวอักษร
-                    </div>
-                    <div
-                      class="flex items-center gap-2"
-                      :class="passwordChecks.hasUpper ? 'text-green-600' : 'text-gray-400'"
-                    >
-                      <i
-                        :class="
-                          passwordChecks.hasUpper
-                            ? 'mdi mdi-check-circle'
-                            : 'mdi mdi-circle-outline'
-                        "
-                        class="text-sm"
-                      ></i>
-                      ตัวพิมพ์ใหญ่ (A-Z)
-                    </div>
-                    <div
-                      class="flex items-center gap-2"
-                      :class="passwordChecks.hasLower ? 'text-green-600' : 'text-gray-400'"
-                    >
-                      <i
-                        :class="
-                          passwordChecks.hasLower
-                            ? 'mdi mdi-check-circle'
-                            : 'mdi mdi-circle-outline'
-                        "
-                        class="text-sm"
-                      ></i>
-                      ตัวพิมพ์เล็ก (a-z)
-                    </div>
-                    <div
-                      class="flex items-center gap-2"
-                      :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-gray-400'"
-                    >
-                      <i
-                        :class="
-                          passwordChecks.hasNumber
-                            ? 'mdi mdi-check-circle'
-                            : 'mdi mdi-circle-outline'
-                        "
-                        class="text-sm"
-                      ></i>
-                      ตัวเลข (0-9)
-                    </div>
-                    <div
-                      class="flex items-center gap-2"
-                      :class="passwordChecks.hasSpecial ? 'text-green-600' : 'text-gray-400'"
-                    >
-                      <i
-                        :class="
-                          passwordChecks.hasSpecial
-                            ? 'mdi mdi-check-circle'
-                            : 'mdi mdi-circle-outline'
-                        "
-                        class="text-sm"
-                      ></i>
-                      อักขระพิเศษ (!@#$%^&*)
+                    <div class="flex flex-col">
+                      <span class="font-semibold text-sm">{{ section.label }}</span>
+                      <span class="text-xs text-gray-500">{{ section.description }}</span>
                     </div>
                   </div>
-                </div>
-
-                <!-- ยืนยันรหัสผ่านใหม่ -->
-                <BaseInput
-                  v-model="confirmPassword"
-                  label="ยืนยันรหัสผ่านใหม่"
-                  type="password"
-                  class="mb-2"
-                />
-
-                <!-- แสดง match indicator -->
-                <div v-if="confirmPassword" class="mb-4 text-xs flex items-center gap-1">
-                  <template v-if="newPassword === confirmPassword">
-                    <i class="mdi mdi-check-circle text-green-600"></i>
-                    <span class="text-green-600">รหัสผ่านตรงกัน</span>
-                  </template>
-                  <template v-else>
-                    <i class="mdi mdi-close-circle text-red-500"></i>
-                    <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
-                  </template>
-                </div>
-
-                <!-- Error Message -->
-                <p v-if="passwordError" class="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
-                  <i class="mdi mdi-alert-circle mr-1"></i>
-                  {{ passwordError }}
-                </p>
-
-                <!-- Buttons -->
-                <div class="flex gap-3">
-                  <base-button
-                    class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
-                    @click="closePasswordPopup"
-                  >
-                    ยกเลิก
-                  </base-button>
-                  <base-button
-                    class="flex-1"
-                    @click="openPasswordConfirm"
-                    :disabled="!isPasswordValid"
-                  >
-                    บันทึก
-                  </base-button>
-                </div>
+                  <i
+                    class="mdi text-lg"
+                    :class="activeSection === section.key ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+                  ></i>
+                </button>
               </div>
             </div>
 
-            <div class="flex items-center gap-4 mt-6 mb-4">
-              <span
-                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-              >
-                <i class="mdi mdi-shield-lock" aria-hidden="true"></i>
-              </span>
-              <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบอื่น</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="relative">
-                <label class="block text-sm font-medium text-neutral-700 mb-1"
-                  >เชื่อมต่อหรือไม่ *</label
-                >
-                <div
-                  class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
-                  @click="openIntegrate = !openIntegrate"
-                >
-                  <span>{{ form.user_integrate === 'Y' ? 'เชื่อมต่อ' : 'ไม่เชื่อมต่อ' }}</span>
-
-                  <svg
-                    class="w-4 h-4 text-slate-500 transition-transform"
-                    :class="openIntegrate ? 'rotate-180' : ''"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+            <!-- ด้านขวา: ฟิลด์รายละเอียด -->
+            <!-- Desktop detail (ตาม activeSection) -->
+            <div class="hidden md:block flex-1">
+              <div class="flex items-center justify-between pb-4 border-b-2 border-gray-200">
+                <div class="flex items-center gap-3">
+                  <span
+                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 9l-7 7-7-7"
+                    <i :class="currentSection.icon"></i>
+                  </span>
+                  <div>
+                    <h2 class="text-lg font-semibold text-gray-800">{{ currentSection.label }}</h2>
+                    <p class="text-sm text-gray-500">{{ currentSection.description }}</p>
+                  </div>
+                </div>
+                <span class="text-xs text-gray-500">คลิกไอคอนดินสอเพื่อแก้ไข</span>
+              </div>
+
+              <div class="divide-y-2 divide-gray-200">
+                <div
+                  v-for="field in sectionFields[activeSection]"
+                  :key="field.key"
+                  class="py-4 flex flex-col gap-2"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <span
+                        class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
+                      >
+                        <i :class="field.icon" class="text-lg"></i>
+                      </span>
+                      <div>
+                        <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
+                        <p v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]" class="text-gray-600 text-sm">
+                          {{ displayStaticValue(field.key) }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="field.key === 'email'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changeEmail()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="field.key === 'password'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changePassword()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="startEdit(field.key as EditableKey)"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
+                    class="pl-12"
+                  >
+                    <div v-if="field.key === 'sex'">
+                      <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
+                      <div class="relative">
+                        <select
+                          v-model="editableValues.sex"
+                          class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="" disabled>เลือกเพศ</option>
+                          <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                    <BaseInput
+                      v-else-if="field.key !== 'password'"
+                      v-model="editableValues[field.key as EditableKey]"
+                      :placeholder="field.placeholder || field.label"
+                      :type="field.type || 'text'"
                     />
-                  </svg>
-                </div>
+                    <BaseInput
+                      v-else
+                      v-model="editableValues[field.key as EditableKey]"
+                      type="password"
+                      placeholder="********"
+                    />
 
-                <div
-                  v-if="openIntegrate"
-                  class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
-                >
-                  <div
-                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                    @click="selectIntegrate('N')"
-                  >
-                    ไม่เชื่อม
-                  </div>
-
-                  <div
-                    class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
-                    @click="selectIntegrate('Y')"
-                  >
-                    เชื่อม
+                    <div class="flex justify-end gap-2 mt-1">
+                      <base-button
+                        class="bg-neutral-400 text-neutral-700 hover:bg-neutral-500 px-4"
+                        @click="cancelEdit(field.key as EditableKey)"
+                      >
+                        ยกเลิก
+                      </base-button>
+                      <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <base-input
-                v-model="form.user_integrate_provider_id"
-                label="Provider ID"
-                placeholder="Provider ID"
-                :disabled="form.user_integrate !== 'Y'"
-              />
+              <!-- ปุ่มสำหรับ mobile -->
+              <div class="mt-6 flex gap-3 md:hidden">
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
+              </div>
             </div>
 
-            <div class="grid grid-cols-1 mt-4">
-              <base-input
-                v-model="form.user_integrate_url"
-                label="URL เชื่อมต่อข้อมูล"
-                placeholder="https://..."
-                :disabled="form.user_integrate !== 'Y'"
-              />
-            </div>
-
-            <hr class="my-3 border-t-3 border-gray-400 mt-6 md:hidden" />
-            <div class="p-3 flex gap-4 md:hidden">
-              <base-button class="w-full bg-neutral-400" @click="openResetConfirm"
-                >รีเซ็ต</base-button
+            <!-- Mobile detail (แสดงทุกหมวดเรียงกัน) -->
+            <div class="md:hidden flex-1">
+              <div
+                v-for="section in sectionList"
+                :key="section.key"
+                class="border border-gray-100 rounded-xl p-4 mb-4 shadow-sm"
               >
-              <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
+                <div class="flex items-center gap-3 mb-3">
+                  <span
+                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
+                  >
+                    <i :class="section.icon"></i>
+                  </span>
+                  <div>
+                    <h2 class="text-base font-semibold text-gray-800">{{ section.label }}</h2>
+                    <p class="text-xs text-gray-500">{{ section.description }}</p>
+                  </div>
+                </div>
+
+                <div class="divide-y-2 divide-gray-200">
+                  <div
+                    v-for="field in sectionFields[section.key]"
+                    :key="field.key"
+                    class="py-3 flex flex-col gap-2"
+                  >
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                          <span
+                            class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
+                          >
+                            <i :class="field.icon" class="text-lg"></i>
+                          </span>
+                          <div>
+                            <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
+                            <p
+                              v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
+                              class="text-gray-600 text-sm"
+                            >
+                              {{ displayStaticValue(field.key) }}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          v-if="field.key === 'email'"
+                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                          @click="changeEmail()"
+                        >
+                          <i class="mdi mdi-pencil text-lg"></i>
+                        </button>
+                        <button
+                          v-else-if="field.key === 'password'"
+                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                          @click="changePassword()"
+                        >
+                          <i class="mdi mdi-pencil text-lg"></i>
+                        </button>
+                        <button
+                          v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
+                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                          @click="startEdit(field.key as EditableKey)"
+                        >
+                          <i class="mdi mdi-pencil text-lg"></i>
+                        </button>
+                      </div>
+
+                      <div
+                        v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
+                        class="pl-10"
+                      >
+                      <div v-if="field.key === 'sex'">
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
+                        <div class="relative">
+                          <select
+                            v-model="editableValues.sex"
+                            class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
+                          >
+                            <option value="" disabled>เลือกเพศ</option>
+                            <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+                              {{ opt.label }}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                      <BaseInput
+                        v-else-if="field.key !== 'password'"
+                        v-model="editableValues[field.key as EditableKey]"
+                        :placeholder="field.placeholder || field.label"
+                        :type="field.type || 'text'"
+                      />
+                      <BaseInput
+                        v-else
+                        v-model="editableValues[field.key as EditableKey]"
+                        type="password"
+                        placeholder="********"
+                      />
+
+                      <div class="flex justify-end gap-2 mt-1">
+                        <base-button
+                          class="bg-neutral-400 text-neutral-700 hover:bg-neutral-500 px-4"
+                          @click="cancelEdit(field.key as EditableKey)"
+                        >
+                          ยกเลิก
+                        </base-button>
+                        <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 flex gap-3">
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popup: เปลี่ยนอีเมล -->
+        <div v-if="showEmailPopup" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
+
+            <BaseInput
+              v-model="newEmail"
+              type="email"
+              label="อีเมลใหม่"
+              placeholder="example@mail.com"
+              class="mb-2"
+            />
+
+            <BaseInput
+              v-model="passwordForEmail"
+              type="password"
+              label="รหัสผ่านปัจจุบัน (เพื่อยืนยัน)"
+              placeholder="********"
+            />
+
+            <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
+
+            <div class="flex justify-end gap-3 mt-2">
+              <base-button
+                class="w-full bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+                @click="closeEmailPopup"
+                >ยกเลิก</base-button
+              >
+              <base-button
+                class="w-full"
+                @click="openEmailConfirm"
+                :disabled="authStore.isLoading"
+                >บันทึก</base-button
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Popup: เปลี่ยนรหัสผ่าน -->
+        <div
+          v-if="showPasswordPopup"
+          class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        >
+          <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+              <i class="mdi mdi-lock-reset text-purple-600 mr-2"></i>
+              เปลี่ยนรหัสผ่าน
+            </h2>
+
+            <BaseInput v-model="oldPassword" label="รหัสผ่านเดิม" type="password" class="mb-2" />
+
+            <hr class="border-t border-gray-200 mb-4" />
+
+            <BaseInput v-model="newPassword" label="รหัสผ่านใหม่" type="password" class="mb-2" />
+
+            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    class="h-full transition-all duration-300 rounded-full"
+                    :style="{ width: passwordStrength.percentage + '%' }"
+                    :class="passwordStrength.colorClass"
+                  />
+                </div>
+                <span
+                  class="text-xs font-semibold min-w-[60px] text-right"
+                  :class="passwordStrength.textClass"
+                >
+                  {{ passwordStrength.label }}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 gap-1.5 text-xs">
+                <div
+                  class="flex items-center gap-2"
+                  :class="passwordChecks.hasLength ? 'text-green-600' : 'text-gray-400'"
+                >
+                  <i
+                    :class="
+                      passwordChecks.hasLength ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                    "
+                    class="text-sm"
+                  ></i>
+                  อย่างน้อย 6 ตัวอักษร
+                </div>
+                <div
+                  class="flex items-center gap-2"
+                  :class="passwordChecks.hasUpper ? 'text-green-600' : 'text-gray-400'"
+                >
+                  <i
+                    :class="
+                      passwordChecks.hasUpper ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                    "
+                    class="text-sm"
+                  ></i>
+                  ตัวพิมพ์ใหญ่ (A-Z)
+                </div>
+                <div
+                  class="flex items-center gap-2"
+                  :class="passwordChecks.hasLower ? 'text-green-600' : 'text-gray-400'"
+                >
+                  <i
+                    :class="
+                      passwordChecks.hasLower ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                    "
+                    class="text-sm"
+                  ></i>
+                  ตัวพิมพ์เล็ก (a-z)
+                </div>
+                <div
+                  class="flex items-center gap-2"
+                  :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-gray-400'"
+                >
+                  <i
+                    :class="
+                      passwordChecks.hasNumber ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                    "
+                    class="text-sm"
+                  ></i>
+                  ตัวเลข (0-9)
+                </div>
+                <div
+                  class="flex items-center gap-2"
+                  :class="passwordChecks.hasSpecial ? 'text-green-600' : 'text-gray-400'"
+                >
+                  <i
+                    :class="
+                      passwordChecks.hasSpecial ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+                    "
+                    class="text-sm"
+                  ></i>
+                  อักขระพิเศษ (!@#$%^&*)
+                </div>
+              </div>
+            </div>
+
+            <BaseInput
+              v-model="confirmPassword"
+              label="ยืนยันรหัสผ่านใหม่"
+              type="password"
+              class=""
+            />
+
+            <div v-if="confirmPassword" class="mb-2 text-xs flex items-center gap-1">
+              <template v-if="newPassword === confirmPassword">
+                <i class="mdi mdi-check-circle text-green-600"></i>
+                <span class="text-green-600">รหัสผ่านตรงกัน</span>
+              </template>
+              <template v-else>
+                <i class="mdi mdi-close-circle text-red-500"></i>
+                <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
+              </template>
+            </div>
+
+            <p v-if="passwordError" class="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
+              <i class="mdi mdi-alert-circle mr-1"></i>
+              {{ passwordError }}
+            </p>
+
+            <div class="flex gap-3">
+              <base-button
+                class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+                @click="closePasswordPopup"
+              >
+                ยกเลิก
+              </base-button>
+              <base-button
+                class="flex-1"
+                @click="openPasswordConfirm"
+                :disabled="!isPasswordValid"
+              >
+                บันทึก
+              </base-button>
             </div>
           </div>
         </div>
@@ -535,7 +539,22 @@ const authStore = useAuthStore()
 // =====================================================
 // FORM MODEL (ข้อมูลฟอร์ม)
 // =====================================================
-const form = reactive({
+type ProfileForm = {
+  name: string
+  surname: string
+  full_name: string
+  sex: string
+  password: string
+  user_address_1: string
+  user_address_2: string
+  user_address_3: string
+  profile_image_url: string
+  user_integrate: string
+  user_integrate_url: string
+  user_integrate_provider_id: string
+}
+
+const form = reactive<ProfileForm>({
   name: '',
   surname: '',
   full_name: '',
@@ -551,13 +570,124 @@ const form = reactive({
 })
 
 // =====================================================
+// UI STATE สำหรับการ์ดรายละเอียด
+// =====================================================
+type SectionKey = 'personal' | 'address' | 'security'
+type EditableKey =
+  | 'name'
+  | 'surname'
+  | 'sex'
+  | 'user_address_1'
+  | 'user_address_2'
+  | 'user_address_3'
+  | 'user_integrate_provider_id'
+  | 'user_integrate_url'
+  | 'email'
+  | 'password'
+type FieldKey = EditableKey | 'role'
+const formEditableKeys = [
+  'name',
+  'surname',
+  'sex',
+  'user_address_1',
+  'user_address_2',
+  'user_address_3',
+  'user_integrate_provider_id',
+  'user_integrate_url',
+] as const
+type FormEditableKey = typeof formEditableKeys[number]
+type FieldConfig = {
+  key: FieldKey
+  label: string
+  icon: string
+  type?: string
+  placeholder?: string
+  editable?: boolean
+}
+
+type SectionItem = {
+  key: SectionKey
+  label: string
+  icon: string
+  description: string
+}
+
+const activeSection = ref<SectionKey>('personal')
+const sectionList: SectionItem[] = [
+  {
+    key: 'personal' as const,
+    label: 'ข้อมูลส่วนบุคคล',
+    icon: 'mdi mdi-account',
+    description: 'ชื่อ-นามสกุล เพศ, และบทบาท',
+  },
+  {
+    key: 'address' as const,
+    label: 'ที่อยู่',
+    icon: 'mdi mdi-map-marker',
+    description: 'ที่อยู่จัดส่ง/ติดต่อ',
+  },
+  {
+    key: 'security' as const,
+    label: 'ความปลอดภัย',
+    icon: 'mdi mdi-shield-lock',
+    description: 'อีเมลและรหัสผ่าน',
+  },
+]
+
+const editableValues = reactive<Record<EditableKey, string>>({
+  name: '',
+  surname: '',
+  sex: '',
+  user_address_1: '',
+  user_address_2: '',
+  user_address_3: '',
+  email: '',
+  password: '',
+  user_integrate_provider_id: '',
+  user_integrate_url: '',
+})
+
+const editState = reactive<Record<EditableKey, boolean>>({
+  name: false,
+  surname: false,
+  sex: false,
+  user_address_1: false,
+  user_address_2: false,
+  user_address_3: false,
+  email: false,
+  password: false,
+  user_integrate_provider_id: false,
+  user_integrate_url: false,
+})
+
+const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
+  personal: [
+    { key: 'name', label: 'ชื่อจริง', icon: 'mdi mdi-account-outline' },
+    { key: 'surname', label: 'นามสกุล', icon: 'mdi mdi-card-account-details-outline' },
+    { key: 'sex', label: 'เพศ', icon: 'mdi mdi-gender-male-female', placeholder: 'เลือกเพศ' },
+    { key: 'role', label: 'บทบาท', icon: 'mdi mdi-account-badge', editable: false },
+  ],
+  address: [
+    { key: 'user_address_1', label: 'ที่อยู่ 1', icon: 'mdi mdi-home-outline' },
+    { key: 'user_address_2', label: 'ที่อยู่ 2', icon: 'mdi mdi-office-building-marker-outline' },
+    { key: 'user_address_3', label: 'ที่อยู่ 3', icon: 'mdi mdi-map-outline' },
+  ],
+  security: [
+    { key: 'email', label: 'เปลี่ยนอีเมล', icon: 'mdi mdi-email-outline', type: 'email' },
+    { key: 'password', label: 'เปลี่ยนรหัสผ่าน', icon: 'mdi mdi-lock-reset', type: 'password' },
+    { key: 'user_integrate_provider_id', label: 'Provider ID', icon: 'mdi mdi-identifier', placeholder: 'Provider ID', type: 'text' },
+    { key: 'user_integrate_url', label: 'Integration URL', icon: 'mdi mdi-link-variant', placeholder: 'https://...', type: 'url',},
+  ],
+}
+
+const currentSection = computed<SectionItem>(() => {
+  return sectionList.find((section) => section.key === activeSection.value) ?? sectionList[0]!
+})
+
+// =====================================================
 // STATE (ตัวแปรควบคุมสถานะ)
 // =====================================================
 const isLoading = ref(false)
-
-// Dropdown State
-const openGender = ref(false)
-const openIntegrate = ref(false)
 
 // Image error state
 const imageError = ref(false)
@@ -574,11 +704,6 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
-const showOldPassword = ref(false)
-const showNewPassword = ref(false)
-const showConfirmPassword = ref(false)
-
-// ❌ ลบตัวแปร show...Confirm ของเดิมออกทั้งหมด เพราะใช้ Swal แล้ว
 
 // =====================================================
 // COMPUTED & HELPERS
@@ -619,17 +744,6 @@ const profileImageUrl = computed(() => {
 const onImageError = () => {
   console.warn('Failed to load profile image, showing default avatar')
   imageError.value = true
-}
-
-const getRoleName = (roleId?: number) => {
-  const roles: Record<number, string> = {
-    1: 'เจ้าของ (Owner)',
-    2: 'ผู้ดูแลระบบ (Admin)',
-    3: 'ผู้ใช้ (User)',
-    4: 'ผู้ดู (Viewer)',
-    5: 'ผู้ตรวจสอบ (Auditor)',
-  }
-  return roles[roleId || 3] || 'ผู้ใช้'
 }
 
 // 🔐 Password Strength Computed
@@ -696,19 +810,94 @@ const isPasswordValid = computed(() => {
   )
 })
 
+const genderOptions = [
+  { value: 'M', label: 'ชาย' },
+  { value: 'F', label: 'หญิง' },
+  { value: 'O', label: 'อื่น ๆ' },
+]
+
+const isFormEditableKey = (key: EditableKey): key is FormEditableKey => {
+  return formEditableKeys.includes(key as FormEditableKey)
+}
+
+const isEditableField = (key: FieldKey): key is EditableKey => key !== 'role'
+
+const resetEditableValue = (fieldKey: EditableKey) => {
+  if (fieldKey === 'email') {
+    editableValues.email = authStore.user?.email || ''
+    return
+  }
+  if (fieldKey === 'password') {
+    editableValues.password = ''
+    return
+  }
+  if (isFormEditableKey(fieldKey)) {
+    editableValues[fieldKey] = form[fieldKey] || ''
+  }
+}
+
+const populateEditableValues = () => {
+  ;(['email', 'password', ...formEditableKeys] as EditableKey[]).forEach((key) => {
+    resetEditableValue(key)
+  })
+}
+
+const displayValue = (fieldKey: EditableKey) => {
+  if (fieldKey === 'sex') return genderLabel.value
+  if (fieldKey === 'email') return authStore.user?.email || '-'
+  if (fieldKey === 'password') return '********'
+  if (isFormEditableKey(fieldKey)) return form[fieldKey] || '-'
+  return '-'
+}
+
+const displayStaticValue = (fieldKey: FieldKey) => {
+  if (fieldKey === 'role') {
+    const roles: Record<number, string> = {
+      1: 'เจ้าของ (Owner)',
+      2: 'ผู้ดูแลระบบ (Admin)',
+      3: 'ผู้ใช้ (User)',
+      4: 'ผู้ดู (Viewer)',
+      5: 'ผู้ตรวจสอบ (Auditor)',
+    }
+    return roles[authStore.user?.role_id || 3] || 'ผู้ใช้'
+  }
+  return displayValue(fieldKey)
+}
+
+const startEdit = (fieldKey: EditableKey) => {
+  resetEditableValue(fieldKey)
+  editState[fieldKey] = true
+}
+
+const cancelEdit = (fieldKey: EditableKey) => {
+  resetEditableValue(fieldKey)
+  editState[fieldKey] = false
+}
+
+const saveField = (fieldKey: EditableKey) => {
+  if (fieldKey === 'email') {
+    editState[fieldKey] = false
+    changeEmail(editableValues.email)
+    return
+  }
+  if (fieldKey === 'password') {
+    editState[fieldKey] = false
+    changePassword(editableValues.password)
+    return
+  }
+
+  if (fieldKey === 'sex') {
+    form.sex = (editableValues.sex || '').toUpperCase()
+  } else if (isFormEditableKey(fieldKey)) {
+    form[fieldKey] = editableValues[fieldKey]
+  }
+
+  editState[fieldKey] = false
+}
+
 // =====================================================
 // EVENTS: General (จัดการ Event ทั่วไป)
 // =====================================================
-const selectGender = (value: string) => {
-  form.sex = value
-  openGender.value = false
-}
-
-const selectIntegrate = (value: string) => {
-  form.user_integrate = value
-  openIntegrate.value = false
-}
-
 const onImageUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -723,8 +912,6 @@ const onImageUpload = (event: Event) => {
   }
   reader.readAsDataURL(file)
 }
-
-const goBack = () => router.back()
 
 // =====================================================
 // 1. FLOW: RESET FORM (รีเซ็ตข้อมูล)
@@ -747,6 +934,8 @@ const fillFormData = () => {
   form.user_address_2 = u.user_address_2 || ''
   form.user_address_3 = u.user_address_3 || ''
   form.profile_image_url = u.profile_image_url || ''
+
+  populateEditableValues()
 }
 
 // ฟังก์ชันกดปุ่ม "รีเซ็ต"
@@ -776,8 +965,8 @@ const openResetConfirm = async () => {
 // =====================================================
 // 2. FLOW: CHANGE EMAIL (เปลี่ยนอีเมล)
 // =====================================================
-const changeEmail = () => {
-  newEmail.value = authStore.user?.email || ''
+const changeEmail = (initialEmail?: string) => {
+  newEmail.value = initialEmail ?? authStore.user?.email ?? ''
   passwordForEmail.value = ''
   emailError.value = ''
   showEmailPopup.value = true
@@ -868,9 +1057,9 @@ const openEmailConfirm = async () => {
 // =====================================================
 // 3. FLOW: CHANGE PASSWORD (เปลี่ยนรหัสผ่าน)
 // =====================================================
-const changePassword = () => {
+const changePassword = (initialNewPassword = '') => {
   oldPassword.value = ''
-  newPassword.value = ''
+  newPassword.value = initialNewPassword
   confirmPassword.value = ''
   passwordError.value = ''
   showPasswordPopup.value = true
@@ -1037,11 +1226,13 @@ const updateProfile = async () => {
       } else {
         throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
       Swal.fire({
         icon: 'error',
         title: 'บันทึกไม่สำเร็จ',
-        text: err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+        text: message,
         confirmButtonText: 'ลองใหม่',
       })
     }
