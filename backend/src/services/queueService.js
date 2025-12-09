@@ -1,6 +1,7 @@
 // src/services/queueService.js
 import PgBoss from "pg-boss";
 import { sendEmail } from "../utils/mailer.js";
+import logger from "../utils/logger.js";
 
 let boss;
 
@@ -20,7 +21,7 @@ export const startQueueSystem = async () => {
 
   // เช็คความเรียบร้อย (Debug)
   if (!bossConfig.password) {
-    console.warn(
+    logger.warn(
       "⚠️ Warning: DB_PASSWORD is missing for Queue System. Connection might fail.",
     );
   }
@@ -28,15 +29,15 @@ export const startQueueSystem = async () => {
   // 2. สร้าง Instance ของ PgBoss
   boss = new PgBoss(bossConfig);
 
-  boss.on("error", (error) => console.error("❌ Queue System Error:", error));
+  boss.on("error", (error) => logger.error("❌ Queue System Error:", error));
 
   try {
     await boss.start();
-    console.log(
+    logger.info(
       `✅ Queue System Started (pg-boss) connected to DB: ${bossConfig.database}`,
     );
   } catch (err) {
-    console.error(
+    logger.error(
       "❌ Failed to connect Queue to Database. Check your .env variables.",
     );
     throw err;
@@ -53,38 +54,38 @@ export const startQueueSystem = async () => {
     // ลบ queue เก่าที่อาจ corrupt (ถ้ามี)
     try {
       await boss.deleteQueue(QUEUE_NAME);
-      console.log(`🗑️ Old queue "${QUEUE_NAME}" deleted`);
+      logger.info(`🗑️ Old queue "${QUEUE_NAME}" deleted`);
     } catch (delErr) {
       // ไม่เป็นไร ถ้าไม่มี queue เดิม
     }
 
     // สร้าง queue ใหม่
     await boss.createQueue(QUEUE_NAME);
-    console.log(`✅ Queue "${QUEUE_NAME}" created successfully!`);
+    logger.info(`✅ Queue "${QUEUE_NAME}" created successfully!`);
   } catch (err) {
-    console.error(`❌ Failed to setup queue "${QUEUE_NAME}":`, err.message);
+    logger.error(`❌ Failed to setup queue "${QUEUE_NAME}":`, err.message);
   }
 
   // Worker สำหรับงานส่งอีเมล (pg-boss v10: ใช้ batchSize: 1 เพื่อรับ single job)
   await boss.work(QUEUE_NAME, { batchSize: 1 }, async ([job]) => {
-    console.log(`\n🔔 ========== EMAIL WORKER TRIGGERED ==========`);
-    console.log(`📋 Job ID: ${job.id}`);
+    logger.info(`\n🔔 ========== EMAIL WORKER TRIGGERED ==========`);
+    logger.info(`📋 Job ID: ${job.id}`);
 
     const { to, subject, html } = job.data;
 
-    console.log(`📨 Processing email job for: ${to}`);
+    logger.info(`📨 Processing email job for: ${to}`);
 
     try {
       // เรียกใช้ Mailer ของจริง
       await sendEmail(to, subject, html);
-      console.log(`✅ Email sent to ${to}`);
+      logger.info(`✅ Email sent to ${to}`);
     } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error.message);
+      logger.error(`❌ Failed to send email to ${to}:`, error.message);
       throw error;
     }
   });
 
-  console.log(`👷 Email worker registered for queue "${QUEUE_NAME}"`);
+  logger.info(`👷 Email worker registered for queue "${QUEUE_NAME}"`);
 };
 
 /**
@@ -92,13 +93,13 @@ export const startQueueSystem = async () => {
  * @param {object} data - { to, subject, html }
  */
 export const addEmailJob = async (data) => {
-  console.log("📬 addEmailJob called with:", {
+  logger.info("📬 addEmailJob called with:", {
     to: data.to,
     subject: data.subject,
   });
 
   if (!boss) {
-    console.error("❌ Boss instance is null/undefined!");
+    logger.error("❌ Boss instance is null/undefined!");
     throw new Error(
       "Queue system not initialized! Call startQueueSystem() first.",
     );
@@ -109,10 +110,10 @@ export const addEmailJob = async (data) => {
       retryLimit: 3,
       expireInSeconds: 300,
     });
-    console.log(`✅ Email job queued successfully! Job ID: ${jobId}`);
+    logger.info(`✅ Email job queued successfully! Job ID: ${jobId}`);
     return jobId;
   } catch (error) {
-    console.error("❌ Failed to queue email job:", error.message);
+    logger.error("❌ Failed to queue email job:", error.message);
     throw error;
   }
 };

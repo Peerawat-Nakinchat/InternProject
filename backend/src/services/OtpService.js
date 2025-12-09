@@ -2,6 +2,7 @@
 import { OtpModel } from "../models/OtpModel.js";
 import { sendEmail } from "../utils/mailer.js";
 import { createError } from "../middleware/errorHandler.js";
+import logger from "../utils/logger.js";
 
 export const createOtpService = (deps = {}) => {
   const otpModel = deps.OtpModel || OtpModel;
@@ -42,7 +43,7 @@ export const createOtpService = (deps = {}) => {
     // Send email
     await mailer(email, subject, html);
 
-    console.log(`📧 OTP sent to ${email} for ${purpose}`);
+    logger.info(`📧 OTP sent to ${email} for ${purpose}`);
 
     return {
       success: true,

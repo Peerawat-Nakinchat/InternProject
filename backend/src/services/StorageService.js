@@ -2,6 +2,7 @@
 import supabase from '../config/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createError } from '../middleware/errorHandler.js';
+import logger from "../utils/logger.js";
 
 const BUCKET_NAME = 'profile-images';
 
@@ -33,7 +34,7 @@ export const uploadImage = async (fileBuffer, fileName, mimeType, userId) => {
       });
 
     if (error) {
-      console.error('Supabase upload error:', error);
+      logger.error('Supabase upload error:', error);
       throw createError.internal('Failed to upload image to storage');
     }
 
@@ -42,14 +43,14 @@ export const uploadImage = async (fileBuffer, fileName, mimeType, userId) => {
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);
 
-    console.log('📸 Supabase public URL data:', urlData);
+    logger.info('📸 Supabase public URL data:', urlData);
 
     return {
       url: urlData.publicUrl,
       path: filePath
     };
   } catch (error) {
-    console.error('Error uploading image:', error);
+    logger.error('Error uploading image:', error);
     throw error;
   }
 };
@@ -61,7 +62,7 @@ export const uploadImage = async (fileBuffer, fileName, mimeType, userId) => {
  */
 export const deleteImage = async (filePath) => {
   if (!supabase) {
-    console.warn('Supabase storage is not configured, skipping delete');
+    logger.warn('Supabase storage is not configured, skipping delete');
     return false;
   }
 
@@ -78,13 +79,13 @@ export const deleteImage = async (filePath) => {
       .remove([pathToDelete]);
 
     if (error) {
-      console.error('Supabase delete error:', error);
+      logger.error('Supabase delete error:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error deleting image:', error);
+    logger.error('Error deleting image:', error);
     return false;
   }
 };
@@ -119,7 +120,7 @@ export const deleteOldProfileImage = async (oldImageUrl) => {
   try {
     await deleteImage(oldImageUrl);
   } catch (error) {
-    console.error('Error deleting old profile image:', error);
+    logger.error('Error deleting old profile image:', error);
     // Don't throw error, just log it
   }
 };

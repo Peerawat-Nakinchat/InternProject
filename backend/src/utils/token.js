@@ -1,6 +1,8 @@
 // src/utils/token.js
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import logger from "../utils/logger.js";
+
 
 export const verifyAccessToken = (token) => {
     try {
@@ -9,7 +11,7 @@ export const verifyAccessToken = (token) => {
         }
         return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     } catch (error) {
-        console.error('❌ Token verification failed:', error.message);
+        logger.error('❌ Token verification failed:', error.message);
         return null;
     }
 };
@@ -43,7 +45,7 @@ export const verifyRefreshToken = (token) => {
         }
         return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
     } catch (error) {
-        console.error('❌ Refresh token verification failed:', error.message);
+        logger.error('❌ Refresh token verification failed:', error.message);
         return null;
     }
 };

@@ -2,6 +2,7 @@
 import UserModel from '../models/UserModel.js';
 import StorageService from '../services/StorageService.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
+import logger from '../utils/logger.js';
 
 export const createProfileController = (userModel = UserModel, storageService = StorageService) => {
 
@@ -48,18 +49,18 @@ export const createProfileController = (userModel = UserModel, storageService = 
   const uploadProfileImage = asyncHandler(async (req, res) => {
     const userId = req.user.user_id;
 
-    console.log('📤 Upload request received');
-    console.log('User ID:', userId);
-    console.log('Has file:', !!req.file);
-    console.log('Body:', req.body);
+    logger.info('📤 Upload request received');
+    logger.info('User ID:', userId);
+    logger.info('Has file:', !!req.file);
+    logger.info('Body:', req.body);
 
     // Check if file exists
     if (!req.file) {
-      console.error('❌ No file in request');
+      logger.error('❌ No file in request');
       throw createError.badRequest('กรุณาเลือกไฟล์รูปภาพ (field name: profileImage)');
     }
 
-    console.log('📄 File details:', {
+    logger.info('📄 File details:', {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size
@@ -158,7 +159,7 @@ export const createProfileController = (userModel = UserModel, storageService = 
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));
     } catch (error) {
-      console.error('Image proxy error:', error);
+      logger.error('Image proxy error:', error);
       throw createError.internal('Failed to fetch image');
     }
   });

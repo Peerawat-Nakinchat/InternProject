@@ -1,6 +1,7 @@
 // src/middleware/auditLogMiddleware.js
 import AuditLogService from '../services/AuditLogService.js';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger.js';
 
 // --- Helper Functions (Pure Logic) ---
 export function inferTargetTable(targetType) {
@@ -117,7 +118,7 @@ export const createAuditLogMiddleware = (deps = {}) => {
             try {
               await auditService.log(logData);
             } catch (error) {
-              console.error('Failed to create audit log:', error);
+              logger.error('Failed to create audit log:', error);
             }
           });
         }
@@ -139,7 +140,7 @@ export const createAuditLogMiddleware = (deps = {}) => {
           try {
             const current = await findResourceFn(targetId);
             if (current) req.auditBeforeData = current.toJSON ? current.toJSON() : current;
-          } catch (e) { console.error('Failed to fetch before data:', e); }
+          } catch (e) { logger.error('Failed to fetch before data:', e); }
         }
 
         const originalSend = res.send;
@@ -163,14 +164,14 @@ export const createAuditLogMiddleware = (deps = {}) => {
                   req.user?.user_id,
                   { ip_address: req.clientInfo?.ipAddress, correlation_id: req.correlationId }
                 );
-              } catch (e) { console.error('Failed to log change:', e); }
+              } catch (e) { logger.error('Failed to log change:', e); }
             });
           }
           return originalSend.call(this, data);
         };
         next();
       } catch (err) {
-        console.error('Audit change middleware error:', err);
+        logger.error('Audit change middleware error:', err);
         next();
       }
     };

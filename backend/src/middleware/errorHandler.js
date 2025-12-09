@@ -97,7 +97,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
     let message = err.message || "Internal Server Error";
     let details = err.details || null; // Use existing details if present (e.g. from createError.validation)
 
-    console.error("❌ Error occurred:", {
+    logger.error("❌ Error occurred:", {
       message: err.message,
       name: err.name,
       status,
@@ -130,7 +130,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
       const field = err.errors[0]?.path || "unknown";
       details = { field, message: `${field} already exists` };
 
-      console.warn("⚠️ Duplicate entry attempt:", {
+      logger.warn("⚠️ Duplicate entry attempt:", {
         field,
         value: err.errors[0]?.value,
         user: req.user?.user_id,
@@ -143,7 +143,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
         message: "Referenced record does not exist",
       };
 
-      console.warn("⚠️ Foreign key constraint violation:", {
+      logger.warn("⚠️ Foreign key constraint violation:", {
         field: err.fields,
         user: req.user?.user_id,
       });
@@ -152,7 +152,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
       message =
         process.env.NODE_ENV === "production" ? "Database error" : err.message;
 
-      console.error("💥 Database error:", err.message);
+      logger.error("💥 Database error:", err.message);
       logger.suspiciousActivity(
         "Database error",
         req.clientInfo?.ipAddress || req.ip,
@@ -224,7 +224,7 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
       );
     } else if (status === 500 && !message.includes("Database error")) {
       // Catch-all for other 500s
-      console.error("💥 Unexpected error:", {
+      logger.error("💥 Unexpected error:", {
         error: err,
         stack: err.stack,
         path: req.path,

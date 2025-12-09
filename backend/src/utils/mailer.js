@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 // Ensure environment variables from secrets/.env are loaded
 import "../config/loadEnv.js";
+import logger from "../utils/logger.js";
 
 // ✅ Gmail SMTP Configuration
 const transporter = nodemailer.createTransport({
@@ -46,17 +47,17 @@ const generateMessageId = () => {
 };
 
 export const sendEmail = async (to, subject, html) => {
-  console.log("📧 Preparing to send email...");
-  console.log("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");
-  console.log("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");
+  logger.log("📧 Preparing to send email...");
+  logger.log("DEBUG: MAIL_USER is", process.env.MAIL_USER ? "SET" : "NOT SET");
+  logger.log("DEBUG: MAIL_PASS is", process.env.MAIL_PASS ? "SET" : "NOT SET");
 
-  // If no mail credentials, log to console (Mock mode)
+  // If no mail credentials, log to logger (Mock mode)
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.log("==================================================");
-    console.log(`[MOCK EMAIL] To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log("Body:", html);
-    console.log("==================================================");
+    logger.log("==================================================");
+    logger.log(`[MOCK EMAIL] To: ${to}`);
+    logger.log(`Subject: ${subject}`);
+    logger.log("Body:", html);
+    logger.log("==================================================");
     return;
   }
 
@@ -90,13 +91,13 @@ export const sendEmail = async (to, subject, html) => {
       replyTo: process.env.MAIL_REPLY_TO || senderEmail,
     });
 
-    console.log("✅ Email sent successfully!");
-    console.log("Message ID: %s", info.messageId);
-    console.log("Accepted: %s", info.accepted?.join(", "));
+    logger.log("✅ Email sent successfully!");
+    logger.log("Message ID: %s", info.messageId);
+    logger.log("Accepted: %s", info.accepted?.join(", "));
 
     return info;
   } catch (error) {
-    console.error("❌ Error sending email:", error);
+    logger.error("❌ Error sending email:", error);
     throw error;
   }
 };
