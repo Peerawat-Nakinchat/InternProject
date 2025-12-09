@@ -169,6 +169,17 @@ export const createInvitationService = (deps = {}) => {
       throw createError.badRequest("Invitation has expired");
     }
 
+    // ✅ NEW: Validate logged-in user email matches invitation email
+    const loggedInUser = await User.findById(userId);
+    if (!loggedInUser) {
+      throw createError.unauthorized("ไม่พบข้อมูลผู้ใช้");
+    }
+    if (loggedInUser.email.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw createError.forbidden(
+        `อีเมลที่ล็อคอินไม่ตรงกับอีเมลที่ได้รับเชิญ กรุณาออกจากระบบและเข้าสู่ระบบด้วยอีเมล ${invitation.email}`,
+      );
+    }
+
     const t = await db.transaction();
     try {
       if (parseInt(invitation.role_id) !== 1) {

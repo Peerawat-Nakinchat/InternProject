@@ -11,6 +11,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
+  hashToken,
 } from "../utils/token.js";
 import { sendEmail } from "../utils/mailer.js";
 import { createError } from "../middleware/errorHandler.js";
@@ -40,7 +41,9 @@ export const createAuthService = (deps = {}) => {
     transaction,
   ) => {
     try {
-      const invitation = await Invitation.findByToken(inviteToken);
+      // ✅ Hash the token before lookup - findByToken expects hashed token
+      const hashedToken = hashToken(inviteToken);
+      const invitation = await Invitation.findByToken(hashedToken);
       if (!invitation || invitation.status !== "pending") {
         throw createError.badRequest(
           "Invitation is not valid or has been used",

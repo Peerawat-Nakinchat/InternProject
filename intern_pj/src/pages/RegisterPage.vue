@@ -544,34 +544,44 @@ const submitForm = async () => {
     const data = await response.json()
 
     if (data.success) {
-      toast.success('ลงทะเบียนสำเร็จ! กรุณายืนยันอีเมล') // ✅ Toast success
-      successMessage.value = 'ลงทะเบียนสำเร็จ!'
-
       if (data.user) {
         authStore.user = data.user
       }
 
-      console.log('✅ Register สำเร็จ - Sending OTP')
+      // ✅ DEBUG: Log inviteToken value
+      console.log('📧 inviteToken value:', form.value.inviteToken)
+      console.log('📧 Has inviteToken:', !!form.value.inviteToken)
 
-      // ส่ง OTP ไปยังอีเมลที่ลงทะเบียน
-      registeredEmail.value = form.value.email
+      // ✅ ถ้าสมัครผ่าน invite link = email verified แล้ว ไม่ต้องส่ง OTP
+      if (form.value.inviteToken) {
+        toast.success('ลงทะเบียนและเข้าร่วมบริษัทสำเร็จ!')
+        console.log('✅ Register via invite - skipping OTP (email already verified)')
+        // Redirect to login page
+        setTimeout(() => router.push('/login'), 1500)
+      } else {
+        // ✅ สมัครแบบปกติ = ต้องยืนยัน OTP
+        toast.success('ลงทะเบียนสำเร็จ! กรุณายืนยันอีเมล')
+        successMessage.value = 'ลงทะเบียนสำเร็จ!'
+        console.log('✅ Register สำเร็จ - Sending OTP')
 
-      try {
-        await axios.post(`${API_BASE_URL}/auth/send-otp`, {
-          email: form.value.email,
-          purpose: 'email_verification',
-        })
+        registeredEmail.value = form.value.email
 
-        // แสดง OTP Modal
-        showOtpModal.value = true
-      } catch (otpErr) {
-        console.error('Error sending OTP:', otpErr)
-        // ถ้าส่ง OTP ไม่ได้ ก็ redirect ไป login เลย
-        toast.warning('ไม่สามารถส่ง OTP ได้ กรุณายืนยันอีเมลภายหลัง')
-        setTimeout(() => router.push('/login'), 2000)
+        try {
+          await axios.post(`${API_BASE_URL}/auth/send-otp`, {
+            email: form.value.email,
+            purpose: 'email_verification',
+          })
+
+          // แสดง OTP Modal
+          showOtpModal.value = true
+        } catch (otpErr) {
+          console.error('Error sending OTP:', otpErr)
+          toast.warning('ไม่สามารถส่ง OTP ได้ กรุณายืนยันอีเมลภายหลัง')
+          setTimeout(() => router.push('/login'), 2000)
+        }
       }
     } else {
-      toast.error(data.error || 'การลงทะเบียนไม่สำเร็จ') // ✅ Toast error
+      toast.error(data.error || 'การลงทะเบียนไม่สำเร็จ')
       errorMessage.value = data.error || 'การลงทะเบียนไม่สำเร็จ'
     }
   } catch (err) {

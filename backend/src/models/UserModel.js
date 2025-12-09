@@ -219,6 +219,7 @@ const create = async (userData, transaction = null) => {
       user_address_3: userData.user_address_3 || "",
       role_id: userData.role_id || ROLE_ID.MEMBER, // Default USER role
       is_active: true,
+      is_email_verified: userData.is_email_verified || false, // ✅ NEW: Support for invite-based registration
     },
     { transaction },
   );

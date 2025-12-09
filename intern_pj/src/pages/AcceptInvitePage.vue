@@ -82,19 +82,24 @@
                 <!-- Email Mismatch -->
                 <div
                   v-if="auth.user?.email !== invitation?.email"
-                  class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+                  class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
                 >
-                  <p class="font-bold">อีเมลไม่ถูกต้อง</p>
-                  <p>
+                  <p class="font-bold text-base">อีเมลไม่ถูกต้อง</p>
+                  <p class="mt-2">
                     คุณได้รับเชิญที่: <b>{{ invitation?.email }}</b>
                   </p>
                   <p>
                     แต่คุณเข้าสู่ระบบด้วย: <b>{{ auth.user?.email }}</b>
                   </p>
-                  <p class="mt-2">กรุณาออกจากระบบและเข้าสู่ระบบด้วยบัญชีที่ถูกต้อง</p>
-                  <BaseButton variant="ghost" class="w-full mt-2" @click="onLogout">
-                    ออกจากระบบ
-                  </BaseButton>
+                  <p class="mt-3 text-gray-600">กรุณาออกจากระบบและเข้าสู่ระบบด้วยบัญชีที่ถูกต้อง</p>
+                  <div class="flex gap-2 mt-4">
+                    <BaseButton variant="danger" class="flex-1" @click="onLogout">
+                      ออกจากระบบ
+                    </BaseButton>
+                    <BaseButton variant="outline" class="flex-1" @click="onCancel">
+                      ยกเลิก
+                    </BaseButton>
+                  </div>
                 </div>
 
                 <!-- Email Match -->
@@ -121,10 +126,36 @@
 
             <!-- Case 2: New User -->
             <template v-else>
-              <p class="text-sm text-green-600">คุณยังไม่มีบัญชี กรุณาลงทะเบียนเพื่อเข้าร่วม</p>
-              <BaseButton variant="Submit" class="w-full" @click="onRegister">
-                ลงทะเบียนและเข้าร่วม
-              </BaseButton>
+              <!-- New User but logged in with different email -->
+              <div
+                v-if="auth.isAuthenticated && auth.user?.email !== invitation?.email"
+                class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm"
+              >
+                <p class="font-bold text-base">อีเมลที่ล็อคอินไม่ตรงกัน</p>
+                <p class="mt-2">
+                  คำเชิญนี้สำหรับ: <b>{{ invitation?.email }}</b> (อีเมลใหม่)
+                </p>
+                <p>
+                  แต่คุณเข้าสู่ระบบด้วย: <b>{{ auth.user?.email }}</b>
+                </p>
+                <p class="mt-3 text-gray-600">กรุณาออกจากระบบเพื่อลงทะเบียนด้วยอีเมลใหม่</p>
+                <div class="flex gap-2 mt-4">
+                  <BaseButton variant="danger" class="flex-1" @click="onLogout">
+                    ออกจากระบบ
+                  </BaseButton>
+                  <BaseButton variant="outline" class="flex-1" @click="onCancel">
+                    ยกเลิก
+                  </BaseButton>
+                </div>
+              </div>
+
+              <!-- Not logged in - normal new user flow -->
+              <template v-else>
+                <p class="text-sm text-green-600">คุณยังไม่มีบัญชี กรุณาลงทะเบียนเพื่อเข้าร่วม</p>
+                <BaseButton variant="Submit" class="w-full" @click="onRegister">
+                  ลงทะเบียนและเข้าร่วม
+                </BaseButton>
+              </template>
             </template>
           </div>
         </div>
@@ -194,18 +225,30 @@ const onAcceptExisting = async () => {
   } catch (err: any) {
     if (err.response?.status === 409) {
       errorMessage.value = err.response.data.message
-      toast.error(err.response.data.message) // ✅ Toast error
+      toast.error(err.response.data.message)
+    } else if (err.response?.status === 403) {
+      // Email mismatch - show specific error
+      errorMessage.value = err.response.data.message || 'อีเมลที่ล็อคอินไม่ตรงกับอีเมลที่ได้รับเชิญ'
+      toast.error(errorMessage.value)
     } else {
       errorMessage.value = 'เกิดข้อผิดพลาดในการตอบรับคำเชิญ'
-      toast.error('เกิดข้อผิดพลาดในการตอบรับคำเชิญ') // ✅ Toast error
+      toast.error('เกิดข้อผิดพลาดในการตอบรับคำเชิญ')
     }
     viewState.value = 'error'
   }
 }
 
-const onLogout = () => {
-  auth.logout()
-  router.push('/login')
+const onLogout = async () => {
+  await auth.logout()
+  // ✅ Reload the same invite page to continue the flow
+  // After logout, user will see the correct flow based on email status:
+  // - New user → "ลงทะเบียนและเข้าร่วม"
+  // - Existing user → "ตอบรับคำเชิญ (เข้าสู่ระบบ)"
+  window.location.reload()
+}
+
+const onCancel = () => {
+  router.push('/')
 }
 
 const onRegister = () => {
