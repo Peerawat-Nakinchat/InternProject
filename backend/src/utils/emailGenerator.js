@@ -72,7 +72,7 @@ const generateInvitationHtml = (data) => {
                                     ? `
                                         <tr>
                                             <td align="center" style="padding-top: 15px;">
-                                                <img src="${inviterImageUrl}" alt="รูปผู้เชิญ" style="width: 120px; height: 120px; border-radius: 40%; border: 2px solid #e6f1ffff; object-fit: cover;">
+                                                <img src="${inviterImageUrl}" alt="รูปผู้เชิญ" style="width: 120px; height: 120px; border-radius: 50%; border: 2px solid #e6f1ffff; object-fit: cover;">
                                             </td>
                                         </tr>
                                     `
