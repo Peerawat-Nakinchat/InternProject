@@ -65,26 +65,40 @@ export const startQueueSystem = async () => {
     console.error(`❌ Failed to setup queue "${QUEUE_NAME}":`, err.message);
   }
 
-  // Worker สำหรับงานส่งอีเมล (pg-boss v10: ใช้ batchSize: 1 เพื่อรับ single job)
-  await boss.work(QUEUE_NAME, { batchSize: 1 }, async ([job]) => {
-    console.log(`\n🔔 ========== EMAIL WORKER TRIGGERED ==========`);
-    console.log(`📋 Job ID: ${job.id}`);
+  // ✅ Worker สำหรับงานส่งอีเมล
+  // - batchSize: 1 = รับทีละ 1 job ต่อ worker
+  // - teamSize: 3 = มี 3 workers ทำงานพร้อมกัน (ส่ง 3 อีเมลพร้อมกัน)
+  await boss.work(
+    QUEUE_NAME,
+    {
+      batchSize: 1,
+      teamSize: 3, // 🔥 เพิ่ม concurrency - 3 workers พร้อมกัน
+    },
+    async ([job]) => {
+      const workerId = Math.random().toString(36).substring(7);
+      console.log(`\n🔔 ========== EMAIL WORKER [${workerId}] ==========`);
+      console.log(`📋 Job ID: ${job.id}`);
 
-    const { to, subject, html } = job.data;
+      const { to, subject, html } = job.data;
 
-    console.log(`📨 Processing email job for: ${to}`);
+      console.log(`📨 Processing email job for: ${to}`);
 
-    try {
-      // เรียกใช้ Mailer ของจริง
-      await sendEmail(to, subject, html);
-      console.log(`✅ Email sent to ${to}`);
-    } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error.message);
-      throw error;
-    }
-  });
+      try {
+        await sendEmail(to, subject, html);
+        console.log(`✅ [${workerId}] Email sent to ${to}`);
+      } catch (error) {
+        console.error(
+          `❌ [${workerId}] Failed to send email to ${to}:`,
+          error.message,
+        );
+        throw error;
+      }
+    },
+  );
 
-  console.log(`👷 Email worker registered for queue "${QUEUE_NAME}"`);
+  console.log(
+    `👷 Email worker registered for queue "${QUEUE_NAME}" (teamSize: 3)`,
+  );
 };
 
 /**
