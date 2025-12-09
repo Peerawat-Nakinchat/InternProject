@@ -16,6 +16,7 @@ import {
 import { sendEmail } from "../utils/mailer.js";
 import { createError } from "../middleware/errorHandler.js";
 import StorageService from "./StorageService.js";
+import logger from "../utils/logger.js";
 
 export const createAuthService = (deps = {}) => {
   const User = deps.UserModel || UserModel;
