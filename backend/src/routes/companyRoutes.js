@@ -12,6 +12,7 @@ import { requireOrganization, requireOrgRole } from "../middleware/companyMiddle
 import { auditLog, auditChange } from "../middleware/auditLogMiddleware.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import OrganizationModel from "../models/CompanyModel.js";
+import { validateCompanyCreate } from "../middleware/validation.js";
 
 export const createCompanyRoutes = (deps = {}) => {
   const router = express.Router();
@@ -93,6 +94,7 @@ export const createCompanyRoutes = (deps = {}) => {
  */
   router.post(
     "/",
+    validateCompanyCreate,
     auditMw.auditLog(AUDIT_ACTIONS.COMPANY.CREATE, "COMPANY", { severity: "HIGH", category: "COMPANY" }),
     controller.createCompany
   );
