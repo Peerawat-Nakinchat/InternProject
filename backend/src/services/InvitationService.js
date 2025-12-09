@@ -12,6 +12,7 @@ import { ROLE_ID } from "../constants/roles.js";
 import AuditLogModel from "../models/AuditLogModel.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import logger from "../utils/logger.js";
+import { RoleModel } from "../models/RoleModel.js";
 
 export const createInvitationService = (deps = {}) => {
   const User = deps.UserModel || UserModel;
@@ -19,6 +20,7 @@ export const createInvitationService = (deps = {}) => {
   const Org = deps.OrganizationModel || OrganizationModel;
   const Invitation = deps.InvitationModel || InvitationModel;
   const AuditLog = deps.AuditLogModel || AuditLogModel;
+  const Role = deps.RoleModel || RoleModel;
   const db = deps.sequelize || sequelize;
   const env = deps.env || process.env;
 
@@ -88,6 +90,18 @@ export const createInvitationService = (deps = {}) => {
       const frontendUrl = (env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
       const inviteLink = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(email)}`;
 
+      const ROLE_LABEL_MAP = {
+        1: "เจ้าของ",        // OWNER
+        2: "ผู้ดูแลระบบ",    // ADMIN
+        3: "สมาชิก",         // USER / MEMBER
+        4: "ผู้เยี่ยมชม",    // VIEWER
+        5: "ผู้ตรวจสอบ",     // AUDITOR
+      };
+
+      // แปลง role_id → ชื่อ role ภาษาไทย
+      const roleIdNumber = parseInt(role_id, 10);
+      const roleThaiLabel = ROLE_LABEL_MAP[roleIdNumber] || "สมาชิก";
+
       // สร้าง HTML จาก Template
       const html = await renderEmail("invitation", {
         companyName,
@@ -96,6 +110,7 @@ export const createInvitationService = (deps = {}) => {
         inviteLink,
         email,
         year: new Date().getFullYear(),
+        role_name: roleThaiLabel,   //ส่งชื่อไทยเข้า template
       });
 
       try {
