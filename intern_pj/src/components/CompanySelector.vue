@@ -56,18 +56,18 @@
                   <li
                     class="relative cursor-pointer select-none py-2 pl-4 pr-12 border-l-[6px] transition-all duration-200 tracking-wide"
                     :class="[
-                      active ? 'bg-purple-50 text-gray-800' : 'text-gray-600',
+                      active ? 'bg-purple-50 text-gray-900' : 'text-gray-600',
                       selected ? 'bg-purple-200' : '',
                       getRoleConfig(roleKey).borderClass
                     ]"
                   >
                     <div class="flex flex-col gap-1">
-                      <span :class="[selected ? 'font-bold' : 'font-medium', 'block truncate text-sm md:text-base']">
+                      <span :class="[selected ? 'font-bold' : 'font-semibold', 'block truncate text-sm md:text-md']">
                         {{ company.org_name }}
                       </span>
                       
-                      <div class="flex justify-between text-xs md:text-sm text-gray-500">
-                        <span class="uppercase tracking-wide font-mono bg-gray-100 px-2 rounded-sm">Code: {{ company.org_code || '-' }}</span>
+                      <div class="flex justify-between items-center text-xs md:text-sm text-gray-500">
+                        <span class="uppercase tracking-wide text-center text-sm font-mono bg-gray-100 px-2 rounded-sm">Code : {{ company.org_code || '-' }}</span>
                         <span class="flex items-center gap-1">
                           <i class="mdi mdi-account-group text-gray-400"></i>
                           {{ company.member_count ?? 0 }}
@@ -76,7 +76,7 @@
                     </div>
                     
                     <span v-if="selected" class="absolute inset-y-0 right-0 flex items-center pr-2 text-purple-600">
-                      <i class="mdi mdi-check-circle text-xl md:text-2xl"></i>
+                      <i class="mdi mdi-check-circle text-md md:text-2xl"></i>
                     </span>
                   </li>
                 </ListboxOption>
