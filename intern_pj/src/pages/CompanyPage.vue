@@ -83,6 +83,7 @@
                   <button
                     v-for="option in integrationOptions"
                     :key="option.value"
+                    type="button"
                     class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100"
                     @click="onSelectIntegration(option)"
                   >
@@ -115,33 +116,36 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-4 mb-4">
-          <span
-            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-          >
-            <i class="mdi mdi-lan-connect" aria-hidden="true"></i>
-          </span>
-          <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบ</h2>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <BaseInput
-            v-model="form.org_integrate_provider_id"
-            label="Integration Provider"
-            placeholder="กรอก Provider ID"
-          />
-          <BaseInput
-            v-model="form.org_integrate_passcode"
-            label="Integration Passcode"
-            type="password"
-            placeholder="กรอกรหัสจากระบบภายนอก"
-          />
-          <BaseInput
-            v-model="form.org_integrate_url"
-            label="Integration URL"
-            type="url"
-            placeholder="https://..."
-          />
-        </div>
+        <!-- Section: การเชื่อมต่อระบบ (แสดงเมื่อเลือก "เชื่อมต่อ" เท่านั้น) -->
+        <template v-if="form.org_integrate === 'Y'">
+          <div class="flex items-center gap-4 mb-4 mt-8">
+            <span
+              class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
+            >
+              <i class="mdi mdi-lan-connect" aria-hidden="true"></i>
+            </span>
+            <h2 class="text-lg text-gray-800 font-semibold">การเชื่อมต่อระบบ</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <BaseInput
+              v-model="form.org_integrate_provider_id"
+              label="Integration Provider *"
+              placeholder="กรอก Provider ID"
+            />
+            <BaseInput
+              v-model="form.org_integrate_passcode"
+              label="Integration Passcode *"
+              type="password"
+              placeholder="กรอกรหัสจากระบบภายนอก"
+            />
+            <BaseInput
+              v-model="form.org_integrate_url"
+              label="Integration URL"
+              type="url"
+              placeholder="https://..."
+            />
+          </div>
+        </template>
       </section>
 
       <!-- Mobile: ปุ่ม full-width ต่อจากฟอร์ม -->
