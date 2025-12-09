@@ -66,7 +66,7 @@ export const createAuthService = (deps = {}) => {
       );
       return invitationInfo.org_id;
     } catch (error) {
-      console.error("❌ Process invite token error:", error);
+      logger.error("❌ Process invite token error:", error);
       throw error;
     }
   };
@@ -350,7 +350,7 @@ export const createAuthService = (deps = {}) => {
       cleanData.profile_image_url.startsWith("data:image/")
     ) {
       try {
-        console.log("📤 Processing Base64 image upload...");
+        logger.info("📤 Processing Base64 image upload...");
 
         // Get current user to delete old image if exists
         const currentUser = await User.findById(userId);
@@ -358,7 +358,7 @@ export const createAuthService = (deps = {}) => {
           currentUser?.profile_image_url &&
           currentUser.profile_image_url.includes("supabase")
         ) {
-          console.log("🗑️ Deleting old Supabase image...");
+          logger.info("🗑️ Deleting old Supabase image...");
           await StorageService.deleteOldProfileImage(
             currentUser.profile_image_url,
           );
@@ -369,7 +369,7 @@ export const createAuthService = (deps = {}) => {
           /^data:image\/([a-zA-Z0-9+-]+);base64,(.+)$/,
         );
         if (!matches) {
-          console.error(
+          logger.error(
             "❌ Invalid Base64 format:",
             cleanData.profile_image_url.substring(0, 50),
           );
@@ -383,7 +383,7 @@ export const createAuthService = (deps = {}) => {
         const base64Data = matches[2];
         const buffer = Buffer.from(base64Data, "base64");
 
-        console.log(
+        logger.info(
           `📊 Image info: type=${imageType}, size=${buffer.length} bytes`,
         );
 
@@ -396,7 +396,7 @@ export const createAuthService = (deps = {}) => {
         // Upload to Supabase
         const fileName = `profile_${Date.now()}.${imageType}`;
         const mimeType = `image/${imageType}`;
-        console.log(`📤 Uploading to Supabase: ${fileName}`);
+        logger.info(`📤 Uploading to Supabase: ${fileName}`);
         const result = await StorageService.uploadImage(
           buffer,
           fileName,
@@ -406,15 +406,15 @@ export const createAuthService = (deps = {}) => {
 
         // Replace Base64 with actual URL
         cleanData.profile_image_url = result.url;
-        console.log("✅ Profile image uploaded to Supabase:", result.url);
+        logger.info("✅ Profile image uploaded to Supabase:", result.url);
       } catch (error) {
-        console.error(
+        logger.error(
           "❌ Error uploading profile image:",
           error.message || error,
         );
         // If Supabase is not configured, skip image upload but don't fail the entire update
         if (error.statusCode === 503) {
-          console.warn("⚠️ Supabase not configured, skipping image upload");
+          logger.warn("⚠️ Supabase not configured, skipping image upload");
           delete cleanData.profile_image_url;
         } else {
           throw error;
