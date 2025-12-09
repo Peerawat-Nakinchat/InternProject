@@ -126,12 +126,17 @@ axiosInstance.interceptors.response.use(
           // retry request เดิม
           return axiosInstance(originalRequest)
         } else {
-          // refresh ไม่สำเร็จ - logout และ redirect
+          // refresh ไม่สำเร็จ - logout และ redirect (ยกเว้น public routes)
           console.log('❌ Refresh failed, user logged out')
           processQueue(new Error('Refresh token expired'))
           await auth.logout()
+          
+          // ✅ FIX: ไม่ redirect ถ้าอยู่ใน public route (เช่น accept-invite)
           const currentPath = window.location.pathname
-          if (currentPath !== '/login') {
+          const publicRoutes = ['/accept-invite', '/login', '/registerPage', '/reset-password']
+          const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
+          
+          if (!isPublicRoute) {
             window.location.href = '/login'
           }
           return Promise.reject(error)
@@ -141,8 +146,13 @@ axiosInstance.interceptors.response.use(
         processQueue(refreshError as Error)
         const auth = useAuthStore()
         await auth.logout()
+        
+        // ✅ FIX: ไม่ redirect ถ้าอยู่ใน public route
         const currentPath = window.location.pathname
-        if (currentPath !== '/login') {
+        const publicRoutes = ['/accept-invite', '/login', '/registerPage', '/reset-password']
+        const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
+        
+        if (!isPublicRoute) {
           window.location.href = '/login'
         }
         return Promise.reject(refreshError)
