@@ -54,10 +54,10 @@
                   v-slot="{ active, selected }"
                 >
                   <li
-                    class="relative cursor-pointer select-none py-2 pl-4 pr-12 border-l-[6px] transition-all duration-200"
+                    class="relative cursor-pointer select-none py-2 pl-4 pr-12 border-l-[6px] transition-all duration-200 tracking-wide"
                     :class="[
-                      active ? 'bg-purple-50 text-purple-900' : 'text-gray-900',
-                      selected ? 'bg-purple-100' : '',
+                      active ? 'bg-purple-50 text-gray-800' : 'text-gray-600',
+                      selected ? 'bg-purple-200' : '',
                       getRoleConfig(roleKey).borderClass
                     ]"
                   >
