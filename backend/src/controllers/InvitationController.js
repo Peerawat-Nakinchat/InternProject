@@ -1,16 +1,20 @@
 import InvitationService from "../services/InvitationService.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import defaultController from "./AuthController.js";
 
 export const createInvitationController = (service = InvitationService) => {
   const sendInvitation = asyncHandler(async (req, res) => {
-    // Assumes validation middleware checks for email, org_id, role_id
+
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    const userAgent = clientInfo.userAgent || req.headers["user-agent"];
+
     const result = await service.sendInvitation(
       req.body.email,
       req.body.org_id,
       req.body.role_id,
       req.user.user_id,
+      {ip, userAgent}
     );
     return ResponseHandler.created(res, result);
   });
@@ -21,9 +25,14 @@ export const createInvitationController = (service = InvitationService) => {
   });
 
   const acceptInvitation = asyncHandler(async (req, res) => {
+
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    const userAgent = clientInfo.userAgent || req.headers["user-agent"];
     const result = await service.acceptInvitation(
       req.body.token,
       req.user.user_id,
+      {ip, userAgent}
     );
     return ResponseHandler.success(res, result);
   });
@@ -37,10 +46,15 @@ export const createInvitationController = (service = InvitationService) => {
   });
 
   const resendInvitation = asyncHandler(async (req, res) => {
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    const userAgent = clientInfo.userAgent || req.headers["user-agent"];
     const result = await service.resendInvitation(
       req.body.email,
       req.body.org_id,
       req.body.role_id,
+      req.user.user_id, 
+      { ip, userAgent }
     );
     return ResponseHandler.success(res, result);
   });
