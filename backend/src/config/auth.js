@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 dotenv.config();
 
 /**
@@ -22,7 +23,7 @@ export const AUTH_CONFIG = {
 
 // Validate required secrets
 if (!AUTH_CONFIG.ACCESS_TOKEN_SECRET || !AUTH_CONFIG.REFRESH_TOKEN_SECRET) {
-    console.error("FATAL ERROR: ACCESS_TOKEN_SECRET or REFRESH_TOKEN_SECRET not defined in .env");
+    logger.error("FATAL ERROR: ACCESS_TOKEN_SECRET or REFRESH_TOKEN_SECRET not defined in .env");
     process.exit(1);
 }
 

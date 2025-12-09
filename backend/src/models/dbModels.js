@@ -89,12 +89,12 @@ const syncDatabase = async () => {
   try {
     if (process.env.NODE_ENV !== "development") {
       // await sequelize.sync({ alter: true });
-      console.log("✅ Database synced successfully");
+      logger.info("✅ Database synced successfully");
 
       await seedRoles();
     }
   } catch (error) {
-    console.error("❌ Database sync error:", error);
+    logger.error("❌ Database sync error:", error);
     throw error;
   }
 };
@@ -113,9 +113,9 @@ const seedRoles = async () => {
         defaults: role,
       });
     }
-    console.log("✅ Roles seeded successfully");
+    logger.info("✅ Roles seeded successfully");
   } catch (error) {
-    console.error("❌ Role seeding error:", error);
+    logger.error("❌ Role seeding error:", error);
   }
 };
 

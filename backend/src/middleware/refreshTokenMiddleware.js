@@ -128,7 +128,7 @@ export const createRefreshTokenMiddleware = (deps = {}) => {
       return res.status(200).json(response);
 
     } catch (err) {
-      console.error('❌ Refresh token error:', err);
+      logger.error('❌ Refresh token error:', err);
       cookies.clearAuthCookies(res);
 
       logger.suspiciousActivity(
@@ -178,7 +178,7 @@ export const createRefreshTokenMiddleware = (deps = {}) => {
       req.tokenData = { userId: decoded.user_id, valid: true };
       next();
     } catch (err) {
-      console.error('❌ Validate refresh token error:', err);
+      logger.error('❌ Validate refresh token error:', err);
       return res.status(401).json({ success: false, valid: false, message: 'Invalid token' });
     }
   };

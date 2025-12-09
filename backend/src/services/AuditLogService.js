@@ -53,7 +53,7 @@ export const createAuditLogService = (deps = {}) => {
       if (!logData.correlation_id && logData.generateCorrelationId) logData.correlation_id = generateUuid();
 
     } catch (error) {
-      console.error('Failed to create audit log:', error);
+      logger.error('Failed to create audit log:', error);
       return null; // Audit log fail should not crash the app
     }
   };
@@ -82,7 +82,7 @@ export const createAuditLogService = (deps = {}) => {
       await logSystem('DATABASE_CLEANUP', `Cleaned up ${deleted} logs`, 'INFO', { deleted_count: deleted });
       return { deleted };
     } catch (error) {
-      console.error('Audit log cleanup error:', error);
+      logger.error('Audit log cleanup error:', error);
       throw error; // Cleanup failing IS an issue we should know about
     }
   };

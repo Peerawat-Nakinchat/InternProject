@@ -11,6 +11,7 @@ import { addEmailJob } from "./queueService.js";
 import { ROLE_ID } from "../constants/roles.js";
 import AuditLogModel from "../models/AuditLogModel.js";
 import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
+import logger from "../utils/logger.js";
 
 export const createInvitationService = (deps = {}) => {
   const User = deps.UserModel || UserModel;
@@ -103,10 +104,10 @@ export const createInvitationService = (deps = {}) => {
           subject: `คำเชิญเข้าร่วมบริษัท ${companyName}`,
           html: html,
         });
-        console.log(`✅ Invitation email queued successfully for: ${email}`);
+        logger.info(`✅ Invitation email queued successfully for: ${email}`);
       } catch (emailError) {
         if (!t.finished) await t.rollback();
-        console.error("❌ Failed to queue invitation email:", emailError.message);
+        logger.error("❌ Failed to queue invitation email:", emailError.message);
         throw createError.internal("ไม่สามารถส่งอีเมลคำเชิญได้ กรุณาลองใหม่อีกครั้ง");
       }
 

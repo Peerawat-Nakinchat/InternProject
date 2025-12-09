@@ -26,51 +26,62 @@ const colors = {
 
 winston.addColors(colors);
 
-// Define format for console (shows metadata)
-const consoleFormat = winston.format.combine(
+/**
+ *  Base Format: ใช้ร่วมกันทั้ง File และ Console (Production)
+ * - timestamp: ลงเวลา
+ * - errors: จับ Stack Trace อัตโนมัติเมื่อเกิด Error
+ * - splat: รองรับ String Interpolation เช่น logger.info('Hello %s', 'World')
+ * - json: จัดรูปแบบเป็น JSON เพื่อให้ Tools อ่านง่าย
+ */
+const baseFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.errors({ stack: true }), 
+  winston.format.splat(),                 
+  winston.format.json()
+);
+
+/**
+ * ✅ Dev Console Format: สำหรับหน้าจอตอน Development (อ่านง่าย)
+ */
+const devConsoleFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
   winston.format.printf((info) => {
-    const { timestamp, level, message, ...meta } = info;
+    const { timestamp, level, message, stack, ...meta } = info;
     let metaStr = '';
     if (Object.keys(meta).length > 0) {
       metaStr = '\n' + JSON.stringify(meta, null, 2);
     }
-    return `${timestamp} ${level}: ${message}${metaStr}`;
-  }),
-);
-
-// Define format for file (JSON)
-const fileFormat = winston.format.combine(
-  winston.format.timestamp(),
-  winston.format.json()
+    // ถ้ามี Error Stack ให้แสดงต่อท้าย
+    return `${timestamp} ${level}: ${message}${stack ? '\n' + stack : ''}${metaStr}`;
+  })
 );
 
 // Define transports
 const transports = [
-  // Console transport
+
   new winston.transports.Console({
-    format: consoleFormat,
+    format: process.env.NODE_ENV === 'production' ? baseFormat : devConsoleFormat,
   }),
   
   // Error log file
   new winston.transports.File({
     filename: path.join(__dirname, '../../logs/error.log'),
     level: 'error',
-    format: fileFormat,
+    format: baseFormat, 
   }),
   
   // Combined log file
   new winston.transports.File({
     filename: path.join(__dirname, '../../logs/combined.log'),
-    format: fileFormat,
+    format: baseFormat,
   }),
   
   // Security events log file (includes info level for successful operations)
   new winston.transports.File({
     filename: path.join(__dirname, '../../logs/security.log'),
     level: 'info',
-    format: fileFormat,
+    format: baseFormat,
   }),
 ];
 
@@ -83,9 +94,7 @@ const logger = winston.createLogger({
 
 // Security-specific logging functions
 export const securityLogger = {
-  /**
-   * Log successful login
-   */
+
   loginSuccess: (userId, email, ipAddress, userAgent) => {
     logger.info('LOGIN_SUCCESS', {
       userId,

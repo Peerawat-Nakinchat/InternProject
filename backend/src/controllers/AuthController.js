@@ -1,5 +1,5 @@
 import AuthService from "../services/AuthService.js";
-import { securityLogger } from "../utils/logger.js";
+import logger, { securityLogger } from "../utils/logger.js";
 import { recordFailedLogin, clearFailedLogins } from "../middleware/securityMonitoring.js";
 import { 
   setAuthCookies, setAccessTokenCookie, clearAuthCookies, getRefreshToken 
@@ -152,7 +152,7 @@ export const createAuthController = (deps = {}) => {
       cookies.setAuthCookies(res, result.accessToken, result.refreshToken);
       res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/auth/callback?oauth=success`);
     } catch (error) {
-      console.error("💥 Google Auth Callback error:", error);
+      logger.error("💥 Google Auth Callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=google_auth_failed`);
     }
   });
