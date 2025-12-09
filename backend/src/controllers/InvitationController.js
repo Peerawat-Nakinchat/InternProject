@@ -4,14 +4,13 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 import defaultController from "./AuthController.js";
 
 export const createInvitationController = (service = InvitationService) => {
-  
   const sendInvitation = asyncHandler(async (req, res) => {
     // Assumes validation middleware checks for email, org_id, role_id
     const result = await service.sendInvitation(
-      req.body.email, 
-      req.body.org_id, 
-      req.body.role_id, 
-      req.user.user_id
+      req.body.email,
+      req.body.org_id,
+      req.body.role_id,
+      req.user.user_id,
     );
     return ResponseHandler.created(res, result);
   });
@@ -22,41 +21,56 @@ export const createInvitationController = (service = InvitationService) => {
   });
 
   const acceptInvitation = asyncHandler(async (req, res) => {
-    const result = await service.acceptInvitation(req.body.token, req.user.user_id);
+    const result = await service.acceptInvitation(
+      req.body.token,
+      req.user.user_id,
+    );
     return ResponseHandler.success(res, result);
   });
 
   const cancelInvitation = asyncHandler(async (req, res) => {
-    const result = await service.cancelInvitation(req.body.token, req.user.user_id);
+    const result = await service.cancelInvitation(
+      req.body.token,
+      req.user.user_id,
+    );
     return ResponseHandler.success(res, result);
   });
 
   const resendInvitation = asyncHandler(async (req, res) => {
     const result = await service.resendInvitation(
-      req.body.email, 
-      req.body.org_id, 
-      req.body.role_id
+      req.body.email,
+      req.body.org_id,
+      req.body.role_id,
     );
     return ResponseHandler.success(res, result);
   });
 
   const getOrganizationInvitations = asyncHandler(async (req, res) => {
-    const invitations = await service.getOrganizationInvitations(req.params.org_id);
+    const invitations = await service.getOrganizationInvitations(
+      req.params.org_id,
+    );
     return ResponseHandler.success(res, { invitations });
   });
 
   return {
-    sendInvitation, getInvitationInfo, acceptInvitation,
-    cancelInvitation, resendInvitation, getOrganizationInvitations
+    sendInvitation,
+    getInvitationInfo,
+    acceptInvitation,
+    cancelInvitation,
+    resendInvitation,
+    getOrganizationInvitations,
   };
 };
 
 const InvitationController = createInvitationController();
 
 export const {
-  sendInvitation, getInvitationInfo, acceptInvitation,
-    cancelInvitation, resendInvitation, getOrganizationInvitations
-} = InvitationController
+  sendInvitation,
+  getInvitationInfo,
+  acceptInvitation,
+  cancelInvitation,
+  resendInvitation,
+  getOrganizationInvitations,
+} = InvitationController;
 
-export default InvitationController
-
+export default InvitationController;

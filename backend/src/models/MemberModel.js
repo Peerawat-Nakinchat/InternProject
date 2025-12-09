@@ -1,46 +1,50 @@
 // src/models/MemberModel.js
 import sequelize from "../config/dbConnection.js";
-import { DataTypes, Op } from 'sequelize';
+import { DataTypes, Op } from "sequelize";
 import { User } from "./UserModel.js";
 import { Role } from "./RoleModel.js";
 import { Organization } from "./CompanyModel.js";
 
-export const OrganizationMember = sequelize.define('sys_organization_members', {
-  membership_id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+export const OrganizationMember = sequelize.define(
+  "sys_organization_members",
+  {
+    membership_id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    org_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    role_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      validate: {
+        isIn: [[1, 2, 3, 4, 5]],
+      },
+    },
+    joined_date: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      field: "joined_date",
+    },
   },
-  org_id: {
-    type: DataTypes.UUID,
-    allowNull: false
+  {
+    timestamps: false,
+    tableName: "sys_organization_members",
+    indexes: [
+      {
+        unique: true,
+        fields: ["org_id", "user_id"],
+      },
+    ],
   },
-  user_id: {
-    type: DataTypes.UUID,
-    allowNull: false
-  },
-  role_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    validate: {
-      isIn: [[1, 2, 3, 4, 5]]
-    }
-  },
-  joined_date: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-    field: 'joined_date'
-  }
-}, {
-  timestamps: false,
-  tableName: 'sys_organization_members',
-  indexes: [
-    {
-      unique: true,
-      fields: ['org_id', 'user_id']
-    }
-  ]
-});
+);
 
 /**
  * Add member to organization
@@ -51,12 +55,12 @@ const create = async (data, transaction = null) => {
       org_id: data.orgId || data.org_id, // รองรับทั้ง camelCase และ snake_case กันเหนียว
       user_id: data.userId || data.user_id,
       role_id: Number(data.roleId || data.role_id),
-      joined_date: new Date()
+      joined_date: new Date(),
     },
     {
       transaction, // ส่ง transaction ต่อให้ Sequelize
-      returning: true
-    }
+      returning: true,
+    },
   );
 
   return member;
@@ -69,20 +73,20 @@ const findOne = async (orgId, userId) => {
   return await OrganizationMember.findOne({
     where: {
       org_id: orgId,
-      user_id: userId
+      user_id: userId,
     },
     include: [
       {
         model: User,
-        as: 'user',
-        attributes: ['user_id', 'email', 'name', 'surname', 'full_name']
+        as: "user",
+        attributes: ["user_id", "email", "name", "surname", "full_name"],
       },
       {
         model: Role,
-        as: 'role',
-        attributes: ['role_id', 'role_name']
-      }
-    ]
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
@@ -93,8 +97,8 @@ const exists = async (orgId, userId) => {
   const count = await OrganizationMember.count({
     where: {
       org_id: orgId,
-      user_id: userId
-    }
+      user_id: userId,
+    },
   });
 
   return count > 0;
@@ -107,9 +111,9 @@ const getRole = async (orgId, userId) => {
   const member = await OrganizationMember.findOne({
     where: {
       org_id: orgId,
-      user_id: userId
+      user_id: userId,
     },
-    attributes: ['role_id']
+    attributes: ["role_id"],
   });
 
   return member ? member.role_id : null;
@@ -120,7 +124,7 @@ const getRole = async (orgId, userId) => {
  */
 const findByOrganization = async (orgId, filters = {}) => {
   const where = { org_id: orgId };
-  
+
   if (filters.role_id) {
     where.role_id = filters.role_id;
   }
@@ -130,28 +134,28 @@ const findByOrganization = async (orgId, filters = {}) => {
     include: [
       {
         model: User,
-        as: 'user',
+        as: "user",
         attributes: [
-          'user_id',
-          'email',
-          'name',
-          'surname',
-          'full_name',
-          'profile_image_url',
-          'is_active',
-          'sex',
-          'user_address_1',
-          'user_address_2', 
-          'user_address_3'
-        ]
+          "user_id",
+          "email",
+          "name",
+          "surname",
+          "full_name",
+          "profile_image_url",
+          "is_active",
+          "sex",
+          "user_address_1",
+          "user_address_2",
+          "user_address_3",
+        ],
       },
       {
         model: Role,
-        as: 'role',
-        attributes: ['role_id', 'role_name']
-      }
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
     ],
-    order: [['joined_date', 'DESC']]
+    order: [["joined_date", "DESC"]],
   });
 };
 
@@ -164,15 +168,15 @@ const findByUser = async (userId) => {
     include: [
       {
         model: Organization,
-        as: 'organization',
-        attributes: ['org_id', 'org_name', 'org_code']
+        as: "organization",
+        attributes: ["org_id", "org_name", "org_code"],
       },
       {
         model: Role,
-        as: 'role',
-        attributes: ['role_id', 'role_name']
-      }
-    ]
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
@@ -185,11 +189,11 @@ const updateRole = async (orgId, userId, newRoleId, transaction = null) => {
     {
       where: {
         org_id: orgId,
-        user_id: userId
+        user_id: userId,
       },
       returning: true,
-      transaction
-    }
+      transaction,
+    },
   );
 
   return updatedMember;
@@ -202,9 +206,9 @@ const remove = async (orgId, userId, transaction = null) => {
   const deleted = await OrganizationMember.destroy({
     where: {
       org_id: orgId,
-      user_id: userId
+      user_id: userId,
     },
-    transaction
+    transaction,
   });
 
   return deleted > 0;
@@ -216,7 +220,7 @@ const remove = async (orgId, userId, transaction = null) => {
 const removeAllByOrganization = async (orgId, transaction = null) => {
   const deleted = await OrganizationMember.destroy({
     where: { org_id: orgId },
-    transaction
+    transaction,
   });
 
   return deleted;
@@ -229,9 +233,9 @@ const bulkRemove = async (orgId, userIds, transaction = null) => {
   const deleted = await OrganizationMember.destroy({
     where: {
       org_id: orgId,
-      user_id: { [Op.in]: userIds }
+      user_id: { [Op.in]: userIds },
     },
-    transaction
+    transaction,
   });
 
   return deleted;
@@ -242,7 +246,7 @@ const bulkRemove = async (orgId, userIds, transaction = null) => {
  */
 const countByOrganization = async (orgId) => {
   return await OrganizationMember.count({
-    where: { org_id: orgId }
+    where: { org_id: orgId },
   });
 };
 
@@ -250,15 +254,10 @@ const countByOrganization = async (orgId) => {
  * Get members with pagination
  */
 const findByOrganizationPaginated = async (orgId, options = {}) => {
-  const {
-    page = 1,
-    limit = 10,
-    role_id = null,
-    search = null
-  } = options;
+  const { page = 1, limit = 10, role_id = null, search = null } = options;
 
   const where = { org_id: orgId };
-  
+
   if (role_id) {
     where.role_id = role_id;
   }
@@ -266,34 +265,36 @@ const findByOrganizationPaginated = async (orgId, options = {}) => {
   const include = [
     {
       model: User,
-      as: 'user',
+      as: "user",
       attributes: [
-        'user_id',
-        'email',
-        'name',
-        'surname',
-        'full_name',
-        'profile_image_url',
-        'is_active',
-        'sex',
-        'user_address_1',
-        'user_address_2', 
-        'user_address_3'
+        "user_id",
+        "email",
+        "name",
+        "surname",
+        "full_name",
+        "profile_image_url",
+        "is_active",
+        "sex",
+        "user_address_1",
+        "user_address_2",
+        "user_address_3",
       ],
-      where: search ? {
-        [Op.or]: [
-          { email: { [Op.iLike]: `${search}%` } },
-          { name: { [Op.iLike]: `${search}%` } },
-          { surname: { [Op.iLike]: `${search}%` } },
-          { full_name: { [Op.iLike]: `${search}%` } }
-        ]
-      } : undefined
+      where: search
+        ? {
+            [Op.or]: [
+              { email: { [Op.iLike]: `${search}%` } },
+              { name: { [Op.iLike]: `${search}%` } },
+              { surname: { [Op.iLike]: `${search}%` } },
+              { full_name: { [Op.iLike]: `${search}%` } },
+            ],
+          }
+        : undefined,
     },
     {
       model: Role,
-      as: 'role',
-      attributes: ['role_id', 'role_name']
-    }
+      as: "role",
+      attributes: ["role_id", "role_name"],
+    },
   ];
 
   const { count, rows } = await OrganizationMember.findAndCountAll({
@@ -301,15 +302,15 @@ const findByOrganizationPaginated = async (orgId, options = {}) => {
     include,
     limit,
     offset: (page - 1) * limit,
-    order: [['joined_date', 'DESC']],
-    distinct: true
+    order: [["joined_date", "DESC"]],
+    distinct: true,
   });
 
   return {
     members: rows,
     total: count,
     page,
-    totalPages: Math.ceil(count / limit)
+    totalPages: Math.ceil(count / limit),
   };
 };
 
@@ -320,15 +321,15 @@ const findByRole = async (orgId, roleId) => {
   return await OrganizationMember.findAll({
     where: {
       org_id: orgId,
-      role_id: roleId
+      role_id: roleId,
     },
     include: [
       {
         model: User,
-        as: 'user',
-        attributes: ['user_id', 'email', 'name', 'surname', 'full_name']
-      }
-    ]
+        as: "user",
+        attributes: ["user_id", "email", "name", "surname", "full_name"],
+      },
+    ],
   });
 };
 
@@ -339,8 +340,8 @@ const countByRole = async (orgId, roleId) => {
   return await OrganizationMember.count({
     where: {
       org_id: orgId,
-      role_id: roleId
-    }
+      role_id: roleId,
+    },
   });
 };
 
@@ -350,15 +351,15 @@ const countByRole = async (orgId, roleId) => {
 const getRoleDistribution = async (orgId) => {
   const results = await OrganizationMember.findAll({
     attributes: [
-      'role_id',
-      [sequelize.fn('COUNT', sequelize.col('user_id')), 'count']
+      "role_id",
+      [sequelize.fn("COUNT", sequelize.col("user_id")), "count"],
     ],
     where: { org_id: orgId },
-    group: ['role_id']
+    group: ["role_id"],
   });
 
   const distribution = {};
-  results.forEach(r => {
+  results.forEach((r) => {
     const row = r.toJSON();
     distribution[row.role_id] = Number(row.count);
   });
@@ -370,9 +371,9 @@ const getRoleDistribution = async (orgId) => {
  * Bulk create members
  */
 const bulkCreate = async (membersData, transaction = null) => {
-  return await OrganizationMember.bulkCreate(membersData, { 
+  return await OrganizationMember.bulkCreate(membersData, {
     transaction,
-    validate: true 
+    validate: true,
   });
 };
 
@@ -384,26 +385,27 @@ const findByMembershipId = async (membershipId) => {
     include: [
       {
         model: User,
-        as: 'user',
-        attributes: ['user_id', 'email', 'name', 'surname', 'full_name']
+        as: "user",
+        attributes: ["user_id", "email", "name", "surname", "full_name"],
       },
       {
         model: Organization,
-        as: 'organization',
-        attributes: ['org_id', 'org_name', 'org_code']
+        as: "organization",
+        attributes: ["org_id", "org_name", "org_code"],
       },
       {
         model: Role,
-        as: 'role',
-        attributes: ['role_id', 'role_name']
-      }
-    ]
+        as: "role",
+        attributes: ["role_id", "role_name"],
+      },
+    ],
   });
 };
 
 export const MemberModel = {
   create,
   findOne,
+  findByOrgAndUser: findOne, // Alias for InvitationService
   exists,
   getRole,
   findByOrganization,
@@ -418,7 +420,7 @@ export const MemberModel = {
   countByRole,
   getRoleDistribution,
   bulkCreate,
-  findByMembershipId
+  findByMembershipId,
 };
 
 export default MemberModel;

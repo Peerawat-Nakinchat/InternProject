@@ -1,8 +1,8 @@
 import nodemailer from "nodemailer";
-import dotenv from "dotenv";
 import crypto from "crypto";
 
-dotenv.config();
+// Ensure environment variables from secrets/.env are loaded
+import "../config/loadEnv.js";
 
 // ✅ Gmail SMTP Configuration
 const transporter = nodemailer.createTransport({
