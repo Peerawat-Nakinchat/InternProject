@@ -4,7 +4,7 @@
  * Generate Invitation HTML
  */
 const generateInvitationHtml = (data) => {
-  const { companyName, inviterImageUrl, inviteLink, email, year } = data;
+  const { companyName, inviterImageUrl, inviteLink, email, year, role_name } = data;
 
   return `
 <!DOCTYPE html>
@@ -42,7 +42,7 @@ const generateInvitationHtml = (data) => {
                     <tr>
                         <td style="padding: 40px 30px; background-color: #667eea; text-align: center;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">
-                                คำเชิญเข้าร่วมบริษัท
+                                คำเชิญเข้าร่วมบริษัท { ${companyName} }
                             </h1>
                         </td>
                     </tr>
@@ -53,45 +53,46 @@ const generateInvitationHtml = (data) => {
                             <table role="presentation" style="width: 100%;">
                                 <tr>
                                     <td align="center">
-                                        <p class="text-primary" style="margin: 0; font-size: 20px; font-weight: 600; color: #1a202c;">
+                                        <p class="text-primary" style="margin: 0; font-size: 24px; font-weight: 800; color: #1a202c;">
                                             คุณได้รับคำเชิญจาก
                                         </p>
                                     </td>
                                 </tr>
                                 
-                                ${
-                                  inviterImageUrl
-                                    ? `
                                 <tr>
-                                    <td align="center" style="padding-top: 20px;">
-                                        <img src="${inviterImageUrl}" alt="รูปผู้เชิญ" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #e2e8f0; object-fit: cover;">
+                                    <td align="center" style="padding: 10px 0;">
+                                        <div class="box-bg" style="background-color: #c4e2ffff; padding: 15px; border-radius: 6px; font-weight: bold; color: #2d3748; font-size: 18px; display: inline-block;">
+                                           บริษัท ${companyName} <br> ในตำแหน่ง { ${role_name} }
+                                        </div>
                                     </td>
                                 </tr>
-                                `
+
+                                ${
+                                    inviterImageUrl
+                                    ? `
+                                        <tr>
+                                            <td align="center" style="padding-top: 15px;">
+                                                <img src="${inviterImageUrl}" alt="รูปผู้เชิญ" style="width: 120px; height: 120px; border-radius: 40%; border: 2px solid #e6f1ffff; object-fit: cover;">
+                                            </td>
+                                        </tr>
+                                    `
                                     : ""
                                 }
                                 
                                 <tr>
-                                    <td align="center" style="padding: 20px 0;">
-                                        <div class="box-bg" style="background-color: #edf2f7; padding: 15px; border-radius: 6px; font-weight: bold; color: #2d3748; font-size: 18px; display: inline-block;">
-                                            ${companyName}
-                                        </div>
-                                    </td>
-                                </tr>
-                                
-                                <tr>
-                                    <td align="center" style="padding-top: 10px;">
+                                    <td align="center" style="padding-top: 20px;">
                                         <p class="text-secondary" style="margin: 0; font-size: 16px; line-height: 24px; color: #4a5568;">
                                             ยินดีต้อนรับ! เรามีความยินดีที่จะเรียนเชิญคุณเข้าร่วมเป็นส่วนหนึ่งของทีม<br>
-                                            กรุณากดยืนยันเพื่อเริ่มต้นใช้งาน
+                                            กรุณากดตอบรับคำเชิญเพื่อเริ่มต้นใช้งาน
                                         </p>
                                     </td>
                                 </tr>
+
                                 
                                 <tr>
                                     <td align="center" style="padding: 30px 0;">
-                                        <a href="${inviteLink}" style="display: inline-block; background-color: #667eea; color: #ffffff; padding: 12px 30px; border-radius: 4px; font-weight: bold; font-size: 16px; text-decoration: none;">
-                                            ตอบรับคำเชิญ
+                                        <a href="${inviteLink}" style="display: inline-block; background-color: #3e5ce5ff; color: #ffffff; padding: 12px 30px; border-radius: 4px; font-weight: bold; font-size: 16px; text-decoration: none;">
+                                            👉 ตอบรับคำเชิญ 👈
                                         </a>
                                     </td>
                                 </tr>
