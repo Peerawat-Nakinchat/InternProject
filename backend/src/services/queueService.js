@@ -2,6 +2,7 @@
 import PgBoss from "pg-boss";
 import { sendEmail } from "../utils/mailer.js";
 import logger from "../utils/logger.js";
+import { AuditLogModel } from "../models/AuditLogModel.js";
 
 let boss;
 
@@ -80,7 +81,6 @@ export const startQueueSystem = async () => {
       console.log(`\n🔔 ========== EMAIL WORKER [${workerId}] ==========`);
       console.log(`📋 Job ID: ${job.id}`);
 
-
       const { to, subject, html } = job.data;
       console.log(`📨 Processing email job for: ${to}`);
 
@@ -101,6 +101,54 @@ export const startQueueSystem = async () => {
     `👷 Email worker registered for queue "${QUEUE_NAME}" (teamSize: 3)`,
   );
 
+  // ===============================================
+  // 🗑️ SCHEDULED CLEANUP JOBS
+  // ===============================================
+
+  const CLEANUP_QUEUE = "cleanup-audit-logs";
+
+  try {
+    // สร้าง queue สำหรับ cleanup
+    await boss.createQueue(CLEANUP_QUEUE);
+    logger.info(`✅ Queue "${CLEANUP_QUEUE}" created successfully!`);
+  } catch (err) {
+    // Queue อาจมีอยู่แล้ว
+  }
+
+  // ⏰ Schedule: ลบ audit logs ที่เก่ากว่า 90 วัน ทุกวันเวลา 03:00 AM
+  try {
+    await boss.schedule(
+      CLEANUP_QUEUE,
+      "0 3 * * *",
+      {},
+      {
+        tz: "Asia/Bangkok",
+      },
+    );
+    logger.info(`⏰ Scheduled "${CLEANUP_QUEUE}" to run daily at 03:00 AM`);
+  } catch (err) {
+    logger.error(`❌ Failed to schedule "${CLEANUP_QUEUE}":`, err.message);
+  }
+
+  // Worker สำหรับ cleanup audit logs
+  await boss.work(CLEANUP_QUEUE, async () => {
+    logger.info("🗑️ Starting audit log cleanup...");
+    try {
+      const retentionDays = parseInt(
+        process.env.AUDIT_LOG_RETENTION_DAYS || "90",
+        10,
+      );
+      const deleted = await AuditLogModel.deleteOldLogs(retentionDays);
+      logger.info(
+        `✅ Cleaned up ${deleted} audit logs older than ${retentionDays} days`,
+      );
+    } catch (error) {
+      logger.error("❌ Audit log cleanup failed:", error.message);
+      throw error;
+    }
+  });
+
+  logger.info(`👷 Audit log cleanup worker registered`);
 };
 
 /**
