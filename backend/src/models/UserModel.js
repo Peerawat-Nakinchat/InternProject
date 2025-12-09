@@ -25,6 +25,16 @@ export const User = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    // --- MFA FIELDS ---
+    mfa_secret: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    mfa_enabled: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    // ------------------
     name: {
       type: DataTypes.STRING(200),
       allowNull: false,
@@ -154,12 +164,12 @@ export const User = sequelize.define(
 );
 
 /**
- * Find user by ID
+ * Find user by ID (Safe: Excludes secrets)
  */
 const findById = async (userId) => {
   return await User.findByPk(userId, {
     attributes: {
-      exclude: ["password_hash", "reset_token", "reset_token_expire"],
+      exclude: ["password_hash", "reset_token", "reset_token_expire", "mfa_secret"], 
     },
     include: [
       {
@@ -217,9 +227,9 @@ const create = async (userData, transaction = null) => {
       user_address_1: userData.user_address_1 || "",
       user_address_2: userData.user_address_2 || "",
       user_address_3: userData.user_address_3 || "",
-      role_id: userData.role_id || ROLE_ID.MEMBER, // Default USER role
+      role_id: userData.role_id || ROLE_ID.MEMBER, 
       is_active: true,
-      is_email_verified: userData.is_email_verified || false, // ✅ NEW: Support for invite-based registration
+      is_email_verified: userData.is_email_verified || false,
     },
     { transaction },
   );
@@ -417,7 +427,7 @@ const search = async (filters = {}, options = {}) => {
   const { count, rows } = await User.findAndCountAll({
     where,
     attributes: {
-      exclude: ["password_hash", "reset_token", "reset_token_expire"],
+      exclude: ["password_hash", "reset_token", "reset_token_expire", "mfa_secret"], 
     },
     include: [
       {
@@ -514,9 +524,37 @@ const setEmailVerified = async (
   return rowsUpdated > 0;
 };
 
+/**
+ * Save MFA Secret (Internal)
+ */
+const saveMfaSecret = async (userId, secret) => {
+  return await User.update(
+    { mfa_secret: secret, mfa_enabled: false },
+    { where: { user_id: userId } }
+  );
+};
+
+/**
+ * Enable MFA
+ */
+const enableMfa = async (userId) => {
+  return await User.update(
+    { mfa_enabled: true },
+    { where: { user_id: userId } }
+  );
+};
+
+/**
+ * Find User Including Secret (Internal use for verifying OTP)
+ */
+const findByIdWithSecret = async (userId) => {
+  return await User.findByPk(userId);
+};
+
 export const UserModel = {
   findById,
   findByEmail,
+  findByIdWithSecret, 
   findByEmailWithPassword,
   create,
   updatePassword,
@@ -533,6 +571,8 @@ export const UserModel = {
   bulkCreate,
   updateRole,
   setEmailVerified,
+  saveMfaSecret, 
+  enableMfa, 
 };
 
 export default UserModel;

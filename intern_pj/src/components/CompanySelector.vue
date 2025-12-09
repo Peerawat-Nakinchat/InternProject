@@ -61,15 +61,15 @@
                       getRoleConfig(roleKey).borderClass
                     ]"
                   >
-                    <div class="flex flex-col gap-1">
-                      <span :class="[selected ? 'font-bold' : 'font-semibold', 'block truncate text-sm md:text-md']">
+                    <div class="flex flex-col gap-1 uppercase">
+                      <span :class="[selected ? 'font-bold' : 'font-semibold', 'block truncate text-sm ']">
                         {{ company.org_name }}
                       </span>
                       
-                      <div class="flex justify-between items-center text-xs md:text-sm text-gray-500">
+                      <div class="flex justify-between items-center text-sm  text-gray-600">
                         <span class="uppercase tracking-wide text-center text-sm font-mono bg-gray-100 px-2 rounded-sm">Code : {{ company.org_code || '-' }}</span>
                         <span class="flex items-center gap-1">
-                          <i class="mdi mdi-account-group text-gray-400"></i>
+                          <i class="mdi mdi-account-group text-gray-600"></i>
                           {{ company.member_count ?? 0 }}
                         </span>
                       </div>
@@ -84,7 +84,7 @@
 
             </template>
 
-            <div v-if="Object.keys(groupedCompanies).length === 0" class="px-4 py-8 text-center text-gray-500 text-base">
+            <div v-if="Object.keys(groupedCompanies).length === 0" class="px-4 py-8 text-center text-gray-600 text-base">
               ไม่พบข้อมูลบริษัท
             </div>
 
@@ -123,7 +123,7 @@ interface RoleTheme {
 
 // --- Config (Single Source of Truth) ---
 const ROLE_CONFIG: Record<string, RoleTheme> = {
-  OWNER:   { headerClass: 'bg-[#eddb88] hover:bg-[#D5C472]', borderClass: 'border-[#eddb88]', icon: 'mdi-crown' },
+  OWNER:   { headerClass: 'bg-[#F0D971] hover:bg-[#D5C472]', borderClass: 'border-[#eddb88]', icon: 'mdi-crown' },
   ADMIN:   { headerClass: 'bg-[#1565C0] hover:bg-[#0E54A3]', borderClass: 'border-[#1565C0]', icon: 'mdi-shield-account' },
   MEMBER:  { headerClass: 'bg-[#33CC99] hover:bg-[#33CC66]', borderClass: 'border-[#33CC99]', icon: 'mdi-account' },
   VIEWER:  { headerClass: 'bg-[#78909C] hover:bg-[#607480]', borderClass: 'border-[#78909C]', icon: 'mdi-eye' },

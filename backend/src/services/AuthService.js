@@ -35,6 +35,21 @@ export const createAuthService = (deps = {}) => {
   };
   const env = deps.env || process.env;
 
+  const generateTokens = async (user) => {
+    const accessToken = tokenUtils.generateAccessToken(user.user_id);
+    const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(
+      expiresAt.getDate() +
+        (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace("d", "")) || 7),
+    );
+
+    await Token.create({ userId: user.user_id, refreshToken, expiresAt });
+
+    return { accessToken, refreshToken };
+  };
+
   const processInviteToken = async (
     userId,
     inviteToken,
@@ -42,7 +57,6 @@ export const createAuthService = (deps = {}) => {
     transaction,
   ) => {
     try {
-      // ✅ Hash the token before lookup - findByToken expects hashed token
       const hashedToken = hashToken(inviteToken);
       const invitation = await Invitation.findByToken(hashedToken);
       if (!invitation || invitation.status !== "pending") {
@@ -127,7 +141,7 @@ export const createAuthService = (deps = {}) => {
           user_address_1,
           user_address_2,
           user_address_3,
-          is_email_verified: !!inviteToken, // ✅ ถ้ามี inviteToken ให้ถือว่า verify แล้ว
+          is_email_verified: !!inviteToken,
         },
         t,
       );
@@ -189,29 +203,17 @@ export const createAuthService = (deps = {}) => {
     const isPasswordValid = await hasher.compare(password, user.password_hash);
     if (!isPasswordValid)
       throw createError.unauthorized("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); // ✅ 401
-
-    // ✅ ตรวจสอบว่า user ได้ยืนยัน email แล้วหรือยัง
     if (user.is_email_verified === false) {
       const error = createError.forbidden("กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ");
       error.code = "EMAIL_NOT_VERIFIED";
       error.email = user.email;
       throw error;
     }
-
-    const accessToken = tokenUtils.generateAccessToken(user.user_id);
-    const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
-
-    const expiresAt = new Date();
-    expiresAt.setDate(
-      expiresAt.getDate() +
-        (parseInt(env.REFRESH_TOKEN_EXPIRES_IN?.replace("d", "")) || 7),
-    );
-
-    await Token.create({ userId: user.user_id, refreshToken, expiresAt });
+    const tokens = await generateTokens(user);
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         user_id: user.user_id,
         email: user.email,
@@ -230,7 +232,7 @@ export const createAuthService = (deps = {}) => {
     if (!decoded || !decoded.user_id)
       throw createError.unauthorized("Invalid refresh token"); // ✅ 401
 
-    const tokenRecord = await Token.findByToken(tokenStr); // แก้เป็น findByToken เพื่อความชัวร์ (หรือ findOne ตามเดิมถ้า model รับ string)
+    const tokenRecord = await Token.findByToken(tokenStr);
     if (!tokenRecord)
       throw createError.unauthorized("Invalid or expired refresh token"); // ✅ 401
 
@@ -261,7 +263,7 @@ export const createAuthService = (deps = {}) => {
   const forgotPassword = async (email) => {
     if (!email) throw createError.badRequest("กรุณากรอกอีเมล");
     const user = await User.findByEmail(email);
-    if (!user) return { success: true }; // Security: ไม่บอกว่าไม่มีอีเมล
+    if (!user) return { success: true }; 
 
     const token = random.randomUUID();
     const expire = new Date(Date.now() + 1000 * 60 * 15);
@@ -333,7 +335,7 @@ export const createAuthService = (deps = {}) => {
     return { success: true };
   };
 
-const updateProfile = async (userId, data) => {
+  const updateProfile = async (userId, data) => {
     for (const key in data)
       if (typeof data[key] === "string") data[key] = data[key].trim();
     
@@ -395,7 +397,6 @@ const updateProfile = async (userId, data) => {
   };
 
   const googleAuthCallback = async (user) => {
-    // Implement Google Auth Logic similar to login/register
     const accessToken = tokenUtils.generateAccessToken(user.user_id);
     const refreshToken = tokenUtils.generateRefreshToken(user.user_id);
     const expiresAt = new Date();
@@ -419,6 +420,7 @@ const updateProfile = async (userId, data) => {
     getProfile,
     googleAuthCallback,
     processInviteToken,
+    generateTokens, 
   };
 };
 

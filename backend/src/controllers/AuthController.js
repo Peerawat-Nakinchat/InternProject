@@ -1,4 +1,6 @@
+// src/controllers/AuthController.js
 import AuthService from "../services/AuthService.js";
+import MfaService from "../services/MfaService.js";
 import logger, { securityLogger } from "../utils/logger.js";
 import { recordFailedLogin, clearFailedLogins } from "../middleware/securityMonitoring.js";
 import { 
@@ -6,9 +8,11 @@ import {
 } from "../utils/cookieUtils.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { signAccessToken } from "../utils/token.js"; 
 
 export const createAuthController = (deps = {}) => {
   const service = deps.service || AuthService;
+  const mfaService = deps.mfaService || MfaService;
   const logger = deps.logger || securityLogger;
   const security = deps.security || { recordFailedLogin, clearFailedLogins };
   const cookies = deps.cookies || { setAuthCookies, setAccessTokenCookie, clearAuthCookies, getRefreshToken };
@@ -32,10 +36,27 @@ export const createAuthController = (deps = {}) => {
     
     try {
       const result = await service.login(email, password);
+      const user = result.user;
+
       const clientInfo = req.clientInfo || {};
       const ip = clientInfo.ipAddress || req.ip;
 
-      // Success Handling
+      if (user.mfa_enabled) {
+        const tempToken = signAccessToken({ 
+            id: user.user_id, 
+            mfa_pending: true 
+        }, '5m'); 
+
+        logger.info(`MFA Challenge required for user: ${email}`);
+        
+        return res.status(200).json({
+          success: true,
+          mfaRequired: true,
+          tempToken: tempToken,
+          message: "กรุณาระบุรหัส OTP (2FA)"
+        });
+      }
+      
       logger.loginSuccess(
         result.user.user_id, result.user.email, ip,
         clientInfo.userAgent || req.headers["user-agent"]
@@ -46,12 +67,50 @@ export const createAuthController = (deps = {}) => {
       return ResponseHandler.success(res, result, "เข้าสู่ระบบสำเร็จ");
 
     } catch (error) {
-      // Log Fail Only (แล้ว throw ต่อ)
       const ip = req.clientInfo?.ipAddress || req.ip;
       logger.loginFailed(email, ip, req.headers["user-agent"], "Invalid login");
       security.recordFailedLogin(ip);
       throw error; 
     }
+  });
+
+  const verifyMfaLogin = asyncHandler(async (req, res) => {
+    const { otp } = req.body;
+    // req.user มาจาก middleware ที่ decode tempToken
+    const user = await service.getProfile(req.user.user_id); 
+    
+    const isValid = mfaService.verifyLoginMfa(user, otp);
+    if (!isValid) {
+      securityLogger.warn(`MFA Failed for user ${user.email}`);
+      return ResponseHandler.error(res, "Invalid OTP Code", 401);
+    }
+
+    const tokens = await service.generateTokens(user);
+    
+    const clientInfo = req.clientInfo || {};
+    const ip = clientInfo.ipAddress || req.ip;
+    
+    logger.loginSuccess(
+      user.user_id, user.email, ip,
+      clientInfo.userAgent || req.headers["user-agent"]
+    );
+    security.clearFailedLogins(ip);
+    
+    cookies.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return ResponseHandler.success(res, { user, ...tokens }, "เข้าสู่ระบบสำเร็จ (2FA)");
+  });
+
+  const setupMfa = asyncHandler(async (req, res) => {
+    const { secret, qrCodeUrl } = await mfaService.generateMfaSecret(req.user.user_id, req.user.email);
+    return ResponseHandler.success(res, { secret, qrCodeUrl }, "สแกน QR Code นี้ด้วยแอป Authenticator");
+  });
+
+  const enableMfa = asyncHandler(async (req, res) => {
+    const { otp } = req.body;
+    await mfaService.verifyAndEnableMfa(req.user.user_id, otp);
+    
+    securityLogger.info(`MFA Enabled for user ${req.user.email}`);
+    return ResponseHandler.success(res, null, "เปิดใช้งาน 2FA สำเร็จ");
   });
 
   const refreshToken = asyncHandler(async (req, res) => {
@@ -158,7 +217,8 @@ export const createAuthController = (deps = {}) => {
   });
 
   return {
-    registerUser, loginUser, refreshToken, getProfile,
+    registerUser, loginUser, verifyMfaLogin, setupMfa, enableMfa,
+    refreshToken, getProfile,
     forgotPassword, verifyResetToken, resetPassword,
     changeEmail, changePassword, updateProfile,
     logoutUser, logoutAllUser, googleAuthCallback
@@ -168,7 +228,8 @@ export const createAuthController = (deps = {}) => {
 const defaultController = createAuthController();
 
 export const {
-  registerUser, loginUser, refreshToken, getProfile,
+  registerUser, loginUser, verifyMfaLogin, setupMfa, enableMfa,
+  refreshToken, getProfile,
   forgotPassword, verifyResetToken, resetPassword,
   changeEmail, changePassword, updateProfile,
   logoutUser, logoutAllUser, googleAuthCallback
