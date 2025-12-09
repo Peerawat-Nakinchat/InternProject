@@ -54,7 +54,7 @@
                   v-slot="{ active, selected }"
                 >
                   <li
-                    class="relative cursor-pointer select-none py-2 pl-5 pr-10 border-l-[6px] transition-all duration-200"
+                    class="relative cursor-pointer select-none py-2 pl-4 pr-12 border-l-[6px] transition-all duration-200"
                     :class="[
                       active ? 'bg-purple-50 text-purple-900' : 'text-gray-900',
                       selected ? 'bg-purple-100' : '',
@@ -123,11 +123,11 @@ interface RoleTheme {
 
 // --- Config (Single Source of Truth) ---
 const ROLE_CONFIG: Record<string, RoleTheme> = {
-  OWNER:   { headerClass: 'bg-amber-500 hover:bg-amber-600', borderClass: 'border-amber-500', icon: 'mdi-crown' },
-  ADMIN:   { headerClass: 'bg-indigo-600 hover:bg-indigo-700', borderClass: 'border-indigo-600', icon: 'mdi-shield-account' },
-  MEMBER:  { headerClass: 'bg-emerald-500 hover:bg-emerald-600', borderClass: 'border-emerald-500', icon: 'mdi-account' },
-  VIEWER:  { headerClass: 'bg-slate-500 hover:bg-slate-600', borderClass: 'border-slate-500', icon: 'mdi-eye' },
-  AUDITOR: { headerClass: 'bg-teal-600 hover:bg-teal-700', borderClass: 'border-teal-600', icon: 'mdi-file-document-check' },
+  OWNER:   { headerClass: 'bg-[#eddb88] hover:bg-[#D5C472]', borderClass: 'border-[#eddb88]', icon: 'mdi-crown' },
+  ADMIN:   { headerClass: 'bg-[#1565C0] hover:bg-[#0E54A3]', borderClass: 'border-[#1565C0]', icon: 'mdi-shield-account' },
+  MEMBER:  { headerClass: 'bg-[#33CC99] hover:bg-[#33CC66]', borderClass: 'border-[#33CC99]', icon: 'mdi-account' },
+  VIEWER:  { headerClass: 'bg-[#78909C] hover:bg-[#607480]', borderClass: 'border-[#78909C]', icon: 'mdi-eye' },
+  AUDITOR: { headerClass: 'bg-[#F9A825] hover:bg-[#D18F20]', borderClass: 'border-[#F9A825]', icon: 'mdi-file-document-check' },
   DEFAULT: { headerClass: 'bg-purple-700 hover:bg-purple-800', borderClass: 'border-purple-700', icon: 'mdi-help-circle' }
 }
 
