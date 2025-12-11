@@ -97,14 +97,23 @@ export const createErrorHandlerMiddleware = (deps = {}) => {
     let message = err.message || "Internal Server Error";
     let details = err.details || null; // Use existing details if present (e.g. from createError.validation)
 
-    logger.error("❌ Error occurred:", {
+    // ✅ ใช้ warn level สำหรับ 401 เพราะเป็นพฤติกรรมปกติที่ไม่มี token
+    const logLevel = status === 401 ? "warn" : "error";
+    const logMessage =
+      status === 401 ? "⚠️ Auth required:" : "❌ Error occurred:";
+
+    logger[logLevel](logMessage, {
       message: err.message,
       name: err.name,
       status,
       path: req.path,
       method: req.method,
       user: req.user?.user_id,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      // ไม่แสดง stack สำหรับ 401 เพื่อลด noise
+      stack:
+        process.env.NODE_ENV === "development" && status !== 401
+          ? err.stack
+          : undefined,
     });
 
     // --- Sequelize Errors ---

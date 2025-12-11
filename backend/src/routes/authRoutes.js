@@ -191,28 +191,28 @@ export const createAuthRoutes = (deps = {}) => {
   /**
    * @swagger
    * /auth/login/mfa:
-   *    post:
-   *      summary: Verify MFA OTP during login
-   *      tags: [Auth]
-   *      security:
-   *      - bearerAuth: [] 
-   *        description: Requires the temporary token received from /login
-   *      requestBody:
-   *        required: true
-   *        content:
-   *          application/json:
-   *          schema:
-   *            type: object
-   *            required: [otp]
-   *            properties:
-   *            otp:
-   *            type: string
-   *              description: "6-digit Authenticator code"
-   *      responses:
-   *        200:
-   *          description: MFA verified, returns access/refresh tokens
-   *        401:
-   *          description: Invalid OTP
+   *   post:
+   *     summary: Verify MFA OTP during login
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - otp
+   *             properties:
+   *               otp:
+   *                 type: string
+   *                 description: 6-digit Authenticator code
+   *     responses:
+   *       200:
+   *         description: MFA verified, returns access/refresh tokens
+   *       401:
+   *         description: Invalid OTP
    */
   router.post(
     "/login/mfa",
@@ -221,7 +221,7 @@ export const createAuthRoutes = (deps = {}) => {
       severity: "INFO",
       category: "AUTH",
     }),
-    controller.verifyMfaLogin
+    controller.verifyMfaLogin,
   );
 
   // ==================== MFA MANAGEMENT ROUTES ====================
@@ -229,49 +229,56 @@ export const createAuthRoutes = (deps = {}) => {
   /**
    * @swagger
    * /auth/mfa/setup:
-   *     get:
-   *      summary: Generate MFA Secret & QR Code
-   *      tags: [Auth]
-   *      security:
-   *        - bearerAuth: []
-   *      responses:
-   *        200:
-   *          description: Returns secret and QR code URL
+   *   get:
+   *     summary: Generate MFA Secret & QR Code
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Returns secret and QR code URL
    */
   router.get(
     "/mfa/setup",
     authMw.protect,
-    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_SETUP, "USER", { severity: "MEDIUM", category: "SECURITY" }),
-    controller.setupMfa
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_SETUP, "USER", {
+      severity: "MEDIUM",
+      category: "SECURITY",
+    }),
+    controller.setupMfa,
   );
 
   /**
    * @swagger
    * /auth/mfa/enable:
-   * post:
-   *      summary: Verify and Enable MFA
-   *      tags: [Auth]
-   *      security:
-   *    - bearerAuth: []
-   *      requestBody:
-   *        required: true
-   *        content:
-   *          application/json:
-   *          schema:
-   *            type: object
-   *            required: [otp]
-   *              properties:
-   *              otp:
-   *                type: string
-   *      responses:
-   *        200:
-   *          description: MFA Enabled Successfully
+   *   post:
+   *     summary: Verify and Enable MFA
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - otp
+   *             properties:
+   *               otp:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: MFA Enabled Successfully
    */
   router.post(
     "/mfa/enable",
     authMw.protect,
-    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_ENABLE, "USER", { severity: "HIGH", category: "SECURITY" }),
-    controller.enableMfa
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_ENABLE, "USER", {
+      severity: "HIGH",
+      category: "SECURITY",
+    }),
+    controller.enableMfa,
   );
 
   // Protected Logout

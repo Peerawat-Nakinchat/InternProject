@@ -1,5 +1,5 @@
 // src/middleware/securityMonitoring.js
-import { securityLogger } from '../utils/logger.js';
+import { securityLogger } from "../utils/logger.js";
 
 // --- Pure Helper Functions ---
 
@@ -7,15 +7,15 @@ import { securityLogger } from '../utils/logger.js';
  * Clean IP Address
  */
 export const cleanIp = (rawIp) => {
-  if (!rawIp) return 'unknown';
+  if (!rawIp) return "unknown";
   let ip = rawIp;
   // Clean up IPv4-mapped IPv6 addresses
-  if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
+  if (typeof ip === "string" && ip.startsWith("::ffff:")) {
     ip = ip.substring(7);
   }
   // Normalize Localhost
-  if (ip === '::1') {
-    ip = '127.0.0.1';
+  if (ip === "::1") {
+    ip = "127.0.0.1";
   }
   return ip;
 };
@@ -24,8 +24,9 @@ export const cleanIp = (rawIp) => {
  * Check for SQL Injection Patterns
  */
 export const checkSqlInjection = (str) => {
-  // Regex 
-  const sqlPatterns = /('[\s\S]*--)|(\s+OR\s+[\w\s]+=)|(;\s*DROP\s+TABLE)|(UNION\s+SELECT)|(\%27)|(\-\-)|(\%23)|(#)/i;
+  // Regex
+  const sqlPatterns =
+    /('[\s\S]*--)|(\s+OR\s+[\w\s]+=)|(;\s*DROP\s+TABLE)|(UNION\s+SELECT)|(\%27)|(\-\-)|(\%23)|(#)/i;
   return sqlPatterns.test(str);
 };
 
@@ -33,7 +34,8 @@ export const checkSqlInjection = (str) => {
  * Check for XSS Patterns
  */
 export const checkXss = (str) => {
-  const xssPatterns = /<script|javascript:|onerror=|onload=|onclick=|onmouseover=/i;
+  const xssPatterns =
+    /<script|javascript:|onerror=|onload=|onclick=|onmouseover=/i;
   return xssPatterns.test(str);
 };
 
@@ -49,7 +51,7 @@ export const createSecurityMiddleware = (deps = {}) => {
     maxFailedAttempts: deps.maxFailedAttempts || 5,
     lockoutDuration: deps.lockoutDuration || 15 * 60 * 1000, // 15 mins
     cleanupInterval: deps.cleanupInterval || 60 * 60 * 1000, // 1 hour
-    ...deps.config
+    ...deps.config,
   };
 
   // Internal State (Isolated per instance)
@@ -89,26 +91,32 @@ export const createSecurityMiddleware = (deps = {}) => {
 
     req.clientInfo = {
       ipAddress: ip,
-      userAgent: req.headers['user-agent'] || 'unknown',
+      userAgent: req.headers["user-agent"] || "unknown",
     };
     next();
   };
 
   const requestLogger = (req, res, next) => {
     const start = Date.now();
-    
-    res.on('finish', () => {
+
+    res.on("finish", () => {
       const duration = Date.now() - start;
       const ip = req.clientInfo?.ipAddress || cleanIp(req.ip);
-      const userAgent = req.clientInfo?.userAgent || req.headers['user-agent'] || 'unknown';
+      const userAgent =
+        req.clientInfo?.userAgent || req.headers["user-agent"] || "unknown";
 
       // Log suspicious status codes (4xx, 5xx)
-      if (res.statusCode >= 400) {
+      // ✅ ข้าม 401 บน auth endpoints เพราะเป็นพฤติกรรมปกติ (ผู้ใช้ยังไม่ได้ login)
+      const isAuthEndpoint =
+        req.url.includes("/auth/") || req.url.includes("/refresh");
+      const isNormal401 = res.statusCode === 401 && isAuthEndpoint;
+
+      if (res.statusCode >= 400 && !isNormal401) {
         logger.suspiciousActivity(
           `HTTP ${res.statusCode} on ${req.method} ${req.url}`,
           ip,
           userAgent,
-          { statusCode: res.statusCode, duration: `${duration}ms` }
+          { statusCode: res.statusCode, duration: `${duration}ms` },
         );
       }
     });
@@ -118,31 +126,31 @@ export const createSecurityMiddleware = (deps = {}) => {
 
   const bruteForceProtection = (req, res, next) => {
     const ip = req.clientInfo?.ipAddress || cleanIp(req.ip);
-    
+
     if (failedLoginAttempts.has(ip)) {
       const attempts = failedLoginAttempts.get(ip);
-      
+
       if (attempts.count >= config.maxFailedAttempts) {
         const timeSinceLastAttempt = Date.now() - attempts.lastAttempt;
-        
+
         if (timeSinceLastAttempt < config.lockoutDuration) {
           logger.suspiciousActivity(
-            'Brute force attempt detected - too many failed logins',
+            "Brute force attempt detected - too many failed logins",
             ip,
-            req.clientInfo?.userAgent || 'unknown',
-            { attempts: attempts.count }
+            req.clientInfo?.userAgent || "unknown",
+            { attempts: attempts.count },
           );
-          
+
           return res.status(429).json({
             success: false,
-            error: 'Too many login attempts. Please try again later.',
+            error: "Too many login attempts. Please try again later.",
           });
         } else {
           failedLoginAttempts.delete(ip);
         }
       }
     }
-    
+
     next();
   };
 
@@ -168,40 +176,40 @@ export const createSecurityMiddleware = (deps = {}) => {
   const detectSuspiciousPatterns = (req, res, next) => {
     const { body, headers, clientInfo } = req;
     const ip = clientInfo?.ipAddress || cleanIp(req.ip);
-    const userAgent = clientInfo?.userAgent || headers['user-agent'];
-    
+    const userAgent = clientInfo?.userAgent || headers["user-agent"];
+
     const bodyStr = JSON.stringify(body || {});
-    
+
     // Check SQL Injection
     if (checkSqlInjection(bodyStr)) {
       logger.suspiciousActivity(
-        'Possible SQL injection attempt detected',
+        "Possible SQL injection attempt detected",
         ip,
         userAgent,
-        { endpoint: req.url, body: bodyStr.substring(0, 200) }
+        { endpoint: req.url, body: bodyStr.substring(0, 200) },
       );
     }
-    
+
     // Check XSS
     if (checkXss(bodyStr)) {
       logger.suspiciousActivity(
-        'Possible XSS attempt detected',
+        "Possible XSS attempt detected",
         ip,
         userAgent,
-        { endpoint: req.url, body: bodyStr.substring(0, 200) }
+        { endpoint: req.url, body: bodyStr.substring(0, 200) },
       );
     }
-    
+
     // Check suspicious User Agent
     if (!userAgent || userAgent.length < 5) {
       logger.suspiciousActivity(
-        'Suspicious or missing user agent',
+        "Suspicious or missing user agent",
         ip,
-        userAgent || 'unknown',
-        { endpoint: req.url }
+        userAgent || "unknown",
+        { endpoint: req.url },
       );
     }
-    
+
     next();
   };
 
@@ -214,7 +222,7 @@ export const createSecurityMiddleware = (deps = {}) => {
     clearFailedLogins,
     detectSuspiciousPatterns,
     stopCleanup, // For testing cleanup
-    _failedLoginAttempts: failedLoginAttempts // For testing state inspection
+    _failedLoginAttempts: failedLoginAttempts, // For testing state inspection
   };
 };
 
@@ -225,6 +233,7 @@ export const requestLogger = defaultInstance.requestLogger;
 export const bruteForceProtection = defaultInstance.bruteForceProtection;
 export const recordFailedLogin = defaultInstance.recordFailedLogin;
 export const clearFailedLogins = defaultInstance.clearFailedLogins;
-export const detectSuspiciousPatterns = defaultInstance.detectSuspiciousPatterns;
+export const detectSuspiciousPatterns =
+  defaultInstance.detectSuspiciousPatterns;
 
 export default defaultInstance;

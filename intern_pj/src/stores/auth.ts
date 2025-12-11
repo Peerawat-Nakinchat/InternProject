@@ -76,12 +76,22 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 1. Initialize Auth
+  // ✅ เพิ่ม lock เพื่อป้องกันการเรียกซ้อน
+  let isInitializing = false
+  
   const initAuth = async () => {
-    if (authReady.value) return
+    // ป้องกัน concurrent calls และ calls หลังจาก init สำเร็จแล้ว
+    if (authReady.value || isInitializing) return
+    isInitializing = true
+    
     try {
       const axiosInstance = await getAxios()
-      // เรียก Profile ตรงๆ เลย ถ้า 401 Interceptor จะทำงานให้เอง!
-      const response = await axiosInstance.get('/auth/profile')
+      // ✅ ใช้ _skipRefresh เพื่อหลีกเลี่ยงการ refresh token ถ้ายังไม่มี session
+      // และ _silent เพื่อไม่แสดง error toast
+      const response = await axiosInstance.get('/auth/profile', {
+        _skipRefresh: true,
+        _silent: true
+      } as import('axios').AxiosRequestConfig & { _skipRefresh?: boolean; _silent?: boolean })
       if (response.success && response.data?.user) {
         user.value = response.data.user
         console.log('✅ Auth initialized')
@@ -92,6 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken.value = null
     } finally {
       authReady.value = true
+      isInitializing = false
     }
   }
 

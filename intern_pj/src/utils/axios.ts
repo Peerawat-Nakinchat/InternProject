@@ -76,6 +76,12 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error)
       }
 
+      // ✅ ข้าม refresh ถ้ามี flag _skipRefresh (สำหรับ initAuth ที่ไม่ต้องการ refresh ถ้าไม่มี session)
+      const skipRefresh = (originalRequest as InternalAxiosRequestConfig & { _skipRefresh?: boolean })._skipRefresh
+      if (skipRefresh) {
+        return Promise.reject(error)
+      }
+
       // ✅ ถ้ากำลัง refresh อยู่ ให้รอ promise เดียวกัน
       if (isRefreshing && refreshPromise) {
         try {
