@@ -1,8 +1,10 @@
+// backend/server.js
 import { createServer } from "http";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import RedisStore from "rate-limit-redis";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swaggerConfig.js";
@@ -12,10 +14,11 @@ import cron from "node-cron";
 import "./src/config/loadEnv.js";
 import sequelize from "./src/config/dbConnection.js";
 import logger from "./src/utils/logger.js";
+import { connectRedis } from "./src/config/redis.js"; 
+import redisClient from "./src/config/redis.js";
 
 // Models & Middlewares
 import { checkConnection } from "./src/models/dbModels.js";
-import { OtpModel } from "./src/models/OtpModel.js";
 import { RefreshTokenModel } from "./src/models/TokenModel.js";
 import {
   addCorrelationId,
@@ -42,7 +45,7 @@ import invitationRoutes from "./src/routes/invitationRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
 import auditLogRoutes from "./src/routes/auditLogRoutes.js";
 
-//Inviatation
+// Invitation
 import { startQueueSystem } from "./src/services/queueService.js";
 import InvitationService from "./src/services/InvitationService.js";
 
@@ -94,13 +97,31 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "10mb" })); // เพิ่ม limit สำหรับ Base64 image upload
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // ========================================
-// RATE LIMITING
+// RATE LIMITING (LAZY INITIALIZATION)
 // ========================================
-const apiLimiter = rateLimit({
+
+// ✅ Helper
+const createLazyLimiter = (options, prefix) => {
+  let limiter;
+  return (req, res, next) => {
+    if (!limiter) {
+      limiter = rateLimit({
+        ...options,
+        store: new RedisStore({
+          sendCommand: (...args) => redisClient.sendCommand(args),
+          prefix: prefix,
+        }),
+      });
+    }
+    return limiter(req, res, next);
+  };
+};
+
+const apiLimiter = createLazyLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: {
@@ -109,9 +130,9 @@ const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-});
+}, 'rl:api:');
 
-const authLimiter = rateLimit({
+const authLimiter = createLazyLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: {
@@ -121,7 +142,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-});
+}, 'rl:auth:');
 
 // ========================================
 // LOGGING & MONITORING
@@ -148,7 +169,7 @@ app.use("/api/auth/reset-password", authLimiter);
 // ROUTES
 // ========================================
 
-app.use("/api", apiLimiter); // Global API limit
+app.use("/api", apiLimiter);
 
 // Docs
 if (process.env.NODE_ENV !== "production") {
@@ -196,20 +217,6 @@ cron.schedule("0 2 * * *", async () => {
   }
 });
 
-// OTP cleanup - ทุก 10 นาที
-cron.schedule("*/10 * * * *", async () => {
-  try {
-    logger.info("🧹 Running scheduled OTP cleanup...");
-    const deleted = await OtpModel.cleanupExpired(); 
-
-    if (deleted > 0) {
-      logger.info(`✅ Cleaned up ${deleted} expired OTP records`);
-    }
-  } catch (error) {
-    logger.error("❌ Error in OTP cleanup:", error);
-  }
-});
-
 // ========================================
 // START SERVER
 // ========================================
@@ -218,11 +225,17 @@ const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
+    // 1. Database Connection
     if (process.env.NODE_ENV === "development") {
       await checkConnection();
       logger.info("✅ Database synced (Development mode)");
     }
 
+    // 2. 🔥 Connect Redis (Critical Step)
+    await connectRedis(); 
+    logger.info("✅ Redis connected");
+
+    // 3. Queue System
     try {
       await startQueueSystem();
     } catch (queueError) {
@@ -256,11 +269,18 @@ const gracefulShutdown = async (signal) => {
     logger.info("🛑 HTTP server closed.");
 
     try {
+      if (redisClient.isOpen) {
+        await redisClient.disconnect();
+        logger.info("🛑 Redis disconnected.");
+      }
+      
+      // ปิด Database Connection
       await sequelize.close();
       logger.info("🔒 Database connection closed.");
+      
       process.exit(0);
     } catch (error) {
-      logger.error("💥 Error during database disconnection:", error);
+      logger.error("💥 Error during disconnection:", error);
       process.exit(1);
     }
   });

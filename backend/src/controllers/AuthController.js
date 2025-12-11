@@ -137,7 +137,6 @@ export const createAuthController = (deps = {}) => {
       clientInfo.userAgent || req.headers["user-agent"],
     );
     security.clearFailedLogins(ip);
-
     cookies.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     return ResponseHandler.success(
       res,
