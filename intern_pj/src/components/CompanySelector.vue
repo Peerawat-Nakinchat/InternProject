@@ -5,10 +5,10 @@
         
         <ListboxButton
           class="relative w-150px sm:w-[220px] cursor-pointer rounded-md text-left shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-purple-600 transition-all duration-300 bg-linear-to-r from-purple-800 to-purple-700 hover:from-purple-700 hover:to-purple-600 text-white
-                 h-9 md:h-9  px-4 text-sm md:text-md flex items-center"
+                 h-9 md:h-9   px-4 text-sm md:text-md flex items-center"
         >
-          <span class="block truncate font-semibold text-md tracking-wider uppercase">
-            บริษัท : {{ selectedCompanyName }}
+          <span class="block items-center truncate font-semibold text-md tracking-wider uppercase mb-1">
+            <i class="mdi mdi-office-building font-bold text-xl "></i> : {{ selectedCompanyName }}
           </span>
           <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
             <svg class="h-5 w-5 md:h-6 md:w-6 text-purple-200" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
