@@ -14,7 +14,10 @@ import cron from "node-cron";
 import "./src/config/loadEnv.js";
 import sequelize from "./src/config/dbConnection.js";
 import logger from "./src/utils/logger.js";
-import { connectRedis } from "./src/config/redis.js";
+import {
+  connectRedis,
+  isConnected as isRedisConnected,
+} from "./src/config/redis.js";
 import redisClient from "./src/config/redis.js";
 
 // Models & Middlewares
@@ -101,26 +104,36 @@ app.use(cookieParser());
 
 // Trust proxy headers to get real client IP
 // This allows us to get the actual client IP when behind a proxy or in containerized environment
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // ========================================
-// RATE LIMITING (LAZY INITIALIZATION)
+// RATE LIMITING (LAZY INITIALIZATION WITH FALLBACK)
 // ========================================
 
-// ✅ Helper
+/**
+ * ✅ Helper: Create rate limiter with Redis/Memory fallback
+ * - If Redis is connected: use RedisStore
+ * - If Redis is not connected: use built-in MemoryStore
+ */
 const createLazyLimiter = (options, prefix) => {
   let limiter;
   return (req, res, next) => {
     if (!limiter) {
+      const storeConfig = isRedisConnected()
+        ? {
+            store: new RedisStore({
+              sendCommand: (...args) => redisClient.sendCommand(args),
+              prefix: prefix,
+            }),
+          }
+        : {}; // MemoryStore is the default when no store is specified
+
       limiter = rateLimit({
         ...options,
-        store: new RedisStore({
-          sendCommand: (...args) => redisClient.sendCommand(args),
-          prefix: prefix,
-        }),
+        ...storeConfig,
       });
     }
     return limiter(req, res, next);

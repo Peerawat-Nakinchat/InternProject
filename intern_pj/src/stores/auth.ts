@@ -49,6 +49,10 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const authReady = ref(false)
+  
+  // ✅ Proactive Token Refresh Timer
+  let refreshTimerId: ReturnType<typeof setInterval> | null = null
+  const TOKEN_REFRESH_INTERVAL = 12 * 60 * 1000 // 12 minutes (refresh before 15 min expiry)
 
   // --- Computed ---
   const isAuthenticated = computed(() => !!user.value)
@@ -56,24 +60,72 @@ export const useAuthStore = defineStore('auth', () => {
 
   // ✅ Refresh Access Token - ถูกเรียกจาก axios interceptor
   // ใช้ axios ตรงเพื่อหลีกเลี่ยง circular dependency กับ axiosInstance
+  // ✅ เพิ่ม lock เพื่อป้องกัน concurrent refresh requests
+  let isRefreshing = false
+  let refreshPromise: Promise<boolean> | null = null
+  
   const refreshAccessToken = async (): Promise<boolean> => {
-    try {
-      console.log('🔄 Refreshing access token...')
-      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
-      
-      console.log('🔄 Refresh response:', data)
-      
-      if (data.success && data.data?.accessToken) {
-        accessToken.value = data.data.accessToken
-        console.log('✅ Access token refreshed successfully')
-        return true
+    // ✅ ถ้ากำลัง refresh อยู่ ให้รอ promise เดิม (ป้องกัน race condition)
+    if (isRefreshing && refreshPromise) {
+      console.log('⏳ Waiting for existing refresh request...')
+      return refreshPromise
+    }
+    
+    isRefreshing = true
+    refreshPromise = (async () => {
+      try {
+        console.log('🔄 Refreshing access token...')
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+        
+        console.log('🔄 Refresh response:', data)
+        
+        // ✅ FIX: accessToken อยู่ที่ root level (data.accessToken) ไม่ใช่ data.data.accessToken
+        if (data.success && (data.accessToken || data.data?.accessToken)) {
+          accessToken.value = data.accessToken || data.data.accessToken
+          console.log('✅ Access token refreshed successfully')
+          return true
+        }
+        console.log('⚠️ Refresh returned success=false or no accessToken')
+        return false
+      } catch (err) {
+        console.error('❌ Failed to refresh token:', err)
+        // ✅ อย่า clear state ที่นี่ - ให้ caller จัดการ
+        return false
+      } finally {
+        isRefreshing = false
+        refreshPromise = null
       }
-      console.log('⚠️ Refresh returned success=false or no accessToken')
-      return false
-    } catch (err) {
-      console.error('❌ Failed to refresh token:', err)
-      // ✅ อย่า clear state ที่นี่ - ให้ caller จัดการ
-      return false
+    })()
+    
+    return refreshPromise
+  }
+
+  // ✅ Proactive Token Refresh - เริ่ม timer สำหรับ refresh token อัตโนมัติ
+  const startTokenRefreshTimer = () => {
+    // หยุด timer เดิมก่อน (ถ้ามี)
+    stopTokenRefreshTimer()
+    
+    console.log('⏰ Starting proactive token refresh timer (every 12 minutes)')
+    
+    refreshTimerId = setInterval(async () => {
+      if (user.value && accessToken.value) {
+        console.log('⏰ Proactive token refresh triggered')
+        const success = await refreshAccessToken()
+        if (!success) {
+          console.log('⚠️ Proactive refresh failed, will retry on next interval or 401')
+        }
+      } else {
+        console.log('⏰ Skipping proactive refresh - no active session')
+      }
+    }, TOKEN_REFRESH_INTERVAL)
+  }
+
+  // ✅ หยุด timer เมื่อ logout หรือปิด app
+  const stopTokenRefreshTimer = () => {
+    if (refreshTimerId) {
+      console.log('⏹️ Stopping token refresh timer')
+      clearInterval(refreshTimerId)
+      refreshTimerId = null
     }
   }
 
@@ -104,6 +156,8 @@ export const useAuthStore = defineStore('auth', () => {
         if (response.success && response.data?.user) {
           user.value = response.data.user
           console.log('✅ Auth initialized (session restored)')
+          // ✅ เริ่ม proactive token refresh timer
+          startTokenRefreshTimer()
         }
       } else {
         // ถ้า refresh ไม่ได้ แสดงว่าไม่มี valid session
@@ -173,6 +227,9 @@ export const useAuthStore = defineStore('auth', () => {
         accessToken.value = data.accessToken
         user.value = data.user
         
+        // ✅ เริ่ม proactive token refresh timer
+        startTokenRefreshTimer()
+        
         return { success: true }
       }
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
@@ -225,6 +282,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (data.success) {
         accessToken.value = data.data.accessToken
         user.value = data.data.user
+        // ✅ เริ่ม proactive token refresh timer
+        startTokenRefreshTimer()
         return { success: true }
       }
       return { success: false, error: data.error || 'การยืนยัน OTP ล้มเหลว' }
@@ -258,11 +317,20 @@ export const useAuthStore = defineStore('auth', () => {
   // 4. Logout
   const logout = async () => {
     try {
-      const axiosInstance = await getAxios()
-      await axiosInstance.post('/auth/logout')
+      // ✅ Skip API call if already logged out (no token = no need to call logout API)
+      if (accessToken.value || user.value) {
+        const axiosInstance = await getAxios()
+        await axiosInstance.post('/auth/logout')
+      } else {
+        console.log('ℹ️ Already logged out, skipping API call')
+      }
     } catch (err) {
-      console.error('Logout error:', err)
+      // ✅ Ignore logout errors - just clear local state
+      console.log('ℹ️ Logout API failed (session may already be expired)')
     } finally {
+      // ✅ หยุด proactive token refresh timer
+      stopTokenRefreshTimer()
+      
       user.value = null
       accessToken.value = null
       
