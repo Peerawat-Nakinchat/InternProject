@@ -77,8 +77,15 @@ router.beforeEach(async (to, from, next) => {
   await authStore.waitForAuthReady()
 
   const isAuthenticated = authStore.isAuthenticated
+  console.log('🛡️ Router guard:', { 
+    path: to.path, 
+    requiresAuth: to.meta.requiresAuth, 
+    isAuthenticated,
+    user: authStore.user?.email 
+  })
 
   if (to.meta.requiresAuth && !isAuthenticated) {
+    console.log('🚫 Redirecting to login - not authenticated')
     return next('/login')
   }
   if (to.meta.requiresGuest && isAuthenticated) {

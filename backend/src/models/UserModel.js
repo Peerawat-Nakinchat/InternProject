@@ -169,7 +169,12 @@ export const User = sequelize.define(
 const findById = async (userId) => {
   return await User.findByPk(userId, {
     attributes: {
-      exclude: ["password_hash", "reset_token", "reset_token_expire", "mfa_secret"], 
+      exclude: [
+        "password_hash",
+        "reset_token",
+        "reset_token_expire",
+        "mfa_secret",
+      ],
     },
     include: [
       {
@@ -227,7 +232,7 @@ const create = async (userData, transaction = null) => {
       user_address_1: userData.user_address_1 || "",
       user_address_2: userData.user_address_2 || "",
       user_address_3: userData.user_address_3 || "",
-      role_id: userData.role_id || ROLE_ID.MEMBER, 
+      role_id: userData.role_id || ROLE_ID.MEMBER,
       is_active: true,
       is_email_verified: userData.is_email_verified || false,
     },
@@ -427,7 +432,12 @@ const search = async (filters = {}, options = {}) => {
   const { count, rows } = await User.findAndCountAll({
     where,
     attributes: {
-      exclude: ["password_hash", "reset_token", "reset_token_expire", "mfa_secret"], 
+      exclude: [
+        "password_hash",
+        "reset_token",
+        "reset_token_expire",
+        "mfa_secret",
+      ],
     },
     include: [
       {
@@ -530,7 +540,7 @@ const setEmailVerified = async (
 const saveMfaSecret = async (userId, secret) => {
   return await User.update(
     { mfa_secret: secret, mfa_enabled: false },
-    { where: { user_id: userId } }
+    { where: { user_id: userId } },
   );
 };
 
@@ -540,7 +550,7 @@ const saveMfaSecret = async (userId, secret) => {
 const enableMfa = async (userId) => {
   return await User.update(
     { mfa_enabled: true },
-    { where: { user_id: userId } }
+    { where: { user_id: userId } },
   );
 };
 
@@ -551,10 +561,20 @@ const findByIdWithSecret = async (userId) => {
   return await User.findByPk(userId);
 };
 
+/**
+ * Disable MFA (clear secret and set enabled to false)
+ */
+const disableMfa = async (userId) => {
+  return await User.update(
+    { mfa_secret: null, mfa_enabled: false },
+    { where: { user_id: userId } },
+  );
+};
+
 export const UserModel = {
   findById,
   findByEmail,
-  findByIdWithSecret, 
+  findByIdWithSecret,
   findByEmailWithPassword,
   create,
   updatePassword,
@@ -571,8 +591,9 @@ export const UserModel = {
   bulkCreate,
   updateRole,
   setEmailVerified,
-  saveMfaSecret, 
-  enableMfa, 
+  saveMfaSecret,
+  enableMfa,
+  disableMfa,
 };
 
 export default UserModel;

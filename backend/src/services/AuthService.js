@@ -189,7 +189,8 @@ export const createAuthService = (deps = {}) => {
     }
   };
 
-  const login = async (email, password) => {
+  // ✅ Modified: Accept optional fingerprint for Smart MFA
+  const login = async (email, password, fingerprint = null) => {
     if (!email || !password)
       throw createError.badRequest("กรุณากรอกอีเมลและรหัสผ่าน"); // ✅ 400
 
@@ -209,6 +210,34 @@ export const createAuthService = (deps = {}) => {
       error.email = user.email;
       throw error;
     }
+
+    // ✅ NEW: Check MFA enabled
+    if (user.mfa_enabled === true) {
+      // Generate temporary token for MFA verification (with fingerprint for Smart MFA)
+      const { signAccessToken } = await import("../utils/token.js");
+      const tempToken = signAccessToken(
+        {
+          user_id: user.user_id,
+          mfa_pending: true,
+          fingerprint: fingerprint, // ✅ Include fingerprint for Smart MFA
+        },
+        "5m",
+      );
+      console.log(
+        "[DEBUG] AuthService.login: created tempToken with fingerprint:",
+        fingerprint,
+      );
+      return {
+        mfaRequired: true,
+        tempToken,
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          mfa_enabled: user.mfa_enabled, // ✅ pass mfa_enabled
+        },
+      };
+    }
+
     const tokens = await generateTokens(user);
 
     return {
@@ -263,7 +292,7 @@ export const createAuthService = (deps = {}) => {
   const forgotPassword = async (email) => {
     if (!email) throw createError.badRequest("กรุณากรอกอีเมล");
     const user = await User.findByEmail(email);
-    if (!user) return { success: true }; 
+    if (!user) return { success: true };
 
     const token = random.randomUUID();
     const expire = new Date(Date.now() + 1000 * 60 * 15);
@@ -338,7 +367,7 @@ export const createAuthService = (deps = {}) => {
   const updateProfile = async (userId, data) => {
     for (const key in data)
       if (typeof data[key] === "string") data[key] = data[key].trim();
-    
+
     if (data.name === "" || data.surname === "")
       throw createError.badRequest("ชื่อ-นามสกุล ต้องไม่เป็นค่าว่าง");
 
@@ -348,25 +377,33 @@ export const createAuthService = (deps = {}) => {
         cleanData[key] = data[key];
     }
 
-    if (cleanData.profile_image_url && cleanData.profile_image_url.startsWith("data:image/")) {
-        try {
-            const uploadResult = await StorageService.uploadBase64Image(cleanData.profile_image_url, userId);
-            
-            if (uploadResult) {
-                const currentUser = await User.findById(userId);
-                if (currentUser?.profile_image_url) {
-                    await StorageService.deleteOldProfileImage(currentUser.profile_image_url);
-                }
-                cleanData.profile_image_url = uploadResult.url;
-            }
-        } catch (error) {
-            if (error.statusCode === 503) {
-                logger.warn("⚠️ Supabase not configured, skipping image upload");
-                delete cleanData.profile_image_url;
-            } else {
-                throw error; 
-            }
+    if (
+      cleanData.profile_image_url &&
+      cleanData.profile_image_url.startsWith("data:image/")
+    ) {
+      try {
+        const uploadResult = await StorageService.uploadBase64Image(
+          cleanData.profile_image_url,
+          userId,
+        );
+
+        if (uploadResult) {
+          const currentUser = await User.findById(userId);
+          if (currentUser?.profile_image_url) {
+            await StorageService.deleteOldProfileImage(
+              currentUser.profile_image_url,
+            );
+          }
+          cleanData.profile_image_url = uploadResult.url;
         }
+      } catch (error) {
+        if (error.statusCode === 503) {
+          logger.warn("⚠️ Supabase not configured, skipping image upload");
+          delete cleanData.profile_image_url;
+        } else {
+          throw error;
+        }
+      }
     }
     try {
       return await User.updateProfile(userId, cleanData);
@@ -420,7 +457,7 @@ export const createAuthService = (deps = {}) => {
     getProfile,
     googleAuthCallback,
     processInviteToken,
-    generateTokens, 
+    generateTokens,
   };
 };
 

@@ -15,9 +15,7 @@
             </h1>
           </div>
         </div>
-        <p class="text-neutral-500 text-sm mt-1">
-          กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ
-        </p>
+        <p class="text-neutral-500 text-sm mt-1">กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ</p>
       </div>
 
       <div class="w-full max-w-full mx-auto p-4">
@@ -49,7 +47,9 @@
                 </label>
               </div>
 
-              <div class="flex flex-col md:flex-row items-center md:items-center gap-3 w-full md:w-auto flex-1">
+              <div
+                class="flex flex-col md:flex-row items-center md:items-center gap-3 w-full md:w-auto flex-1"
+              >
                 <div class="flex-1 text-left md:text-left">
                   <h1 class="text-2xl font-bold text-gray-900">
                     {{ form.full_name || userInitials }}
@@ -78,7 +78,9 @@
             <!-- ด้านซ้าย: เมนูหมวด -->
             <div class="hidden md:block md:w-1/3">
               <h3 class="text-lg font-semibold text-black tracking-wide mb-2">เกี่ยวกับ</h3>
-              <div class="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 shadow-inner">
+              <div
+                class="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 shadow-inner"
+              >
                 <button
                   v-for="section in sectionList"
                   :key="section.key"
@@ -103,7 +105,9 @@
                   </div>
                   <i
                     class="mdi text-lg"
-                    :class="activeSection === section.key ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+                    :class="
+                      activeSection === section.key ? 'mdi-chevron-right' : 'mdi-chevron-left'
+                    "
                   ></i>
                 </button>
               </div>
@@ -188,7 +192,10 @@
                       </span>
                       <div>
                         <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
-                        <p v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]" class="text-gray-600 text-sm">
+                        <p
+                          v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
+                          class="text-gray-600 text-sm"
+                        >
                           {{ displayStaticValue(field.key) }}
                         </p>
                       </div>
@@ -209,9 +216,38 @@
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
                       </button>
+                      <!-- MFA Toggle Button -->
+                      <template v-else-if="field.key === 'mfa'">
+                        <button
+                          v-if="!mfaEnabled"
+                          class="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                          @click="openMfaSetup()"
+                        >
+                          <i class="mdi mdi-shield-check mr-1"></i>เปิดใช้งาน
+                        </button>
+                        <button
+                          v-else
+                          class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                          @click="openMfaDisable()"
+                        >
+                          <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
+                        </button>
+                      </template>
+                      <!-- ✅ Trusted Devices Button -->
+                      <template v-else-if="field.key === 'trusted_devices'">
+                        <button
+                          class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                          @click="openDevicesPopup()"
+                        >
+                          <i class="mdi mdi-cog mr-1"></i>จัดการ
+                        </button>
+                      </template>
                       <button
+
                         v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey] && !(isCompanyField(field.key) && !isCompanyOwner)"
-                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
+                       
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+
                         @click="startEdit(field.key as EditableKey)"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
@@ -220,9 +256,14 @@
                   </div>
 
                   <div
-                    v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
+                    v-if="
+                      field.key === 'email' || field.key === 'password'
+                        ? false
+                        : isEditableField(field.key) && editState[field.key as EditableKey]
+                    "
                     class="pl-12"
                   >
+
                     <div v-if="field.key === 'sex'" class="mb-4 relative">
                       <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
                       <!-- Custom Dropdown (match RegisterPage style) -->
@@ -283,7 +324,9 @@
                       >
                         ยกเลิก
                       </base-button>
-                      <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                      <base-button class="px-4" @click="saveField(field.key as EditableKey)"
+                        >บันทึก</base-button
+                      >
                     </div>
                   </div>
                 </div>
@@ -291,7 +334,9 @@
 
               <!-- ปุ่มสำหรับ mobile -->
               <div class="mt-6 flex gap-3 md:hidden">
-                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm"
+                  >รีเซ็ต</base-button
+                >
                 <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
               </div>
             </div>
@@ -366,19 +411,102 @@
                   >
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-3">
-                      <span
+
+                        <span
                         class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
                       >
-                      <i :class="field.icon" class="text-lg"></i>
-                      </span>
+                          <i :class="field.icon" class="text-lg"></i>
+                        </span>
                         <div>
                           <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
                           <p
-                            v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
+                            v-if="
+                              !isEditableField(field.key) || !editState[field.key as EditableKey]
+                            "
                             class="text-gray-600 text-sm"
                           >
                             {{ displayStaticValue(field.key) }}
                           </p>
+                        </div>
+                      </div>
+
+                      <button
+                        v-if="field.key === 'email'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changeEmail()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="field.key === 'password'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changePassword()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <!-- MFA Toggle Button (Mobile) -->
+                      <template v-else-if="field.key === 'mfa'">
+                        <button
+                          v-if="!mfaEnabled"
+                          class="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                          @click="openMfaSetup()"
+                        >
+                          <i class="mdi mdi-shield-check mr-1"></i>เปิดใช้งาน
+                        </button>
+                        <button
+                          v-else
+                          class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                          @click="openMfaDisable()"
+                        >
+                          <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
+                        </button>
+                      </template>
+                      <!-- Trusted Devices Button -->
+                      <template v-else-if="field.key === 'trusted_devices'">
+                        <button
+                          class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                          @click="openDevicesPopup()"
+                        >
+                          <i class="mdi mdi-cog mr-1"></i>จัดการ
+                        </button>
+                      </template>
+                      <button
+                        v-else-if="
+                          isEditableField(field.key) && !editState[field.key as EditableKey]
+                        "
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="startEdit(field.key as EditableKey)"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="
+                        field.key === 'email' || field.key === 'password'
+                          ? false
+                          : isEditableField(field.key) && editState[field.key as EditableKey]
+                      "
+                      class="pl-10"
+                    >
+                      <div v-if="field.key === 'sex'">
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">{{
+                          field.label
+                        }}</label>
+                        <div class="relative">
+                          <select
+                            v-model="editableValues.sex"
+                            class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
+                          >
+                            <option value="" disabled>เลือกเพศ</option>
+                            <option
+                              v-for="opt in genderOptions"
+                              :key="opt.value"
+                              :value="opt.value"
+                            >
+                              {{ opt.label }}
+                            </option>
+                          </select>
                         </div>
                       </div>
 
@@ -474,7 +602,9 @@
                         >
                           ยกเลิก
                         </base-button>
-                        <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                        <base-button class="px-4" @click="saveField(field.key as EditableKey)"
+                          >บันทึก</base-button
+                        >
                       </div>
                     </div>
                   </div>
@@ -482,7 +612,9 @@
               </div>
 
               <div class="mt-4 flex gap-3">
-                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm"
+                  >รีเซ็ต</base-button
+                >
                 <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
               </div>
             </div>
@@ -490,7 +622,10 @@
         </div>
 
         <!-- Popup: เปลี่ยนอีเมล -->
-        <div v-if="showEmailPopup" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div
+          v-if="showEmailPopup"
+          class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        >
           <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
             <BaseInput
@@ -514,10 +649,7 @@
                 @click="closeEmailPopup"
                 >ยกเลิก</base-button
               >
-              <base-button
-                class="w-full"
-                @click="openEmailConfirm"
-                :disabled="authStore.isLoading"
+              <base-button class="w-full" @click="openEmailConfirm" :disabled="authStore.isLoading"
                 >บันทึก</base-button
               >
             </div>
@@ -635,7 +767,7 @@
                   {{ passwordError }}
                 </p>
 
-                <div class="flex gap-3">
+            <div class="flex gap-3">
                   <base-button
                     class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
                     @click="closePasswordPopup"
@@ -650,9 +782,189 @@
                     บันทึก
                   </base-button>
                 </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popup: MFA Setup -->
+      <div
+        v-if="showMfaSetupPopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="mdi mdi-shield-check text-purple-600 mr-2"></i>
+            ตั้งค่า Two-Factor Authentication (2FA)
+          </h2>
+
+          <div v-if="mfaQrCode" class="text-center mb-4">
+            <p class="text-sm text-gray-600 mb-3">
+              สแกน QR Code นี้ด้วยแอป Google Authenticator หรือ Authy
+            </p>
+            <img
+              :src="mfaQrCode"
+              alt="MFA QR Code"
+              class="mx-auto border rounded-lg p-2 bg-white"
+            />
+            <p class="text-xs text-gray-500 mt-2">
+              หรือใส่รหัสด้วยตนเอง:
+              <code class="bg-gray-100 px-2 py-1 rounded">{{ mfaSecret }}</code>
+            </p>
+          </div>
+
+          <BaseInput v-model="mfaOtp" label="รหัส OTP 6 หลัก" placeholder="123456" class="mb-2" />
+
+          <p v-if="mfaError" class="text-red-500 text-sm mb-2">
+            <i class="mdi mdi-alert-circle mr-1"></i>{{ mfaError }}
+          </p>
+
+          <div class="flex gap-3">
+            <base-button
+              class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+              @click="closeMfaSetupPopup"
+            >
+              ยกเลิก
+            </base-button>
+            <base-button
+              class="flex-1"
+              @click="confirmEnableMfa"
+              :disabled="!mfaOtp || mfaOtp.length !== 6"
+            >
+              เปิดใช้งาน 2FA
+            </base-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popup: MFA Disable -->
+      <div
+        v-if="showMfaDisablePopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="mdi mdi-shield-off text-red-600 mr-2"></i>
+            ปิดใช้งาน Two-Factor Authentication
+          </h2>
+
+          <p class="text-sm text-gray-600 mb-4">
+            กรุณากรอกรหัส OTP จากแอป Authenticator เพื่อยืนยันการปิด 2FA
+          </p>
+
+          <BaseInput v-model="mfaOtp" label="รหัส OTP 6 หลัก" placeholder="123456" class="mb-2" />
+
+          <p v-if="mfaError" class="text-red-500 text-sm mb-2">
+            <i class="mdi mdi-alert-circle mr-1"></i>{{ mfaError }}
+          </p>
+
+          <div class="flex gap-3">
+            <base-button
+              class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+              @click="closeMfaDisablePopup"
+            >
+              ยกเลิก
+            </base-button>
+            <base-button
+              class="flex-1 bg-red-600 hover:bg-red-700"
+              @click="confirmDisableMfa"
+              :disabled="!mfaOtp || mfaOtp.length !== 6"
+            >
+              ปิด 2FA
+            </base-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popup: Trusted Devices Management -->
+      <div
+        v-if="showDevicesPopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+        @click.self="closeDevicesPopup"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 h-[80vh] flex flex-col">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-gray-800">
+              <i class="mdi mdi-devices text-purple-600 mr-2"></i>
+              จัดการอุปกรณ์ที่เชื่อมต่อ (Trusted Devices)
+            </h2>
+            <button @click="closeDevicesPopup" class="text-gray-400 hover:text-gray-600">
+              <i class="mdi mdi-close text-2xl"></i>
+            </button>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">
+            อุปกรณ์เหล่านี้สามารถเข้าสู่ระบบโดยไม่ต้องยืนยัน 2FA (ยกเว้นเมื่อหมดอายุ)
+          </p>
+
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="isLoadingDevices" class="flex justify-center py-8">
+              <i class="mdi mdi-loading mdi-spin text-3xl text-purple-600"></i>
+            </div>
+
+            <div v-else-if="trustedDevices.length === 0" class="text-center py-12 text-gray-400">
+              <i class="mdi mdi-laptop-off text-5xl mb-3 block"></i>
+              <p>ไม่มีอุปกรณ์ที่เชื่อถือ</p>
+            </div>
+
+            <div v-else class="space-y-3">
+              <div
+                v-for="device in trustedDevices"
+                :key="device.device_id"
+                class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600"
+                  >
+                    <i class="mdi" :class="getDeviceIcon(device.device_name)"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-900">
+                      {{ device.device_name }}
+                      <span
+                        v-if="device.is_current"
+                        class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"
+                        >อุปกรณ์นี้</span
+                      >
+                    </h3>
+                    <div class="flex gap-2 text-xs text-gray-500 mt-1">
+                      <span
+                        ><i class="mdi mdi-map-marker-outline"></i> {{ device.ip_address }}</span
+                      >
+                      <span>•</span>
+                      <span
+                        ><i class="mdi mdi-clock-outline"></i> ใช้ล่าสุด:
+                        {{ formatDate(device.last_used_at) }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  @click="removeTrustedDevice(device.device_id)"
+                  class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition"
+                  title="ลบอุปกรณ์"
+                >
+                  <i class="mdi mdi-trash-can-outline text-xl"></i>
+                </button>
               </div>
             </div>
-            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t flex justify-between items-center">
+            <p class="text-xs text-gray-500">
+              * อุปกรณ์ที่เชื่อมต่อจะหมดอายุอัตโนมัติหากไม่ได้ใช้งานเกิน 30 วัน
+            </p>
+            <button
+              v-if="trustedDevices.length > 0"
+              @click="removeAllDevices"
+              class="text-red-600 text-sm hover:underline"
+            >
+              ลบอุปกรณ์ทั้งหมด
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -663,13 +975,31 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCompanyStore } from '@/stores/company'
 import Swal from 'sweetalert2' // ✅ ใช้ SweetAlert2 แทน ConfirmDialog
+import axios from 'axios'
+import type { TrustedDevice } from '@/types/auth' // Add type import
+
 // Component Input/Button ยังคงใช้เหมือนเดิม
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
 const companyStore = useCompanyStore()
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.onmouseenter = Swal.stopTimer
+    toast.onmouseleave = Swal.resumeTimer
+  },
+})
 
 // =====================================================
 // FORM MODEL (ข้อมูลฟอร์ม)
@@ -735,7 +1065,8 @@ type EditableKey =
   | 'company_integrate_provider'
   | 'company_integrate_passcode'
   | 'company_integrate_url'
-type FieldKey = EditableKey | 'role'
+type FieldKey = EditableKey | 'role' | 'mfa' | 'trusted_devices'
+
 const formEditableKeys = [
   'name',
   'surname',
@@ -752,7 +1083,7 @@ const formEditableKeys = [
   'company_integrate_passcode',
   'company_integrate_url',
 ] as const
-type FormEditableKey = typeof formEditableKeys[number]
+type FormEditableKey = (typeof formEditableKeys)[number]
 type FieldConfig = {
   key: FieldKey
   label: string
@@ -860,6 +1191,32 @@ const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
   security: [
     { key: 'email', label: 'เปลี่ยนอีเมล', icon: 'mdi mdi-email-outline', type: 'email' },
     { key: 'password', label: 'เปลี่ยนรหัสผ่าน', icon: 'mdi mdi-lock-reset', type: 'password' },
+    {
+      key: 'mfa' as FieldKey,
+      label: 'Two-Factor Authentication (2FA)',
+      icon: 'mdi mdi-shield-check',
+      editable: false,
+    },
+    {
+      key: 'trusted_devices' as FieldKey,
+      label: 'อุปกรณ์ที่เชื่อมต่อ (Trusted Devices)',
+      icon: 'mdi mdi-devices',
+      editable: false,
+    },
+    {
+      key: 'user_integrate_provider_id',
+      label: 'Provider ID',
+      icon: 'mdi mdi-identifier',
+      placeholder: 'Provider ID',
+      type: 'text',
+    },
+    {
+      key: 'user_integrate_url',
+      label: 'Integration URL',
+      icon: 'mdi mdi-link-variant',
+      placeholder: 'https://...',
+      type: 'url',
+    },
   ],
 }
 
@@ -944,6 +1301,21 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
+
+// MFA State
+const showMfaSetupPopup = ref(false)
+const showMfaDisablePopup = ref(false)
+const mfaQrCode = ref('')
+const mfaSecret = ref('')
+const mfaOtp = ref('')
+const mfaError = ref('')
+const mfaEnabled = ref(false)
+
+// Trusted Devices State
+const showDevicesPopup = ref(false)
+const trustedDevices = ref<TrustedDevice[]>([])
+const isLoadingDevices = ref(false)
+const trustedDevicesCount = ref<number | null>(null) // ✅ Store device count
 
 // =====================================================
 // COMPUTED & HELPERS
@@ -1077,11 +1449,17 @@ const isValidUrl = (value: string): boolean => {
   }
 }
 
-const isFormEditableKey = (key: EditableKey): key is FormEditableKey => {
+// Helper to check if a key is in formEditableKeys
+const isFormEditableKey = (key: any): key is FormEditableKey => {
   return formEditableKeys.includes(key as FormEditableKey)
 }
 
-const isEditableField = (key: FieldKey): key is EditableKey => key !== 'role' && !nonEditableFields.includes(key as EditableKey)
+const isEditableField = (key: FieldKey) => {
+  // trusted_devices and mfa are not editable in the standard way
+  if (key === 'trusted_devices' || key === 'mfa' || key === 'role') return false
+  return isFormEditableKey(key) || key === 'email' || key === 'password'
+}
+
 
 const resetEditableValue = (fieldKey: EditableKey) => {
   if (fieldKey === 'email') {
@@ -1129,7 +1507,15 @@ const displayStaticValue = (fieldKey: FieldKey) => {
     }
     return roles[authStore.user?.role_id || 3] || 'ผู้ใช้'
   }
-  return displayValue(fieldKey)
+  if (fieldKey === 'mfa') {
+    return mfaEnabled.value ? '✅ เปิดใช้งานแล้ว' : '❌ ยังไม่เปิดใช้งาน'
+  }
+  if (fieldKey === 'trusted_devices') {
+    if (trustedDevicesCount.value === null) return 'กำลังโหลด...'
+    if (trustedDevicesCount.value === 0) return 'ไม่มีอุปกรณ์ที่เชื่อมต่อ'
+    return `📱 มี ${trustedDevicesCount.value} อุปกรณ์`
+  }
+  return displayValue(fieldKey as EditableKey)
 }
 
 const startEdit = (fieldKey: EditableKey) => {
@@ -1489,7 +1875,215 @@ const openPasswordConfirm = async () => {
 }
 
 // =====================================================
-// 4. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
+// 4. FLOW: MFA (Two-Factor Authentication)
+// =====================================================
+
+// Load MFA status on mount
+const loadMfaStatus = async () => {
+  const result = await authStore.getMfaStatus()
+  mfaEnabled.value = result.mfa_enabled || false
+}
+
+// Open MFA Setup popup
+const openMfaSetup = async () => {
+  mfaOtp.value = ''
+  mfaError.value = ''
+
+  const result = await authStore.setupMfa()
+  if (result.success) {
+    mfaQrCode.value = result.qrCodeUrl || ''
+    mfaSecret.value = result.secret || ''
+    showMfaSetupPopup.value = true
+  } else {
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: result.error || 'ไม่สามารถตั้งค่า 2FA ได้',
+    })
+  }
+}
+
+const closeMfaSetupPopup = () => {
+  showMfaSetupPopup.value = false
+  mfaQrCode.value = ''
+  mfaSecret.value = ''
+  mfaOtp.value = ''
+  mfaError.value = ''
+}
+
+const confirmEnableMfa = async () => {
+  mfaError.value = ''
+
+  const result = await authStore.enableMfa(mfaOtp.value)
+  if (result.success) {
+    mfaEnabled.value = true
+    closeMfaSetupPopup()
+    Swal.fire({
+      icon: 'success',
+      title: 'เปิดใช้งาน 2FA สำเร็จ',
+      text: 'บัญชีของคุณได้รับการป้องกันด้วย Two-Factor Authentication แล้ว',
+      timer: 2500,
+      showConfirmButton: false,
+    })
+  } else {
+    mfaError.value = result.error || 'รหัส OTP ไม่ถูกต้อง'
+  }
+}
+
+// Open MFA Disable popup
+const openMfaDisable = () => {
+  mfaOtp.value = ''
+  mfaError.value = ''
+  showMfaDisablePopup.value = true
+}
+
+const closeMfaDisablePopup = () => {
+  showMfaDisablePopup.value = false
+  mfaOtp.value = ''
+  mfaError.value = ''
+}
+
+const confirmDisableMfa = async () => {
+  mfaError.value = ''
+
+  const result = await authStore.disableMfa(mfaOtp.value)
+  if (result.success) {
+    mfaEnabled.value = false
+    closeMfaDisablePopup()
+    Swal.fire({
+      icon: 'success',
+      title: 'ปิด 2FA สำเร็จ',
+      text: 'Two-Factor Authentication ถูกปิดแล้ว',
+      timer: 2500,
+      showConfirmButton: false,
+    })
+  } else {
+    mfaError.value = result.error || 'รหัส OTP ไม่ถูกต้อง'
+  }
+}
+
+// =====================================================
+// 5. FLOW: TRUSTED DEVICES
+// =====================================================
+
+const openDevicesPopup = async () => {
+  showDevicesPopup.value = true
+  await fetchTrustedDevices()
+}
+
+const closeDevicesPopup = () => {
+  showDevicesPopup.value = false
+  trustedDevices.value = []
+}
+
+const fetchTrustedDevices = async () => {
+  isLoadingDevices.value = true
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/trusted-devices`, {
+      withCredentials: true, // ✅ Send auth cookies
+    })
+    console.log('[DEBUG] fetchTrustedDevices response:', response.data)
+    if (response.data.success) {
+      trustedDevices.value = response.data.data
+      trustedDevicesCount.value = response.data.data.length // ✅ Update count
+    }
+  } catch (error) {
+    console.error('Failed to fetch trusted devices', error)
+    Toast.fire({ icon: 'error', title: 'ไม่สามารถโหลดข้อมูลอุปกรณ์ได้' })
+  } finally {
+    isLoadingDevices.value = false
+  }
+}
+
+// ✅ Fetch device count on page load (silent, no toast on error)
+const fetchTrustedDevicesCount = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/trusted-devices`, {
+      withCredentials: true,
+    })
+    if (response.data.success) {
+      trustedDevicesCount.value = response.data.data.length
+    }
+  } catch (error) {
+    console.error('Failed to fetch trusted devices count', error)
+    trustedDevicesCount.value = 0 // Default to 0 if error
+  }
+}
+
+const removeTrustedDevice = async (deviceId: string) => {
+  const confirm = await Swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: 'คุณต้องการลบอุปกรณ์นี้ออกจากรายการที่เชื่อถือใช่หรือไม่? หากเข้าใช้งานใหม่จะต้องยืนยันตัวตนอีกครั้ง',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ลบอุปกรณ์',
+    cancelButtonText: 'ยกเลิก',
+  })
+
+  if (confirm.isConfirmed) {
+    try {
+      await axios.delete(`${API_BASE_URL}/auth/trusted-devices/${deviceId}`, {
+        withCredentials: true, // ✅ Send auth cookies
+      })
+      trustedDevices.value = trustedDevices.value.filter((d) => d.device_id !== deviceId)
+      Toast.fire({ icon: 'success', title: 'ลบอุปกรณ์เรียบร้อยแล้ว' })
+    } catch (error) {
+      console.error(error)
+      Toast.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการลบอุปกรณ์' })
+    }
+  }
+}
+
+const removeAllDevices = async () => {
+  const confirm = await Swal.fire({
+    title: 'ลบทั้งหมด?',
+    text: 'คุณต้องการลบอุปกรณ์ที่เชื่อถือ "ทั้งหมด" ใช่หรือไม่?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ลบทั้งหมด',
+    cancelButtonText: 'ยกเลิก',
+  })
+
+  if (confirm.isConfirmed) {
+    try {
+      await axios.delete(`${API_BASE_URL}/auth/trusted-devices`, {
+        withCredentials: true, // ✅ Send auth cookies
+      })
+      trustedDevices.value = []
+      Toast.fire({ icon: 'success', title: 'ลบอุปกรณ์ทั้งหมดเรียบร้อยแล้ว' })
+    } catch (error) {
+      console.error(error)
+      Toast.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการลบอุปกรณ์' })
+    }
+  }
+}
+
+const getDeviceIcon = (deviceName: string) => {
+  const name = deviceName.toLowerCase()
+  if (name.includes('mobile') || name.includes('android') || name.includes('iphone'))
+    return 'mdi-cellphone'
+  if (name.includes('ipad') || name.includes('tablet')) return 'mdi-tablet'
+  if (name.includes('mac') || name.includes('windows') || name.includes('linux'))
+    return 'mdi-laptop'
+  return 'mdi-monitor'
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// =====================================================
+// 6. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
 // =====================================================
 const updateProfile = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
@@ -1620,8 +2214,7 @@ const updateProfile = async () => {
         })
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+      const message = err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
       Swal.fire({
         icon: 'error',
         title: 'บันทึกไม่สำเร็จ',
@@ -1645,6 +2238,8 @@ onMounted(async () => {
       await companyStore.fetchCompanies()
     }
     fillFormData() // นำข้อมูลใส่ Form
+    await loadMfaStatus() // โหลดสถานะ MFA
+    await fetchTrustedDevicesCount() // ✅ โหลดจำนวนอุปกรณ์ที่เชื่อมต่อ
     console.log('✅ Profile updated from API')
   } catch (error) {
     console.error('❌ Failed to fetch profile:', error)

@@ -22,6 +22,7 @@ export interface User {
   role_id: number
   profile_image_url?: string
   is_active?: boolean
+  mfa_enabled?: boolean
 }
 
 // ... (Interfaces อื่นๆ คงเดิม) ...
@@ -60,17 +61,18 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('🔄 Refreshing access token...')
       const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
       
+      console.log('🔄 Refresh response:', data)
+      
       if (data.success && data.data?.accessToken) {
         accessToken.value = data.data.accessToken
         console.log('✅ Access token refreshed successfully')
         return true
       }
+      console.log('⚠️ Refresh returned success=false or no accessToken')
       return false
     } catch (err) {
       console.error('❌ Failed to refresh token:', err)
-      // Clear state on refresh failure
-      user.value = null
-      accessToken.value = null
+      // ✅ อย่า clear state ที่นี่ - ให้ caller จัดการ
       return false
     }
   }
@@ -87,12 +89,28 @@ export const useAuthStore = defineStore('auth', () => {
   const initAuth = async () => {
     if (authReady.value) return
     try {
-      const axiosInstance = await getAxios()
-      // เรียก Profile ตรงๆ เลย ถ้า 401 Interceptor จะทำงานให้เอง!
-      const response = await axiosInstance.get('/auth/profile') as ApiResponse<{ user: User }>
-      if (response.success && response.data?.user) {
-        user.value = response.data.user
-        console.log('✅ Auth initialized')
+
+      // ✅ ลอง refresh token ก่อน (ใช้ axios ตรงเพื่อหลีกเลี่ยง circular dependency)
+      // ถ้า refresh สำเร็จ จะได้ access token ใหม่ + cookies ถูก set
+      const refreshed = await refreshAccessToken()
+      
+      if (refreshed) {
+        // ถ้า refresh สำเร็จ ลองดึง profile
+        const axiosInstance = await getAxios()
+        const response = await axiosInstance.get('/auth/profile', {
+          _silent: true
+        } as import('axios').AxiosRequestConfig & { _silent?: boolean })
+        
+        if (response.success && response.data?.user) {
+          user.value = response.data.user
+          console.log('✅ Auth initialized (session restored)')
+        }
+      } else {
+        // ถ้า refresh ไม่ได้ แสดงว่าไม่มี valid session
+        console.log('ℹ️ No valid session found (Guest)')
+        user.value = null
+        accessToken.value = null
+
       }
     } catch (err) {
       console.log('ℹ️ No valid session found (Guest)')
@@ -103,9 +121,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // ✅ รอให้ auth initialization เสร็จสมบูรณ์
   const waitForAuthReady = async (): Promise<void> => {
+    // ถ้า auth ready แล้ว return ทันที
     if (authReady.value) return
-    await initAuth()
+    
+    // เริ่ม initAuth (ถ้ายังไม่เริ่ม)
+    initAuth()
+    
+    // รอจนกว่า authReady จะเป็น true (polling)
+    let attempts = 0
+    const maxAttempts = 50 // 5 วินาที (50 * 100ms)
+    
+    while (!authReady.value && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      attempts++
+    }
+    
+    console.log(`🔒 Auth ready after ${attempts * 100}ms`)
   }
 
   // 2. Login
@@ -123,11 +156,23 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await axiosInstance.post('/auth/login', credentials) as ApiResponse<{ accessToken: string; user: User }>
 
       if (response.success) {
-        const data = response.data
-        if (data) {
-          accessToken.value = data.accessToken
-          user.value = data.user
+
+        // ✅ Check if MFA is required (response is flat after axios interceptor)
+        if (response.mfaRequired && response.tempToken) {
+          console.log('[DEBUG] MFA required, tempToken:', response.tempToken?.substring(0, 20) + '...')
+          return { 
+            success: false, 
+            mfaRequired: true, 
+            tempToken: response.tempToken,
+            message: response.message 
+          }
         }
+        
+        // Normal login success (data is nested in response.data for non-MFA)
+        const data = response.data || response
+        accessToken.value = data.accessToken
+        user.value = data.user
+        
         return { success: true }
       }
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
@@ -155,6 +200,36 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
       
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // 2.1 Verify MFA Login (after initial login with MFA)
+  const verifyMfaLogin = async (tempToken: string, otp: string) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Use direct axios to set custom Authorization header with temp token
+      const { data } = await axios.post(
+        `${API_BASE_URL}/auth/login/mfa`, 
+        { otp },
+        { 
+          headers: { Authorization: `Bearer ${tempToken}` },
+          withCredentials: true 
+        }
+      )
+      
+      if (data.success) {
+        accessToken.value = data.data.accessToken
+        user.value = data.data.user
+        return { success: true }
+      }
+      return { success: false, error: data.error || 'การยืนยัน OTP ล้มเหลว' }
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'รหัส OTP ไม่ถูกต้อง'
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -254,6 +329,72 @@ export const useAuthStore = defineStore('auth', () => {
     } finally { isLoading.value = false }
   }
 
+  // ==================== MFA Actions ====================
+  
+  const getMfaStatus = async () => {
+    try {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.get('/auth/mfa/status')
+      if (response.success && response.data) {
+        if (user.value) {
+          user.value.mfa_enabled = response.data.mfa_enabled
+        }
+        return { success: true, mfa_enabled: response.data.mfa_enabled }
+      }
+      return { success: false, mfa_enabled: false }
+    } catch (err: unknown) {
+      return { success: false, mfa_enabled: false, error: err instanceof Error ? err.message : 'Failed' }
+    }
+  }
+
+  const setupMfa = async () => {
+    isLoading.value = true
+    try {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.get('/auth/mfa/setup')
+      if (response.success && response.data) {
+        return { success: true, secret: response.data.secret, qrCodeUrl: response.data.qrCodeUrl }
+      }
+      return { success: false, error: 'Setup failed' }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
+    } finally { isLoading.value = false }
+  }
+
+  const enableMfa = async (otp: string) => {
+    isLoading.value = true
+    try {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.post('/auth/mfa/enable', { otp })
+      if (response.success) {
+        if (user.value) {
+          user.value.mfa_enabled = true
+        }
+        return { success: true }
+      }
+      return { success: false, error: response.error || 'Enable failed' }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
+    } finally { isLoading.value = false }
+  }
+
+  const disableMfa = async (otp: string) => {
+    isLoading.value = true
+    try {
+      const axiosInstance = await getAxios()
+      const response = await axiosInstance.post('/auth/mfa/disable', { otp })
+      if (response.success) {
+        if (user.value) {
+          user.value.mfa_enabled = false
+        }
+        return { success: true }
+      }
+      return { success: false, error: response.error || 'Disable failed' }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed' }
+    } finally { isLoading.value = false }
+  }
+
   // Auto Init
   initAuth()
 
@@ -266,6 +407,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userName,
     login,
+    verifyMfaLogin,
     register,
     logout,
     fetchProfile,
@@ -274,6 +416,11 @@ export const useAuthStore = defineStore('auth', () => {
     changeEmail,
     changePassword,
     updateProfile,
+    // MFA
+    getMfaStatus,
+    setupMfa,
+    enableMfa,
+    disableMfa,
     refreshAccessToken // ✅ Export สำหรับ axios interceptor
   }
 })

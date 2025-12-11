@@ -20,7 +20,7 @@ const generateInvitationHtml = (data) => {
         .text-primary { color: #1a202c; }
         .text-secondary { color: #4a5568; }
         a { color: #667eea; text-decoration: none; }
-        
+
         @media (prefers-color-scheme: dark) {
             .body-bg { background-color: #1a202c !important; }
             .card-bg { background-color: #2d3748 !important; }
@@ -42,11 +42,11 @@ const generateInvitationHtml = (data) => {
                     <tr>
                         <td style="padding: 40px 30px; background-color: #667eea; text-align: center;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">
-                                คำเชิญเข้าร่วมบริษัท { ${companyName} }
+                                คำเชิญเข้าร่วมบริษัท  ${companyName}
                             </h1>
                         </td>
                     </tr>
-                    
+
                     <!-- Content -->
                     <tr>
                         <td style="padding: 40px 30px 20px 30px;">
@@ -58,11 +58,11 @@ const generateInvitationHtml = (data) => {
                                         </p>
                                     </td>
                                 </tr>
-                                
+
                                 <tr>
                                     <td align="center" style="padding: 10px 0;">
                                         <div class="box-bg" style="background-color: #c4e2ffff; padding: 15px; border-radius: 6px; font-weight: bold; color: #2d3748; font-size: 18px; display: inline-block;">
-                                           บริษัท ${companyName} <br> ในตำแหน่ง { ${role_name} }
+                                           บริษัท ${companyName} <br> ในตำแหน่ง  ${role_name}
                                         </div>
                                     </td>
                                 </tr>
@@ -78,7 +78,7 @@ const generateInvitationHtml = (data) => {
                                     `
                                     : ""
                                 }
-                                
+
                                 <tr>
                                     <td align="center" style="padding-top: 20px;">
                                         <p class="text-secondary" style="margin: 0; font-size: 16px; line-height: 24px; color: #4a5568;">
@@ -88,7 +88,7 @@ const generateInvitationHtml = (data) => {
                                     </td>
                                 </tr>
 
-                                
+
                                 <tr>
                                     <td align="center" style="padding: 30px 0;">
                                         <a href="${inviteLink}" style="display: inline-block; background-color: #3e5ce5ff; color: #ffffff; padding: 12px 30px; border-radius: 4px; font-weight: bold; font-size: 16px; text-decoration: none;">
@@ -96,11 +96,11 @@ const generateInvitationHtml = (data) => {
                                         </a>
                                     </td>
                                 </tr>
-                                
+
                                 <tr>
                                     <td style="padding: 10px 0; border-top: 1px solid #e2e8f0;"></td>
                                 </tr>
-                                
+
                                 <tr>
                                     <td align="center">
                                         <p class="text-secondary" style="margin: 0 0 10px; font-size: 14px; color: #718096;">
@@ -111,7 +111,7 @@ const generateInvitationHtml = (data) => {
                                         </div>
                                     </td>
                                 </tr>
-                                
+
                                 <tr>
                                     <td align="center" style="padding-top: 20px;">
                                         <div style="background-color: #fffbeb; color: #744210; padding: 12px; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #fcd34d;">
@@ -122,7 +122,7 @@ const generateInvitationHtml = (data) => {
                             </table>
                         </td>
                     </tr>
-                    
+
                     <!-- Footer -->
                     <tr>
                         <td style="padding: 20px; background-color: #f7fafc; text-align: center;">
