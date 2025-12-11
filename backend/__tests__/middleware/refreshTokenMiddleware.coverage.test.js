@@ -1,4 +1,3 @@
-// test/middleware/refreshTokenMiddleware.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createRefreshTokenMiddleware } from '../../src/middleware/refreshTokenMiddleware.js';
 
@@ -21,7 +20,13 @@ describe('RefreshToken Middleware (100% Coverage)', () => {
     };
     
     mockUser = { findById: jest.fn() };
-    mockLogger = { suspiciousActivity: jest.fn() };
+    
+    // ✅ Fix: Add error method to logger
+    mockLogger = { 
+      suspiciousActivity: jest.fn(),
+      error: jest.fn() 
+    };
+    
     mockGetToken = jest.fn();
     
     mockCookies = {

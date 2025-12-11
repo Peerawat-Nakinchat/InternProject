@@ -18,6 +18,14 @@ process.env.FRONTEND_URL = 'http://localhost:5173';
 process.env.PORT = '3001';
 process.env.ENABLE_TOKEN_ROTATION = 'false';
 
+// ✅ เพิ่ม Mock DB Config เพื่อให้ผ่าน Zod Validation
+process.env.DB_HOST = 'localhost';
+process.env.DB_PORT = '5432';
+process.env.DB_USER = 'test_user';
+process.env.DB_PASSWORD = 'test_password';
+process.env.DB_DATABASE = 'test_db';
+process.env.DB_SSL = 'false';
+
 // Mock console to reduce noise during testing
 const originalConsole = { ...console };
 global.console = {

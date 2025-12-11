@@ -1,91 +1,116 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest } from '@jest/globals';
 import { createCompanyController } from '../../src/controllers/CompanyController.js';
+import { createError } from '../../src/middleware/errorHandler.js';
+
+// Mock dependencies
+const mockCompanyService = {
+  createCompany: jest.fn(),
+  getUserCompanies: jest.fn(),
+  getCompanyById: jest.fn(),
+  updateCompany: jest.fn(),
+  deleteCompany: jest.fn()
+};
+
+const mockRes = {
+  json: jest.fn(),
+  status: jest.fn().mockReturnThis(),
+  send: jest.fn()
+};
+
+const mockNext = jest.fn();
 
 describe('CompanyController (Full Coverage)', () => {
-  let controller, mockService, mockReq, mockRes, mockNext;
+  let controller;
+  let req;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockService = {
-      createCompany: jest.fn(),
-      getCompanyById: jest.fn(),
-      getUserCompanies: jest.fn(),
-      updateCompany: jest.fn(),
-      deleteCompany: jest.fn()
-    };
-    controller = createCompanyController(mockService);
-    mockReq = {
-      user: { user_id: 'u1', org_role_id: 1 },
+    controller = createCompanyController(mockCompanyService);
+    req = {
+      user: { user_id: 'user-123', org_role_id: 'admin' },
       body: {},
       params: {}
     };
-    mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-    mockNext = jest.fn();
   });
 
   describe('createCompany', () => {
     it('should throw Unauthorized if ownerUserId is missing', async () => {
-      mockReq.user = {}; // No user_id
-      
-      await controller.createCompany(mockReq, mockRes, mockNext);
+      req.user = {}; // No user_id
 
-      // Verify it hit the `if (!ownerUserId)` branch
-      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({
-        message: expect.stringMatching(/Unauthorized/i)
-      }));
+      await controller.createCompany(req, mockRes, mockNext);
+
+      // Expect Unauthorized Error
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+           message: expect.stringMatching(/Unauthorized/i),
+           statusCode: 401 // createError.unauthorized usually returns 401
+        })
+      );
     });
 
     it('should create company successfully', async () => {
-      mockReq.body = { name: 'Comp' };
-      mockService.createCompany.mockResolvedValue({ id: 'c1' });
+      req.body = { name: 'New Corp' };
+      mockCompanyService.createCompany.mockResolvedValue({ id: 1, name: 'New Corp' });
 
-      await controller.createCompany(mockReq, mockRes, mockNext);
+      await controller.createCompany(req, mockRes, mockNext);
 
-      expect(mockService.createCompany).toHaveBeenCalledWith('u1', { name: 'Comp' });
+      expect(mockCompanyService.createCompany).toHaveBeenCalledWith('user-123', req.body);
       expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalled();
     });
   });
 
   describe('getUserCompanies', () => {
     it('should throw Unauthorized if userId is missing', async () => {
-      mockReq.user = {}; // No user_id
-      await controller.getUserCompanies(mockReq, mockRes, mockNext);
-      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({
-        message: expect.stringMatching(/Unauthorized/i)
-      }));
+      req.user = {}; // No user_id
+
+      await controller.getUserCompanies(req, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+          message: expect.stringMatching(/Unauthorized/i),
+          statusCode: 401
+        })
+      );
     });
 
     it('should return companies', async () => {
-      mockService.getUserCompanies.mockResolvedValue([]);
-      await controller.getUserCompanies(mockReq, mockRes, mockNext);
+      mockCompanyService.getUserCompanies.mockResolvedValue([]);
+
+      await controller.getUserCompanies(req, mockRes, mockNext);
+
+      expect(mockCompanyService.getUserCompanies).toHaveBeenCalledWith('user-123');
       expect(mockRes.json).toHaveBeenCalled();
     });
   });
 
-  // Basic coverage for others
+  // Test cases อื่นๆ (getCompanyById, updateCompany, deleteCompany) เหมือนเดิม
   describe('getCompanyById', () => {
     it('should return company', async () => {
-      mockReq.params.orgId = 'o1';
-      mockService.getCompanyById.mockResolvedValue({});
-      await controller.getCompanyById(mockReq, mockRes, mockNext);
+      req.params.orgId = 'org-1';
+      mockCompanyService.getCompanyById.mockResolvedValue({});
+      await controller.getCompanyById(req, mockRes, mockNext);
+      expect(mockCompanyService.getCompanyById).toHaveBeenCalledWith('org-1');
       expect(mockRes.json).toHaveBeenCalled();
     });
   });
 
   describe('updateCompany', () => {
     it('should update company', async () => {
-      mockReq.params.orgId = 'o1';
-      mockService.updateCompany.mockResolvedValue({});
-      await controller.updateCompany(mockReq, mockRes, mockNext);
+      req.params.orgId = 'org-1';
+      mockCompanyService.updateCompany.mockResolvedValue({});
+      await controller.updateCompany(req, mockRes, mockNext);
+      expect(mockCompanyService.updateCompany).toHaveBeenCalled();
       expect(mockRes.json).toHaveBeenCalled();
     });
   });
 
   describe('deleteCompany', () => {
     it('should delete company', async () => {
-      mockReq.params.orgId = 'o1';
-      mockService.deleteCompany.mockResolvedValue();
-      await controller.deleteCompany(mockReq, mockRes, mockNext);
+      req.params.orgId = 'org-1';
+      mockCompanyService.deleteCompany.mockResolvedValue(true);
+      await controller.deleteCompany(req, mockRes, mockNext);
+      expect(mockCompanyService.deleteCompany).toHaveBeenCalled();
       expect(mockRes.json).toHaveBeenCalled();
     });
   });

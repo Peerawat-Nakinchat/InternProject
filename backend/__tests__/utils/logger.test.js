@@ -1,8 +1,7 @@
 /**
  * Logger Utilities Unit Tests
  * Target: Branch Coverage ≥ 96%
- * 
- * Tests winston logger configuration and security logging functions
+ * * Tests winston logger configuration and security logging functions
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -36,6 +35,9 @@ const mockFormat = {
     return 'printf-format';
   }),
   json: jest.fn(() => 'json-format'),
+  // ✅ เพิ่ม Mock errors และ splat ที่ขาดหายไป
+  errors: jest.fn(() => 'errors-format'),
+  splat: jest.fn(() => 'splat-format'),
 };
 
 jest.unstable_mockModule('winston', () => ({

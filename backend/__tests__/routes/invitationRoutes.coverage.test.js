@@ -1,9 +1,20 @@
-// test/routes/invitationRoutes.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
-import { createInvitationRoutes } from '../../src/routes/invitationRoutes.js';
-import { AUDIT_ACTIONS } from '../../src/constants/AuditActions.js';
+
+// ✅ Mock Rate Limiters เพื่อเลี่ยงการต่อ Redis จริง
+jest.unstable_mockModule('../../src/middleware/security/rateLimiters.js', () => ({
+  default: {
+    invitationLimiter: (req, res, next) => next(),
+    apiLimiter: (req, res, next) => next(),
+  },
+  invitationLimiter: (req, res, next) => next(),
+  apiLimiter: (req, res, next) => next(),
+}));
+
+// Import after mocking
+const { createInvitationRoutes } = await import('../../src/routes/invitationRoutes.js');
+const { AUDIT_ACTIONS } = await import('../../src/constants/AuditActions.js');
 
 describe('Invitation Routes (100% Coverage)', () => {
   let app;

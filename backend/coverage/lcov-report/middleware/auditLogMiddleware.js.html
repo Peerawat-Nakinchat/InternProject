@@ -258,6 +258,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -287,26 +288,25 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -317,8 +317,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
@@ -385,8 +385,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -431,19 +431,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/middleware/auditLogMiddleware.js
 import AuditLogService from '../services/AuditLogService.js';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger.js';
 &nbsp;
 // --- Helper Functions (Pure Logic) ---
 export function inferTargetTable(targetType) {
@@ -477,7 +478,6 @@ export function determineCategory(action) {
  * @param {Object} deps - Dependencies injection
  */
 export const createAuditLogMiddleware = (deps = {}) =&gt; {
-  // Inject Dependencies (default to real modules if not provided)
   const auditService = deps.AuditLogService || AuditLogService;
   const generateUuid = deps.uuid || uuidv4;
 &nbsp;
@@ -561,7 +561,7 @@ export const createAuditLogMiddleware = (deps = {}) =&gt; {
             try {
               await auditService.log(logData);
             } catch (error) {
-              console.error('Failed to create audit log:', error);
+              logger.error('Failed to create audit log:', error);
             }
           });
         }
@@ -583,7 +583,7 @@ export const createAuditLogMiddleware = (deps = {}) =&gt; {
           try {
             const current = await findResourceFn(targetId);
             <span class="missing-if-branch" title="else path not taken" >E</span>if (current) req.auditBeforeData = current.toJSON ? <span class="branch-0 cbranch-no" title="branch not covered" >current.toJSON() </span>: current;
-          } catch (e) { console.error('Failed to fetch before data:', e); }
+          } catch (e) { logger.error('Failed to fetch before data:', e); }
         }
 &nbsp;
         const originalSend = res.send;
@@ -607,14 +607,14 @@ export const createAuditLogMiddleware = (deps = {}) =&gt; {
                   req.user?.user_id,
                   { ip_address: req.clientInfo?.ipAddress, correlation_id: req.correlationId }
                 );
-              } catch (e) { <span class="cstat-no" title="statement not covered" >console.error('Failed to log change:', e); </span>}
+              } catch (e) { <span class="cstat-no" title="statement not covered" >logger.error('Failed to log change:', e); </span>}
             });
           }
           return originalSend.call(this, data);
         };
         next();
       } catch (err) {
-<span class="cstat-no" title="statement not covered" >        console.error('Audit change middleware error:', err);</span>
+<span class="cstat-no" title="statement not covered" >        logger.error('Audit change middleware error:', err);</span>
 <span class="cstat-no" title="statement not covered" >        next();</span>
       }
     };
@@ -637,7 +637,7 @@ export default defaultInstance;</pre></td></tr></table></pre>
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-03T09:34:32.971Z
+                at 2025-12-11T11:09:34.799Z
             </div>
         <script src="../prettify.js"></script>
         <script>

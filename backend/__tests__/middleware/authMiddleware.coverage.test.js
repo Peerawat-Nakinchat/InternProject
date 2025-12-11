@@ -1,22 +1,70 @@
 /**
- * AuthMiddleware Coverage Tests (Refactored & Fixed)
+ * AuthMiddleware Coverage Tests (ESM Style Fixed)
+ * Targets 100% Code Coverage
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { createAuthMiddleware } from '../../src/middleware/authMiddleware.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-describe('AuthMiddleware (Refactored Coverage)', () => {
+// ✅ 1. Setup Absolute Paths (แก้ปัญหาหาไฟล์ไม่เจอ)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const authMiddlewarePath = path.resolve(__dirname, '../../src/middleware/authMiddleware.js');
+const errorHandlerPath = path.resolve(__dirname, '../../src/middleware/errorHandler.js');
+
+// ✅ 2. Mock Modules (ใช้ unstable_mockModule ตามสไตล์ ESM)
+// Mock Error Handler
+await jest.unstable_mockModule(errorHandlerPath, () => ({
+  asyncHandler: (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next),
+  createError: {
+    unauthorized: jest.fn((msg) => { 
+      const error = new Error(msg || 'Unauthorized'); 
+      error.statusCode = 401; 
+      return error; 
+    }),
+    forbidden: jest.fn((msg) => { 
+      const error = new Error(msg || 'Forbidden'); 
+      error.statusCode = 403; 
+      return error; 
+    }),
+    badRequest: jest.fn((msg) => { 
+      const error = new Error(msg || 'Bad Request'); 
+      error.statusCode = 400; 
+      return error; 
+    }),
+  }
+}));
+
+// Mock module อื่นๆ ที่ถูก import static ใน authMiddleware.js เพื่อกัน Error ตอนโหลดไฟล์
+// (เรา Inject ของจริงผ่าน factory function อยู่แล้ว แต่ต้อง Mock ตรงนี้เพื่อให้ไฟล์โหลดผ่าน)
+const tokenPath = path.resolve(__dirname, '../../src/utils/token.js');
+const dbModelsPath = path.resolve(__dirname, '../../src/models/dbModels.js');
+const cookieUtilsPath = path.resolve(__dirname, '../../src/utils/cookieUtils.js');
+
+// Mock แบบ Dummy เพราะเราจะ Inject Mock ของจริงใน Test case
+await jest.unstable_mockModule(tokenPath, () => ({ verifyAccessToken: jest.fn() }));
+await jest.unstable_mockModule(dbModelsPath, () => ({ User: {}, OrganizationMember: {} }));
+await jest.unstable_mockModule(cookieUtilsPath, () => ({ getAccessToken: jest.fn() }));
+
+// ✅ 3. Import Module Under Test (Dynamic Import)
+const { createAuthMiddleware } = await import(authMiddlewarePath);
+
+describe('AuthMiddleware (100% Coverage ESM)', () => {
   let middleware;
   let mockVerifyToken, mockGetToken, mockUser, mockOrgMember;
   let req, res, next;
 
   beforeEach(() => {
-    // 1. Setup Mocks
+    jest.clearAllMocks();
+
+    // 4. Setup Local Mocks (Dependencies ที่เราจะ Inject)
     mockVerifyToken = jest.fn();
     mockGetToken = jest.fn();
     mockUser = { findByPk: jest.fn() };
     mockOrgMember = { findOne: jest.fn() };
 
-    // 2. Create Middleware Instance
+    // 5. Create Middleware Instance (Dependency Injection)
     middleware = createAuthMiddleware({
       verifyAccessToken: mockVerifyToken,
       getAccessToken: mockGetToken,
@@ -24,7 +72,7 @@ describe('AuthMiddleware (Refactored Coverage)', () => {
       OrganizationMember: mockOrgMember
     });
 
-    // 3. Reset Req/Res/Next for every test (Important!)
+    // 6. Reset Req/Res/Next
     req = {
       headers: {},
       cookies: {},
@@ -42,60 +90,69 @@ describe('AuthMiddleware (Refactored Coverage)', () => {
     next = jest.fn();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
+  // ==========================================
+  // Test Suite: protect Middleware
+  // ==========================================
   describe('protect', () => {
-    it('should call next(Unauthorized) if no token found', async () => {
+    it('should throw Unauthorized (401) if no token found', async () => {
       mockGetToken.mockReturnValue(null);
 
       await middleware.protect(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = next.mock.calls[0][0];
-      // Check loose matching for status code (handling both property or standard error)
-      expect(error.statusCode || 401).toBe(401);
+      expect(error.statusCode).toBe(401);
+      expect(error.message).toMatch(/ไม่พบ Token/i);
     });
 
-    it('should call next(Unauthorized) if token invalid', async () => {
+    it('should throw Unauthorized (401) if token is invalid/expired', async () => {
       mockGetToken.mockReturnValue('invalid-token');
       mockVerifyToken.mockImplementation(() => { throw new Error('Expired'); });
 
       await middleware.protect(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].statusCode || 401).toBe(401);
+      expect(next.mock.calls[0][0].message).toMatch(/Token ไม่ถูกต้อง/i);
     });
 
-    it('should call next(Unauthorized) if user not found in DB', async () => {
+    it('should throw Unauthorized (401) if token payload is invalid (no user_id)', async () => {
+      mockGetToken.mockReturnValue('valid-token');
+      mockVerifyToken.mockReturnValue({ role: 'admin' }); // Missing user_id
+
+      await middleware.protect(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(next.mock.calls[0][0].message).toMatch(/Invalid Payload/i);
+    });
+
+    it('should throw Unauthorized (401) if user not found in DB', async () => {
       mockGetToken.mockReturnValue('valid-token');
       mockVerifyToken.mockReturnValue({ user_id: 'user-1' });
-      // Ensure Promise resolves to null
       mockUser.findByPk.mockResolvedValue(null);
 
       await middleware.protect(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      const error = next.mock.calls[0][0];
-      expect(error.statusCode || 401).toBe(401);
-      expect(error.message).toMatch(/ไม่พบ|User not found/i);
+      expect(next.mock.calls[0][0].message).toMatch(/ไม่พบผู้ใช้งาน/i);
     });
 
-    it('should call next(Unauthorized) if user is inactive', async () => {
+    it('should throw Unauthorized (401) if user is inactive', async () => {
       mockGetToken.mockReturnValue('valid-token');
       mockVerifyToken.mockReturnValue({ user_id: 'user-1' });
-      // Ensure Promise resolves to inactive user
       mockUser.findByPk.mockResolvedValue({ user_id: 'user-1', is_active: false });
 
       await middleware.protect(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].message).toMatch(/ระงับ|inactive/i);
+      expect(next.mock.calls[0][0].message).toMatch(/ระงับการใช้งาน/i);
     });
 
-    it('should call next() and set req.user if success', async () => {
-      const mockUserData = { user_id: 'user-1', is_active: true, email: 'test@mail.com' };
+    it('should call next() and attach user to req if authentication succeeds', async () => {
+      const mockUserData = { 
+        user_id: 'user-1', 
+        is_active: true, 
+        email: 'test@mail.com' 
+      };
       mockGetToken.mockReturnValue('valid-token');
       mockVerifyToken.mockReturnValue({ user_id: 'user-1' });
       mockUser.findByPk.mockResolvedValue(mockUserData);
@@ -103,98 +160,127 @@ describe('AuthMiddleware (Refactored Coverage)', () => {
       await middleware.protect(req, res, next);
 
       expect(req.user).toEqual(mockUserData);
-      expect(next).toHaveBeenCalledWith(); // Called successfully
+      expect(next).toHaveBeenCalledWith();
     });
   });
 
+  // ==========================================
+  // Test Suite: checkOrgRole Middleware
+  // ==========================================
   describe('checkOrgRole', () => {
-    // Helper to setup basic authenticated user
     const setupAuthUser = (orgId = null) => {
       req.user = { user_id: 'user-1', current_org_id: orgId };
     };
 
-    it('should call next(BadRequest) if no orgId provided anywhere', async () => {
-      setupAuthUser(null); // No current org
-      req.params = {}; // No params
+    it('should throw BadRequest (400) if orgId is missing', async () => {
+      setupAuthUser(null);
+      req.params = {}; 
+      req.body = {};
       
       const mw = middleware.checkOrgRole(['ADMIN']);
       await mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      const error = next.mock.calls[0][0];
-      expect(error.statusCode || 400).toBe(400);
+      expect(next.mock.calls[0][0].statusCode).toBe(400);
+      expect(next.mock.calls[0][0].message).toBe('orgId required');
     });
 
-    it('should use orgId from params if available', async () => {
+    it('should resolve orgId from req.body if not in params', async () => {
       setupAuthUser(null);
-      req.params = { orgId: 'org-params' };
-      mockOrgMember.findOne.mockResolvedValue({ role_id: 'ADMIN' }); // Mock found
+      req.params = {};
+      req.body = { orgId: 'org-body' };
+      mockOrgMember.findOne.mockResolvedValue({ role_id: 'ADMIN' });
 
-      const mw = middleware.checkOrgRole(['ADMIN']);
+      const mw = middleware.checkOrgRole();
       await mw(req, res, next);
 
-      expect(mockOrgMember.findOne).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ org_id: 'org-params' })
-      }));
+      expect(mockOrgMember.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ 
+          where: expect.objectContaining({ 
+            org_id: 'org-body' 
+          }) 
+        })
+      );
       expect(next).toHaveBeenCalledWith();
     });
 
-    it('should call next(Forbidden) if not a member', async () => {
+    it('should throw Forbidden (403) if user is not a member', async () => {
       setupAuthUser('org-1');
-      mockOrgMember.findOne.mockResolvedValue(null); // Not found in DB
+      mockOrgMember.findOne.mockResolvedValue(null);
 
       const mw = middleware.checkOrgRole(['ADMIN']);
       await mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].statusCode || 403).toBe(403);
+      expect(next.mock.calls[0][0].statusCode).toBe(403);
+      expect(next.mock.calls[0][0].message).toMatch(/ไม่ได้เป็นสมาชิก/i);
     });
 
-    it('should call next(Forbidden) if role not allowed', async () => {
+    it('should throw Forbidden (403) if role is insufficient', async () => {
       setupAuthUser('org-1');
-      // Mock user has MEMBER role
       mockOrgMember.findOne.mockResolvedValue({ role_id: 'MEMBER' });
 
-      // Requirement is ADMIN or OWNER
       const mw = middleware.checkOrgRole(['ADMIN', 'OWNER']); 
       await mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].statusCode || 403).toBe(403);
+      expect(next.mock.calls[0][0].statusCode).toBe(403);
+      expect(next.mock.calls[0][0].message).toMatch(/ไม่มีสิทธิ์ดำเนินการ/i);
     });
 
-    it('should call next() if role is allowed', async () => {
-      setupAuthUser('org-1');
+    it('should succeed if role is allowed', async () => {
+      setupAuthUser();
+      req.params = { orgId: 'org-1' };
       mockOrgMember.findOne.mockResolvedValue({ role_id: 'ADMIN' });
 
       const mw = middleware.checkOrgRole(['ADMIN']);
       await mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith();
+      expect(req.user.current_org_id).toBe('org-1');
+      expect(req.user.org_role_id).toBe('ADMIN');
+    });
+
+    it('should succeed if no specific roles required', async () => {
+      setupAuthUser('org-1');
+      mockOrgMember.findOne.mockResolvedValue({ role_id: 'MEMBER' });
+
+      const mw = middleware.checkOrgRole([]); 
+      await mw(req, res, next);
+
+      expect(next).toHaveBeenCalledWith();
     });
   });
 
+  // ==========================================
+  // Test Suite: authorize Middleware
+  // ==========================================
   describe('authorize', () => {
-    it('should call next(Unauthorized) if req.user is missing', () => {
+    it('should return Unauthorized (401) if req.user is missing', () => {
       req.user = null;
+      
       const mw = middleware.authorize(['SUPER_ADMIN']);
       mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].statusCode || 401).toBe(401);
+      expect(next.mock.calls[0][0].statusCode).toBe(401);
+      expect(next.mock.calls[0][0].message).toMatch(/ไม่พบผู้ใช้งาน/i);
     });
 
-    it('should call next(Forbidden) if role mismatch', () => {
+    it('should return Forbidden (403) if user role mismatch', () => {
       req.user = { role_id: 'USER' };
+      
       const mw = middleware.authorize(['ADMIN']);
       mw(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(next.mock.calls[0][0].statusCode || 403).toBe(403);
+      expect(next.mock.calls[0][0].statusCode).toBe(403);
+      expect(next.mock.calls[0][0].message).toMatch(/ไม่มีสิทธิ์เข้าถึง/i);
     });
 
-    it('should call next() if role matches', () => {
+    it('should succeed if user role matches', () => {
       req.user = { role_id: 'ADMIN' };
+      
       const mw = middleware.authorize(['ADMIN']);
       mw(req, res, next);
 

@@ -24,6 +24,7 @@ const transporter = nodemailer.createTransport({
  * ✅ Helper: สร้างข้อความ plain text จาก HTML
  */
 const htmlToPlainText = (html) => {
+  if (!html) return "";
   return html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")

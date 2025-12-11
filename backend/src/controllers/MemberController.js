@@ -1,15 +1,24 @@
 import MemberService from "../services/MemberService.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
-import { asyncHandler } from "../middleware/errorHandler.js";
+import { asyncHandler, createError } from "../middleware/errorHandler.js"; // Import createError
 
 export const createMemberController = (service = MemberService) => {
   
   // Helper extraction function to clean up controller methods
-  const getContext = (req) => ({
-    orgId: req.params.orgId || req.user.current_org_id,
-    userId: req.user.user_id,
-    roleId: req.user.org_role_id
-  });
+  const getContext = (req) => {
+    const orgId = req.params.orgId || req.user.current_org_id;
+    
+    // ✅ เพิ่ม Validation ตรงนี้เพื่อให้ Test case แรกผ่าน
+    if (!orgId) {
+      throw createError.badRequest("Organization ID is required");
+    }
+
+    return {
+      orgId,
+      userId: req.user.user_id,
+      roleId: req.user.org_role_id
+    };
+  };
 
   const listMembers = asyncHandler(async (req, res) => {
     const { orgId, roleId } = getContext(req);
@@ -66,4 +75,4 @@ export const {
     removeMember, transferOwner
 } = MemberController
 
-export default MemberController
+export default MemberController;

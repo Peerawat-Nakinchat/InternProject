@@ -1,5 +1,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { createErrorHandlerMiddleware, createError, AppError } from '../../src/middleware/errorHandler.js';
+import { 
+  createErrorHandlerMiddleware, 
+  createError, 
+  AppError, 
+  asyncHandler // เพิ่ม import นี้
+} from '../../src/middleware/errorHandler.js';
 
 describe('ErrorHandlerMiddleware (100% Coverage)', () => {
   let middleware;
@@ -12,7 +17,12 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
     jest.clearAllMocks();
     process.env.NODE_ENV = 'development'; // Default to development
     
-    mockLogger = { suspiciousActivity: jest.fn() };
+    // ✅ แก้ไขจุดที่ทำให้เกิด Error: เพิ่ม error และ warn ลงใน mock
+    mockLogger = { 
+      suspiciousActivity: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn()
+    };
     
     // Mock Sequelize Error Classes
     mockSeqErrors = {
@@ -73,6 +83,32 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
   afterEach(() => {
     process.env.NODE_ENV = originalEnv; // Restore original
     jest.restoreAllMocks();
+  });
+
+  // ========================================
+  // asyncHandler Tests (Added for 100%)
+  // ========================================
+  describe('asyncHandler', () => {
+    it('should execute the function and catch errors', async () => {
+      const error = new Error('Async Error');
+      const asyncFn = jest.fn().mockRejectedValue(error);
+      
+      const wrapped = asyncHandler(asyncFn);
+      await wrapped(req, mockRes, mockNext);
+
+      expect(asyncFn).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    it('should pass successful execution', async () => {
+      const asyncFn = jest.fn().mockResolvedValue('success');
+      
+      const wrapped = asyncHandler(asyncFn);
+      await wrapped(req, mockRes, mockNext);
+
+      expect(asyncFn).toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
   });
 
   // ========================================
@@ -154,6 +190,7 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
         const response = mockRes.json.mock.calls[0][0];
         expect(response.stack).toBeDefined();
         expect(response.stack).toContain('Dev Error');
+        expect(mockLogger.error).toHaveBeenCalled();
       });
 
       it('should NOT include stack trace in production mode', () => {
@@ -200,6 +237,21 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
           })
         );
       });
+
+      it('should include email field if present in error (Added for Coverage)', () => {
+        const err = new Error('Verification needed');
+        err.code = 'EMAIL_NOT_VERIFIED';
+        err.email = 'test@example.com';
+
+        middleware.errorHandler(err, req, mockRes, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({ 
+            code: 'EMAIL_NOT_VERIFIED',
+            email: 'test@example.com' 
+          })
+        );
+      });
     });
 
     // --- Sequelize Errors ---
@@ -242,6 +294,7 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
             })
           })
         );
+        expect(mockLogger.warn).toHaveBeenCalled(); // Check warn log
       });
 
       it('should handle UniqueConstraintError with missing path', () => {
@@ -271,6 +324,7 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
             })
           })
         );
+        expect(mockLogger.warn).toHaveBeenCalled();
       });
 
       it('should handle ForeignKeyConstraintError with missing fields', () => {
@@ -297,6 +351,7 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
             error: 'Connection timeout' // ← แสดง message ใน dev
           })
         );
+        expect(mockLogger.error).toHaveBeenCalled();
         expect(mockLogger.suspiciousActivity).toHaveBeenCalled();
       });
 
@@ -333,6 +388,8 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
           'test-agent',
           expect.objectContaining({ path: '/test' })
         );
+        // JWT error triggers warn level log in errorHandler logic
+        expect(mockLogger.error).toHaveBeenCalled();
       });
 
       it('should handle TokenExpiredError', () => {
@@ -520,6 +577,7 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
             stack: expect.any(String)
           })
         );
+        expect(mockLogger.error).toHaveBeenCalled(); // 500 logs as error
         expect(mockLogger.suspiciousActivity).toHaveBeenCalledWith(
           'Unexpected server error',
           expect.any(String),
@@ -626,6 +684,13 @@ describe('ErrorHandlerMiddleware (100% Coverage)', () => {
       const err = createError.internal();
       expect(err.statusCode).toBe(500);
       expect(err.code).toBe('INTERNAL_ERROR');
+    });
+    
+    // Added for coverage
+    it('should create tooManyRequests error', () => {
+      const err = createError.tooManyRequests();
+      expect(err.statusCode).toBe(429);
+      expect(err.code).toBe('TOO_MANY_REQUESTS');
     });
 
     it('should create validation error with details', () => {

@@ -1,194 +1,239 @@
+/**
+ * AuditLogController Coverage Tests
+ * Targets 100% Code Coverage
+ */
+
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { createAuditLogController } from '../../src/controllers/AuditLogController.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// 1. Setup Paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const controllerPath = path.resolve(__dirname, '../../src/controllers/AuditLogController.js');
+const errorHandlerPath = path.resolve(__dirname, '../../src/middleware/errorHandler.js');
+
+// 2. Mock Error Handler
+class CustomError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+await jest.unstable_mockModule(errorHandlerPath, () => ({
+  asyncHandler: (fn) => async (req, res, next) => {
+    try {
+      await fn(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  },
+  createError: {
+    forbidden: jest.fn((msg) => new CustomError(msg, 403)),
+  }
+}));
+
+// 3. Import Controller
+const { createAuditLogController } = await import(controllerPath);
+
+// 4. Mock Service
+const mockService = {
+  queryAuditLogs: jest.fn(),
+  getUserActivity: jest.fn(),
+  getMyActivity: jest.fn(),
+  getRecentActivity: jest.fn(),
+  getSecurityEvents: jest.fn(),
+  getFailedActions: jest.fn(),
+  getSuspiciousActivity: jest.fn(),
+  getStatistics: jest.fn(),
+  getCorrelatedActions: jest.fn(),
+  exportLogs: jest.fn(),
+  cleanupLogs: jest.fn()
+};
+
+const mockRes = {
+  json: jest.fn(),
+  status: jest.fn().mockReturnThis(),
+  setHeader: jest.fn(),
+  send: jest.fn() // สำหรับ exportLogs ที่อาจจะใช้ send หรือ json
+};
+
+const mockNext = jest.fn();
+
+const controller = createAuditLogController(mockService);
 
 describe('AuditLogController (Ultimate Coverage)', () => {
-  let controller, mockService, mockReq, mockRes, mockNext;
+  let req;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockService = {
-      query: jest.fn(),
-      getUserActivity: jest.fn(),
-      getRecentActivity: jest.fn(),
-      getSecurityEvents: jest.fn(),
-      getFailedActions: jest.fn(),
-      getSuspiciousActivity: jest.fn(),
-      getStatistics: jest.fn(),
-      getCorrelatedActions: jest.fn(),
-      exportLogs: jest.fn(),
-      cleanup: jest.fn()
-    };
-    controller = createAuditLogController(mockService);
-    
-    mockReq = {
-      user: { user_id: 'u1', role_id: 1 },
+    req = {
       query: {},
       params: {},
-      body: {}
+      body: {},
+      user: { user_id: 'u1', role: 'user', org_role_id: 'member' }
     };
-    mockRes = { json: jest.fn(), setHeader: jest.fn() };
-    mockNext = jest.fn();
   });
 
   describe('queryAuditLogs', () => {
-    it('should clean up null/undefined filters and use defaults', async () => {
-      // ส่ง null เพื่อ trigger logic "delete filters[key]"
-      mockReq.query = { 
-        user_id: null, 
-        action: undefined, 
-        target_type: 'USER' 
+    it('should clean up null/undefined filters and call service', async () => {
+      req.query = { 
+        target_type: 'USER', 
+        user_id: '', // Should be filtered out
+        page: '1', 
+        limit: '50' 
       };
-      mockService.query.mockResolvedValue({ logs: [] });
       
-      await controller.queryAuditLogs(mockReq, mockRes, mockNext);
-      
-      // ตรวจสอบว่า service ได้รับ object ที่ไม่มี user_id และ action
-      expect(mockService.query).toHaveBeenCalledWith(
-        { target_type: 'USER' }, // ค่า null/undefined ต้องหายไป
-        expect.objectContaining({ limit: 50, page: 1, sortBy: 'created_at' }) // Defaults
+      mockService.queryAuditLogs.mockResolvedValue([]);
+
+      await controller.queryAuditLogs(req, mockRes, mockNext);
+
+      // Expect service to be called with filtered object and original query
+      expect(mockService.queryAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({ target_type: 'USER' }), // user_id should be gone from first arg
+        expect.objectContaining({ page: '1', limit: '50' })
+      );
+      expect(mockService.queryAuditLogs).toHaveBeenCalledWith(
+        expect.not.objectContaining({ user_id: '' }),
+        expect.anything()
       );
     });
 
-    it('should parse dates and custom pagination', async () => {
-      mockReq.query = { 
-        start_date: '2023-01-01',
-        end_date: '2023-01-31',
-        limit: '100',
-        page: '2',
-        sort_by: 'action',
-        sort_order: 'ASC'
-      };
-      mockService.query.mockResolvedValue({ logs: [] });
+    it('should parse dates', async () => {
+      req.query = { start_date: '2023-01-01', end_date: '2023-01-31' };
+      mockService.queryAuditLogs.mockResolvedValue([]);
 
-      await controller.queryAuditLogs(mockReq, mockRes, mockNext);
+      await controller.queryAuditLogs(req, mockRes, mockNext);
 
-      expect(mockService.query).toHaveBeenCalledWith(
-        expect.objectContaining({
-          startDate: expect.any(Date),
-          endDate: expect.any(Date)
-        }),
-        expect.objectContaining({ limit: 100, page: 2, sortBy: 'action', sortOrder: 'ASC' })
-      );
+      const calledFilters = mockService.queryAuditLogs.mock.calls[0][0];
+      expect(calledFilters.startDate).toBeInstanceOf(Date);
+      expect(calledFilters.endDate).toBeInstanceOf(Date);
     });
   });
 
   describe('getUserActivity', () => {
-    // Case 1: Admin ดูของคนอื่น (ผ่าน)
     it('should allow Admin to view other users', async () => {
-      mockReq.user = { user_id: 'admin', role_id: 1 };
-      mockReq.params.userId = 'other-user';
+      req.user = { user_id: 'admin', role: 'admin' };
+      req.params.userId = 'other-user';
       mockService.getUserActivity.mockResolvedValue([]);
 
-      await controller.getUserActivity(mockReq, mockRes, mockNext);
+      await controller.getUserActivity(req, mockRes, mockNext);
+
+      expect(mockService.getUserActivity).toHaveBeenCalledWith('other-user', req.query);
       expect(mockRes.json).toHaveBeenCalled();
     });
 
-    // Case 2: User ดูของตัวเอง (ผ่าน)
     it('should allow User to view themselves', async () => {
-      mockReq.user = { user_id: 'me', role_id: 2 };
-      mockReq.params.userId = 'me';
+      req.user = { user_id: 'u1', role: 'user' };
+      req.params.userId = 'u1'; // Same ID
       mockService.getUserActivity.mockResolvedValue([]);
 
-      await controller.getUserActivity(mockReq, mockRes, mockNext);
+      await controller.getUserActivity(req, mockRes, mockNext);
+
       expect(mockRes.json).toHaveBeenCalled();
     });
 
-    // Case 3: User ดูของคนอื่น (ไม่ผ่าน)
     it('should forbid User from viewing others', async () => {
-      mockReq.user = { user_id: 'me', role_id: 2 }; // Not Admin
-      mockReq.params.userId = 'other';
+      req.user = { user_id: 'u1', role: 'user' };
+      req.params.userId = 'u2'; // Different ID
+
+      await controller.getUserActivity(req, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+    });
+  });
+
+  describe('getMyActivity', () => {
+    it('calls service with correct user_id', async () => {
+      req.user.user_id = 'u1';
+      mockService.getMyActivity.mockResolvedValue([]);
       
-      await controller.getUserActivity(mockReq, mockRes, mockNext);
+      await controller.getMyActivity(req, mockRes, mockNext);
       
-      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({
-        statusCode: 403 // หรือเช็ค message
-      }));
+      expect(mockService.getMyActivity).toHaveBeenCalledWith('u1', req.query);
+    });
+  });
+
+  describe('getRecentActivity', () => {
+    it('calls service', async () => {
+      mockService.getRecentActivity.mockResolvedValue([]);
+      await controller.getRecentActivity(req, mockRes, mockNext);
+      expect(mockService.getRecentActivity).toHaveBeenCalledWith(req.query);
     });
   });
 
   describe('getSecurityEvents', () => {
-    it('should use default date range (7 days) if query empty', async () => {
+    it('calls service with query params', async () => {
       mockService.getSecurityEvents.mockResolvedValue([]);
-      await controller.getSecurityEvents(mockReq, mockRes, mockNext);
+      await controller.getSecurityEvents(req, mockRes, mockNext);
       
-      // เช็คว่าส่ง Date object ไปจริง (เป็นการ verify ว่า logic default ทำงาน)
-      expect(mockService.getSecurityEvents).toHaveBeenCalledWith(
-        expect.any(Date), expect.any(Date), 100
-      );
+      // Controller just passes req.query to Service now (Service handles logic)
+      expect(mockService.getSecurityEvents).toHaveBeenCalledWith(req.query);
     });
+  });
 
-    it('should use provided date range', async () => {
-      mockReq.query = { start_date: '2023-01-01', end_date: '2023-01-02' };
-      mockService.getSecurityEvents.mockResolvedValue([]);
-      await controller.getSecurityEvents(mockReq, mockRes, mockNext);
-      
-      const args = mockService.getSecurityEvents.mock.calls[0];
-      expect(args[0]).toBeInstanceOf(Date);
-      expect(args[1]).toBeInstanceOf(Date);
+  describe('getFailedActions', () => {
+    it('calls service', async () => {
+      mockService.getFailedActions.mockResolvedValue([]);
+      await controller.getFailedActions(req, mockRes, mockNext);
+      expect(mockService.getFailedActions).toHaveBeenCalledWith(req.query);
+    });
+  });
+
+  describe('getSuspiciousActivity', () => {
+    it('calls service', async () => {
+      mockService.getSuspiciousActivity.mockResolvedValue([]);
+      await controller.getSuspiciousActivity(req, mockRes, mockNext);
+      expect(mockService.getSuspiciousActivity).toHaveBeenCalledWith(req.query);
     });
   });
 
   describe('getStatistics', () => {
-    it('should use default 30 days range', async () => {
+    it('calls service', async () => {
       mockService.getStatistics.mockResolvedValue({});
-      await controller.getStatistics(mockReq, mockRes, mockNext);
-      expect(mockService.getStatistics).toHaveBeenCalledWith(expect.any(Date), expect.any(Date));
+      await controller.getStatistics(req, mockRes, mockNext);
+      expect(mockService.getStatistics).toHaveBeenCalledWith(req.query);
+    });
+  });
+
+  describe('getCorrelatedActions', () => {
+    it('calls service', async () => {
+      req.params.correlationId = 'corr-1';
+      mockService.getCorrelatedActions.mockResolvedValue([]);
+      await controller.getCorrelatedActions(req, mockRes, mockNext);
+      expect(mockService.getCorrelatedActions).toHaveBeenCalledWith('corr-1');
     });
   });
 
   describe('exportLogs', () => {
-    it('should filter undefined query params', async () => {
-      mockReq.query = { action: 'LOGIN', user_id: '' }; // empty string treated as falsy
+    it('calls service and returns success', async () => {
       mockService.exportLogs.mockResolvedValue([]);
+      await controller.exportLogs(req, mockRes, mockNext);
       
-      await controller.exportLogs(mockReq, mockRes, mockNext);
-      
-      // user_id ควรหายไป
-      expect(mockService.exportLogs).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'LOGIN'
-      }));
-      expect(mockService.exportLogs).not.toHaveBeenCalledWith(expect.objectContaining({
-        user_id: ''
-      }));
+      expect(mockService.exportLogs).toHaveBeenCalledWith(req.query);
+      expect(mockRes.json).toHaveBeenCalled();
     });
   });
 
-  // Covering simple methods to ensure 100% lines
-  it('getMyActivity calls service', async () => {
-    mockService.getUserActivity.mockResolvedValue([]);
-    await controller.getMyActivity(mockReq, mockRes, mockNext);
-    expect(mockService.getUserActivity).toHaveBeenCalledWith('u1', 50);
-  });
+  describe('cleanupLogs', () => {
+    it('calls service with default retention if not provided', async () => {
+      req.body = {};
+      mockService.cleanupLogs.mockResolvedValue({ deleted: 1 });
+      
+      await controller.cleanupLogs(req, mockRes, mockNext);
+      
+      // Default is 90
+      expect(mockService.cleanupLogs).toHaveBeenCalledWith(90);
+    });
 
-  it('getRecentActivity calls service', async () => {
-    mockService.getRecentActivity.mockResolvedValue([]);
-    await controller.getRecentActivity(mockReq, mockRes, mockNext);
-    expect(mockService.getRecentActivity).toHaveBeenCalled();
-  });
-
-  it('getFailedActions calls service', async () => {
-    mockService.getFailedActions.mockResolvedValue([]);
-    await controller.getFailedActions(mockReq, mockRes, mockNext);
-    expect(mockService.getFailedActions).toHaveBeenCalled();
-  });
-
-  it('getSuspiciousActivity calls service', async () => {
-    mockService.getSuspiciousActivity.mockResolvedValue({});
-    await controller.getSuspiciousActivity(mockReq, mockRes, mockNext);
-    expect(mockService.getSuspiciousActivity).toHaveBeenCalledWith(24);
-  });
-
-  it('getCorrelatedActions calls service', async () => {
-    mockReq.params.correlationId = '123';
-    mockService.getCorrelatedActions.mockResolvedValue({});
-    await controller.getCorrelatedActions(mockReq, mockRes, mockNext);
-    expect(mockService.getCorrelatedActions).toHaveBeenCalledWith('123');
-  });
-
-  it('cleanupLogs calls service', async () => {
-    mockReq.body.retention_days = 90;
-    mockService.cleanup.mockResolvedValue({ deleted: 1 });
-    await controller.cleanupLogs(mockReq, mockRes, mockNext);
-    expect(mockService.cleanup).toHaveBeenCalledWith(90);
+    it('calls service with provided retention', async () => {
+      req.body = { retention_days: 30 };
+      mockService.cleanupLogs.mockResolvedValue({ deleted: 1 });
+      
+      await controller.cleanupLogs(req, mockRes, mockNext);
+      
+      expect(mockService.cleanupLogs).toHaveBeenCalledWith(30);
+    });
   });
 });
