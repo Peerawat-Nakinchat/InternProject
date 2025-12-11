@@ -19,6 +19,9 @@ import {
   enableMfa,
   disableMfa,
   getMfaStatus,
+  getTrustedDevices,
+  deleteTrustedDevice,
+  deleteAllTrustedDevices,
 } from "../controllers/AuthController.js";
 import { sendOtp, verifyOtp, resendOtp } from "../controllers/OtpController.js";
 import passport from "passport";
@@ -64,6 +67,9 @@ export const createAuthRoutes = (deps = {}) => {
     enableMfa,
     disableMfa,
     getMfaStatus,
+    getTrustedDevices,
+    deleteTrustedDevice,
+    deleteAllTrustedDevices,
   };
   const authMw = deps.authMiddleware || { protect };
   const refreshMw = deps.refreshMiddleware || { refreshAccessToken };
@@ -886,6 +892,68 @@ export const createAuthRoutes = (deps = {}) => {
       category: "AUTH",
     }),
     resendOtp,
+  );
+
+  // =========================================
+  // ✅ Trusted Devices Routes
+  // =========================================
+
+  /**
+   * @swagger
+   * /auth/trusted-devices:
+   *   get:
+   *     summary: Get user's trusted devices
+   *     tags: [Auth - MFA]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: List of trusted devices
+   */
+  router.get("/trusted-devices", authMw.protect, controller.getTrustedDevices);
+
+  /**
+   * @swagger
+   * /auth/trusted-devices/{deviceId}:
+   *   delete:
+   *     summary: Remove a trusted device
+   *     tags: [Auth - MFA]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: deviceId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Device removed
+   *       404:
+   *         description: Device not found
+   */
+  router.delete(
+    "/trusted-devices/:deviceId",
+    authMw.protect,
+    controller.deleteTrustedDevice,
+  );
+
+  /**
+   * @swagger
+   * /auth/trusted-devices:
+   *   delete:
+   *     summary: Remove all trusted devices
+   *     tags: [Auth - MFA]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: All devices removed
+   */
+  router.delete(
+    "/trusted-devices",
+    authMw.protect,
+    controller.deleteAllTrustedDevices,
   );
 
   return router;

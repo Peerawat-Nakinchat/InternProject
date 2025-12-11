@@ -1,6 +1,6 @@
 // src/middleware/securityMonitoring.js
 import { securityLogger } from '../utils/logger.js';
-import redisClient from '../config/redis.js'; 
+import redisClient from '../config/redis.js';
 
 // --- Pure Helper Functions ---
 
@@ -47,15 +47,27 @@ export const createSecurityMiddleware = (deps = {}) => {
   const logger = deps.securityLogger || securityLogger;
   const config = {
     maxFailedAttempts: deps.maxFailedAttempts || 5,
-    lockoutDuration: (deps.lockoutDuration || 15 * 60 * 1000) / 1000, 
-    prefix: "bf_protect:", 
+    lockoutDuration: (deps.lockoutDuration || 15 * 60 * 1000) / 1000,
+    prefix: "bf_protect:",
     ...deps.config
   };
 
   // --- Middleware Functions ---
 
   const extractClientInfo = (req, res, next) => {
-    const rawIp = req.ip || req.connection?.remoteAddress;
+    // Try to get real IP from various sources
+    // req.ip is the most reliable when trust proxy is set
+    let rawIp = req.ip;
+
+    // Fallback to other common proxy headers if needed
+    if (!rawIp || rawIp === '127.0.0.1') {
+      rawIp =
+        req.headers['x-forwarded-for']?.split(',')[0] ||
+        req.headers['x-real-ip'] ||
+        req.connection?.remoteAddress ||
+        req.ip;
+    }
+
     const ip = cleanIp(rawIp);
 
     req.clientInfo = {
@@ -67,7 +79,7 @@ export const createSecurityMiddleware = (deps = {}) => {
 
   const requestLogger = (req, res, next) => {
     const start = Date.now();
-    
+
     res.on('finish', () => {
       const duration = Date.now() - start;
       const ip = req.clientInfo?.ipAddress || cleanIp(req.ip);
@@ -105,18 +117,18 @@ export const createSecurityMiddleware = (deps = {}) => {
           req.clientInfo?.userAgent || 'unknown',
           { attempts: attempts }
         );
-        
+
         return res.status(429).json({
           success: false,
           error: 'คุณทำรายการผิดพลาดเกินกำหนด กรุณารอ 15 นาที',
         });
       }
-      
+
       next();
     } catch (error) {
       console.error("❌ Redis Error in BruteForce:", error);
       // Fail Open: ถ้า Redis ล่ม ให้ปล่อยผ่านไปก่อนเพื่อให้ User ใช้งานได้
-      next(); 
+      next();
     }
   };
 
@@ -130,7 +142,7 @@ export const createSecurityMiddleware = (deps = {}) => {
       const multi = redisClient.multi();
       multi.incr(key);
       // NX = Set expiry only when the key has no expiry (ตั้งเวลาแค่ครั้งแรก)
-      multi.expire(key, config.lockoutDuration, 'NX'); 
+      multi.expire(key, config.lockoutDuration, 'NX');
       await multi.exec();
 
     } catch (error) {
@@ -156,7 +168,7 @@ export const createSecurityMiddleware = (deps = {}) => {
     const ip = clientInfo?.ipAddress || cleanIp(req.ip);
     const userAgent = clientInfo?.userAgent || headers['user-agent'];
     const bodyStr = JSON.stringify(body || {});
-    
+
     // Check SQL Injection
     if (checkSqlInjection(bodyStr)) {
       logger.suspiciousActivity(
@@ -166,7 +178,7 @@ export const createSecurityMiddleware = (deps = {}) => {
         { endpoint: req.url, body: bodyStr.substring(0, 200) }
       );
     }
-    
+
     // Check XSS
     if (checkXss(bodyStr)) {
       logger.suspiciousActivity(
@@ -176,7 +188,7 @@ export const createSecurityMiddleware = (deps = {}) => {
         { endpoint: req.url, body: bodyStr.substring(0, 200) }
       );
     }
-    
+
     // Check suspicious User Agent
     if (!userAgent || userAgent.length < 5) {
       logger.suspiciousActivity(
@@ -186,7 +198,7 @@ export const createSecurityMiddleware = (deps = {}) => {
         { endpoint: req.url }
       );
     }
-    
+
     next();
   };
 

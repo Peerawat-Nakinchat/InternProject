@@ -153,18 +153,19 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await axiosInstance.post('/auth/login', credentials)
 
       if (response.success) {
-        const data = response.data
-        
-        // Check if MFA is required
-        if (data.mfaRequired && data.tempToken) {
+        // ✅ Check if MFA is required (response is flat after axios interceptor)
+        if (response.mfaRequired && response.tempToken) {
+          console.log('[DEBUG] MFA required, tempToken:', response.tempToken?.substring(0, 20) + '...')
           return { 
             success: false, 
             mfaRequired: true, 
-            tempToken: data.tempToken,
-            message: data.message 
+            tempToken: response.tempToken,
+            message: response.message 
           }
         }
         
+        // Normal login success (data is nested in response.data for non-MFA)
+        const data = response.data || response
         accessToken.value = data.accessToken
         user.value = data.user
         return { success: true }

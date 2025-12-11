@@ -1,6 +1,11 @@
 // src/controllers/AuthController.js
 import AuthService from "../services/AuthService.js";
 import MfaService from "../services/MfaService.js";
+import TrustedDeviceModel from "../models/TrustedDeviceModel.js";
+import {
+  generateDeviceFingerprint,
+  parseUserAgent,
+} from "../utils/deviceFingerprint.js";
 import logger, { securityLogger } from "../utils/logger.js";
 import {
   recordFailedLogin,
@@ -47,29 +52,69 @@ export const createAuthController = (deps = {}) => {
     const { email, password } = req.body;
 
     try {
-      const result = await service.login(email, password);
-      const user = result.user;
-
       const clientInfo = req.clientInfo || {};
       const ip = clientInfo.ipAddress || req.ip;
 
-      if (user.mfa_enabled) {
-        const tempToken = signAccessToken(
-          {
-            id: user.user_id,
-            mfa_pending: true,
-          },
-          "5m",
+      // ✅ Smart MFA: Generate fingerprint BEFORE calling service.login
+      const fingerprint = generateDeviceFingerprint(req);
+      console.log(`[DEBUG] loginUser: fingerprint = ${fingerprint}`);
+
+      // Pass fingerprint to service.login for including in tempToken
+      const result = await service.login(email, password, fingerprint);
+      const user = result.user;
+
+      // ✅ Smart MFA: If MFA is required, check if device is trusted first
+      if (result.mfaRequired && user.mfa_enabled) {
+        console.log(
+          `[DEBUG] loginUser: MFA required, checking trusted device...`,
         );
 
-        logger.info(`MFA Challenge required for user: ${email}`);
+        const trustedDevice = await TrustedDeviceModel.findByFingerprint(
+          user.user_id,
+          fingerprint,
+        );
 
-        return res.status(200).json({
-          success: true,
-          mfaRequired: true,
-          tempToken: tempToken,
-          message: "กรุณาระบุรหัส OTP (2FA)",
-        });
+        if (trustedDevice) {
+          // Device is trusted - skip MFA, update last used, generate full tokens
+          console.log(`[DEBUG] loginUser: Device is TRUSTED, skipping MFA`);
+          await TrustedDeviceModel.updateLastUsed(trustedDevice.device_id);
+          logger.info(`Trusted device login for user: ${email}`);
+
+          // Generate full tokens and complete login
+          const tokens = await service.generateTokens(user);
+
+          logger.loginSuccess(
+            user.user_id,
+            user.email,
+            ip,
+            clientInfo.userAgent || req.headers["user-agent"],
+          );
+          security.clearFailedLogins(ip);
+          cookies.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+
+          return ResponseHandler.success(
+            res,
+            {
+              ...tokens,
+              user: user,
+            },
+            "เข้าสู่ระบบสำเร็จ (อุปกรณ์ที่เชื่อถือ)",
+          );
+        } else {
+          // New device - require MFA (tempToken already has fingerprint from service.login)
+          console.log(
+            `[DEBUG] loginUser: Device is NOT trusted, requiring MFA`,
+          );
+          logger.info(`MFA Challenge required for user: ${email} (new device)`);
+
+          return res.status(200).json({
+            success: true,
+            mfaRequired: true,
+            tempToken: result.tempToken, // ✅ This now contains fingerprint
+            message: "กรุณาระบุรหัส OTP (2FA) - อุปกรณ์ใหม่",
+            isNewDevice: true,
+          });
+        }
       }
 
       logger.loginSuccess(
@@ -137,6 +182,35 @@ export const createAuthController = (deps = {}) => {
       clientInfo.userAgent || req.headers["user-agent"],
     );
     security.clearFailedLogins(ip);
+
+    // ✅ Smart MFA: Save as trusted device
+    try {
+      console.log(
+        `[DEBUG] Verify MFA: tempToken fingerprint: ${decoded.fingerprint}`,
+      );
+      if (decoded.fingerprint) {
+        await TrustedDeviceModel.create(
+          user.user_id,
+          decoded.fingerprint,
+          parseUserAgent(req.headers["user-agent"]),
+          ip,
+        );
+        console.log(
+          `[DEBUG] New trusted device saved for user: ${user.email} (FP: ${decoded.fingerprint})`,
+        );
+        logger.info(`New trusted device saved for user: ${user.email}`);
+      } else {
+        console.log(
+          "[DEBUG] MFA Success but no fingerprint found in tempToken",
+        );
+        logger.warn("MFA Success but no fingerprint found in tempToken");
+      }
+    } catch (err) {
+      console.error(`[DEBUG] Failed to save trusted device: ${err.message}`);
+      logger.error(`Failed to save trusted device: ${err.message}`);
+      // Don't fail login if device save fails
+    }
+
     cookies.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     return ResponseHandler.success(
       res,
@@ -310,6 +384,47 @@ export const createAuthController = (deps = {}) => {
     }
   });
 
+  // =========================================
+  // ✅ Trusted Devices Management
+  // =========================================
+
+  const getTrustedDevices = asyncHandler(async (req, res) => {
+    const userId = req.user.user_id;
+    console.log(`[DEBUG] getTrustedDevices: userId = ${userId}`);
+    const devices = await TrustedDeviceModel.findByUser(userId);
+    console.log(`[DEBUG] getTrustedDevices: found ${devices.length} devices`);
+    console.log(
+      `[DEBUG] getTrustedDevices: devices =`,
+      JSON.stringify(devices, null, 2),
+    );
+    return ResponseHandler.success(res, devices, "รายการอุปกรณ์ที่เชื่อถือ");
+  });
+
+  const deleteTrustedDevice = asyncHandler(async (req, res) => {
+    const userId = req.user.user_id;
+    const { deviceId } = req.params;
+
+    const deleted = await TrustedDeviceModel.deleteById(deviceId, userId);
+    if (deleted === 0) {
+      return ResponseHandler.error(res, "ไม่พบอุปกรณ์นี้", 404);
+    }
+
+    logger.info(`Trusted device ${deviceId} deleted by user ${userId}`);
+    return ResponseHandler.success(res, null, "ลบอุปกรณ์เรียบร้อยแล้ว");
+  });
+
+  const deleteAllTrustedDevices = asyncHandler(async (req, res) => {
+    const userId = req.user.user_id;
+    const count = await TrustedDeviceModel.deleteByUser(userId);
+
+    logger.info(`All trusted devices (${count}) deleted for user ${userId}`);
+    return ResponseHandler.success(
+      res,
+      { deletedCount: count },
+      "ลบอุปกรณ์ทั้งหมดเรียบร้อยแล้ว",
+    );
+  });
+
   return {
     registerUser,
     loginUser,
@@ -318,6 +433,9 @@ export const createAuthController = (deps = {}) => {
     enableMfa,
     disableMfa,
     getMfaStatus,
+    getTrustedDevices,
+    deleteTrustedDevice,
+    deleteAllTrustedDevices,
     refreshToken,
     getProfile,
     forgotPassword,
@@ -342,6 +460,9 @@ export const {
   enableMfa,
   disableMfa,
   getMfaStatus,
+  getTrustedDevices,
+  deleteTrustedDevice,
+  deleteAllTrustedDevices,
   refreshToken,
   getProfile,
   forgotPassword,

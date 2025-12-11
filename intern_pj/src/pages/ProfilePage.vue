@@ -187,6 +187,15 @@
                           <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
                         </button>
                       </template>
+                      <!-- ✅ Trusted Devices Button -->
+                      <template v-else-if="field.key === 'trusted_devices'">
+                        <button
+                          class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                          @click="openDevicesPopup()"
+                        >
+                          <i class="mdi mdi-cog mr-1"></i>จัดการ
+                        </button>
+                      </template>
                       <button
                         v-else-if="
                           isEditableField(field.key) && !editState[field.key as EditableKey]
@@ -334,6 +343,15 @@
                           @click="openMfaDisable()"
                         >
                           <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
+                        </button>
+                      </template>
+                      <!-- Trusted Devices Button -->
+                      <template v-else-if="field.key === 'trusted_devices'">
+                        <button
+                          class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                          @click="openDevicesPopup()"
+                        >
+                          <i class="mdi mdi-cog mr-1"></i>จัดการ
                         </button>
                       </template>
                       <button
@@ -676,6 +694,97 @@
           </div>
         </div>
       </div>
+
+      <!-- Popup: Trusted Devices Management -->
+      <div
+        v-if="showDevicesPopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+        @click.self="closeDevicesPopup"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 h-[80vh] flex flex-col">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-gray-800">
+              <i class="mdi mdi-devices text-purple-600 mr-2"></i>
+              จัดการอุปกรณ์ที่เชื่อมต่อ (Trusted Devices)
+            </h2>
+            <button @click="closeDevicesPopup" class="text-gray-400 hover:text-gray-600">
+              <i class="mdi mdi-close text-2xl"></i>
+            </button>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">
+            อุปกรณ์เหล่านี้สามารถเข้าสู่ระบบโดยไม่ต้องยืนยัน 2FA (ยกเว้นเมื่อหมดอายุ)
+          </p>
+
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="isLoadingDevices" class="flex justify-center py-8">
+              <i class="mdi mdi-loading mdi-spin text-3xl text-purple-600"></i>
+            </div>
+
+            <div v-else-if="trustedDevices.length === 0" class="text-center py-12 text-gray-400">
+              <i class="mdi mdi-laptop-off text-5xl mb-3 block"></i>
+              <p>ไม่มีอุปกรณ์ที่เชื่อถือ</p>
+            </div>
+
+            <div v-else class="space-y-3">
+              <div
+                v-for="device in trustedDevices"
+                :key="device.device_id"
+                class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600"
+                  >
+                    <i class="mdi" :class="getDeviceIcon(device.device_name)"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-900">
+                      {{ device.device_name }}
+                      <span
+                        v-if="device.is_current"
+                        class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"
+                        >อุปกรณ์นี้</span
+                      >
+                    </h3>
+                    <div class="flex gap-2 text-xs text-gray-500 mt-1">
+                      <span
+                        ><i class="mdi mdi-map-marker-outline"></i> {{ device.ip_address }}</span
+                      >
+                      <span>•</span>
+                      <span
+                        ><i class="mdi mdi-clock-outline"></i> ใช้ล่าสุด:
+                        {{ formatDate(device.last_used_at) }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  @click="removeTrustedDevice(device.device_id)"
+                  class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition"
+                  title="ลบอุปกรณ์"
+                >
+                  <i class="mdi mdi-trash-can-outline text-xl"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t flex justify-between items-center">
+            <p class="text-xs text-gray-500">
+              * อุปกรณ์ที่เชื่อมต่อจะหมดอายุอัตโนมัติหากไม่ได้ใช้งานเกิน 30 วัน
+            </p>
+            <button
+              v-if="trustedDevices.length > 0"
+              @click="removeAllDevices"
+              class="text-red-600 text-sm hover:underline"
+            >
+              ลบอุปกรณ์ทั้งหมด
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -685,12 +794,28 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Swal from 'sweetalert2' // ✅ ใช้ SweetAlert2 แทน ConfirmDialog
+import axios from 'axios'
+import type { TrustedDevice } from '@/types/auth' // Add type import
+
 // Component Input/Button ยังคงใช้เหมือนเดิม
 import BaseInput from '@/components/base/BaseInput.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.onmouseenter = Swal.stopTimer
+    toast.onmouseleave = Swal.resumeTimer
+  },
+})
 
 // =====================================================
 // FORM MODEL (ข้อมูลฟอร์ม)
@@ -740,7 +865,7 @@ type EditableKey =
   | 'user_integrate_url'
   | 'email'
   | 'password'
-type FieldKey = EditableKey | 'role' | 'mfa'
+type FieldKey = EditableKey | 'role' | 'mfa' | 'trusted_devices'
 const formEditableKeys = [
   'name',
   'surname',
@@ -838,6 +963,12 @@ const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
       editable: false,
     },
     {
+      key: 'trusted_devices' as FieldKey,
+      label: 'อุปกรณ์ที่เชื่อมต่อ (Trusted Devices)',
+      icon: 'mdi mdi-devices',
+      editable: false,
+    },
+    {
       key: 'user_integrate_provider_id',
       label: 'Provider ID',
       icon: 'mdi mdi-identifier',
@@ -887,6 +1018,12 @@ const mfaSecret = ref('')
 const mfaOtp = ref('')
 const mfaError = ref('')
 const mfaEnabled = ref(false)
+
+// Trusted Devices State
+const showDevicesPopup = ref(false)
+const trustedDevices = ref<TrustedDevice[]>([])
+const isLoadingDevices = ref(false)
+const trustedDevicesCount = ref<number | null>(null) // ✅ Store device count
 
 // =====================================================
 // COMPUTED & HELPERS
@@ -999,11 +1136,16 @@ const genderOptions = [
   { value: 'O', label: 'อื่น ๆ' },
 ]
 
-const isFormEditableKey = (key: EditableKey): key is FormEditableKey => {
+// Helper to check if a key is in formEditableKeys
+const isFormEditableKey = (key: any): key is FormEditableKey => {
   return formEditableKeys.includes(key as FormEditableKey)
 }
 
-const isEditableField = (key: FieldKey): key is EditableKey => key !== 'role'
+const isEditableField = (key: FieldKey) => {
+  // trusted_devices and mfa are not editable in the standard way
+  if (key === 'trusted_devices' || key === 'mfa' || key === 'role') return false
+  return isFormEditableKey(key) || key === 'email' || key === 'password'
+}
 
 const resetEditableValue = (fieldKey: EditableKey) => {
   if (fieldKey === 'email') {
@@ -1047,7 +1189,12 @@ const displayStaticValue = (fieldKey: FieldKey) => {
   if (fieldKey === 'mfa') {
     return mfaEnabled.value ? '✅ เปิดใช้งานแล้ว' : '❌ ยังไม่เปิดใช้งาน'
   }
-  return displayValue(fieldKey)
+  if (fieldKey === 'trusted_devices') {
+    if (trustedDevicesCount.value === null) return 'กำลังโหลด...'
+    if (trustedDevicesCount.value === 0) return 'ไม่มีอุปกรณ์ที่เชื่อมต่อ'
+    return `📱 มี ${trustedDevicesCount.value} อุปกรณ์`
+  }
+  return displayValue(fieldKey as EditableKey)
 }
 
 const startEdit = (fieldKey: EditableKey) => {
@@ -1434,7 +1581,127 @@ const confirmDisableMfa = async () => {
 }
 
 // =====================================================
-// 5. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
+// 5. FLOW: TRUSTED DEVICES
+// =====================================================
+
+const openDevicesPopup = async () => {
+  showDevicesPopup.value = true
+  await fetchTrustedDevices()
+}
+
+const closeDevicesPopup = () => {
+  showDevicesPopup.value = false
+  trustedDevices.value = []
+}
+
+const fetchTrustedDevices = async () => {
+  isLoadingDevices.value = true
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/trusted-devices`, {
+      withCredentials: true, // ✅ Send auth cookies
+    })
+    console.log('[DEBUG] fetchTrustedDevices response:', response.data)
+    if (response.data.success) {
+      trustedDevices.value = response.data.data
+      trustedDevicesCount.value = response.data.data.length // ✅ Update count
+    }
+  } catch (error) {
+    console.error('Failed to fetch trusted devices', error)
+    Toast.fire({ icon: 'error', title: 'ไม่สามารถโหลดข้อมูลอุปกรณ์ได้' })
+  } finally {
+    isLoadingDevices.value = false
+  }
+}
+
+// ✅ Fetch device count on page load (silent, no toast on error)
+const fetchTrustedDevicesCount = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/trusted-devices`, {
+      withCredentials: true,
+    })
+    if (response.data.success) {
+      trustedDevicesCount.value = response.data.data.length
+    }
+  } catch (error) {
+    console.error('Failed to fetch trusted devices count', error)
+    trustedDevicesCount.value = 0 // Default to 0 if error
+  }
+}
+
+const removeTrustedDevice = async (deviceId: string) => {
+  const confirm = await Swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: 'คุณต้องการลบอุปกรณ์นี้ออกจากรายการที่เชื่อถือใช่หรือไม่? หากเข้าใช้งานใหม่จะต้องยืนยันตัวตนอีกครั้ง',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ลบอุปกรณ์',
+    cancelButtonText: 'ยกเลิก',
+  })
+
+  if (confirm.isConfirmed) {
+    try {
+      await axios.delete(`${API_BASE_URL}/auth/trusted-devices/${deviceId}`, {
+        withCredentials: true, // ✅ Send auth cookies
+      })
+      trustedDevices.value = trustedDevices.value.filter((d) => d.device_id !== deviceId)
+      Toast.fire({ icon: 'success', title: 'ลบอุปกรณ์เรียบร้อยแล้ว' })
+    } catch (error) {
+      console.error(error)
+      Toast.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการลบอุปกรณ์' })
+    }
+  }
+}
+
+const removeAllDevices = async () => {
+  const confirm = await Swal.fire({
+    title: 'ลบทั้งหมด?',
+    text: 'คุณต้องการลบอุปกรณ์ที่เชื่อถือ "ทั้งหมด" ใช่หรือไม่?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ลบทั้งหมด',
+    cancelButtonText: 'ยกเลิก',
+  })
+
+  if (confirm.isConfirmed) {
+    try {
+      await axios.delete(`${API_BASE_URL}/auth/trusted-devices`, {
+        withCredentials: true, // ✅ Send auth cookies
+      })
+      trustedDevices.value = []
+      Toast.fire({ icon: 'success', title: 'ลบอุปกรณ์ทั้งหมดเรียบร้อยแล้ว' })
+    } catch (error) {
+      console.error(error)
+      Toast.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการลบอุปกรณ์' })
+    }
+  }
+}
+
+const getDeviceIcon = (deviceName: string) => {
+  const name = deviceName.toLowerCase()
+  if (name.includes('mobile') || name.includes('android') || name.includes('iphone'))
+    return 'mdi-cellphone'
+  if (name.includes('ipad') || name.includes('tablet')) return 'mdi-tablet'
+  if (name.includes('mac') || name.includes('windows') || name.includes('linux'))
+    return 'mdi-laptop'
+  return 'mdi-monitor'
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// =====================================================
+// 6. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
 // =====================================================
 const updateProfile = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
@@ -1522,6 +1789,7 @@ onMounted(async () => {
     await authStore.fetchProfile() // ดึงข้อมูลล่าสุด
     fillFormData() // นำข้อมูลใส่ Form
     await loadMfaStatus() // โหลดสถานะ MFA
+    await fetchTrustedDevicesCount() // ✅ โหลดจำนวนอุปกรณ์ที่เชื่อมต่อ
     console.log('✅ Profile updated from API')
   } catch (error) {
     console.error('❌ Failed to fetch profile:', error)

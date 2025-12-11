@@ -189,7 +189,8 @@ export const createAuthService = (deps = {}) => {
     }
   };
 
-  const login = async (email, password) => {
+  // ✅ Modified: Accept optional fingerprint for Smart MFA
+  const login = async (email, password, fingerprint = null) => {
     if (!email || !password)
       throw createError.badRequest("กรุณากรอกอีเมลและรหัสผ่าน"); // ✅ 400
 
@@ -212,14 +213,27 @@ export const createAuthService = (deps = {}) => {
 
     // ✅ NEW: Check MFA enabled
     if (user.mfa_enabled === true) {
-      // Generate temporary token for MFA verification
-      const tempToken = tokenUtils.generateAccessToken(user.user_id);
+      // Generate temporary token for MFA verification (with fingerprint for Smart MFA)
+      const { signAccessToken } = await import("../utils/token.js");
+      const tempToken = signAccessToken(
+        {
+          user_id: user.user_id,
+          mfa_pending: true,
+          fingerprint: fingerprint, // ✅ Include fingerprint for Smart MFA
+        },
+        "5m",
+      );
+      console.log(
+        "[DEBUG] AuthService.login: created tempToken with fingerprint:",
+        fingerprint,
+      );
       return {
         mfaRequired: true,
         tempToken,
         user: {
           user_id: user.user_id,
           email: user.email,
+          mfa_enabled: user.mfa_enabled, // ✅ pass mfa_enabled
         },
       };
     }
