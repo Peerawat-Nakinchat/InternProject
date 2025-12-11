@@ -189,10 +189,25 @@ const update = async (orgId, updates, transaction = null) => {
     'org_integrate_passcode'
   ];
 
+  // Fields that allow null (convert empty string to null)
+  const nullableFields = [
+    'org_address_1',
+    'org_address_2',
+    'org_address_3',
+    'org_integrate_url',
+    'org_integrate_provider_id',
+    'org_integrate_passcode'
+  ];
+
   const updateData = {};
   for (const field of allowedFields) {
     if (updates[field] !== undefined) {
-      updateData[field] = updates[field];
+      // Convert empty string to null for nullable fields to avoid validation errors
+      if (nullableFields.includes(field) && updates[field] === '') {
+        updateData[field] = null;
+      } else {
+        updateData[field] = updates[field];
+      }
     }
   }
 

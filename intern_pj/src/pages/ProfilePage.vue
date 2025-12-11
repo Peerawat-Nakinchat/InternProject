@@ -91,11 +91,11 @@
                   @click="activeSection = section.key"
                 >
                   <div class="flex items-center gap-3">
-                    <span
+              <span
                       class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white border border-purple-100 text-[#1C244B]"
-                    >
+              >
                       <i :class="section.icon" class="text-xl"></i>
-                    </span>
+              </span>
                     <div class="flex flex-col">
                       <span class="font-semibold text-sm">{{ section.label }}</span>
                       <span class="text-xs text-gray-500">{{ section.description }}</span>
@@ -124,7 +124,53 @@
                     <p class="text-sm text-gray-500">{{ currentSection.description }}</p>
                   </div>
                 </div>
-                <span class="text-xs text-gray-500">คลิกไอคอนดินสอเพื่อแก้ไข</span>
+
+                <!-- Right: Company Selector -->
+                <!-- Company Selector (แสดงเฉพาะเมื่อ activeSection === 'company' และมีหลายบริษัท) -->
+                <div
+                  v-if="activeSection === 'company' && companyStore.companies.length > 1"
+                  class="flex flex-col items-end"
+                >
+                  <label class="block text-sm font-medium text-gray-700 mb-1">เลือกบริษัทที่ต้องการดู/แก้ไข</label>
+                  <div class="relative w-72">
+                    <div
+                      class="w-full h-10 rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
+                      @click="companyDropdownOpen = !companyDropdownOpen"
+                    >
+                      <span class="truncate">{{ selectedCompanyLabel }}</span>
+                      <svg
+                        class="w-4 h-4 text-slate-500 transition-transform"
+                        :class="companyDropdownOpen ? 'rotate-180' : ''"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    <div
+                      v-if="companyDropdownOpen"
+                      class="absolute z-30 mt-0.5 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto"
+                    >
+                      <div
+                        v-for="company in companyStore.companies"
+                        :key="company.org_id"
+                        class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                        @click="selectCompany(company.org_id)"
+                      >
+                        <span class="truncate">{{ company.org_name }}</span>
+                        <span v-if="company.owner_user_id === authStore.user?.user_id" class="text-xs text-purple-600 ml-2">(เจ้าของ)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p v-if="!isCompanyOwner && companyStore.selectedCompany"
+                    class="text-xs text-amber-600 mt-1 flex items-center gap-1"
+                  >
+                    <i class="mdi mdi-information-outline"></i>
+                    คุณสามารถดูได้เท่านั้น ไม่สามารถแก้ไขได้
+                  </p>
+                </div>
               </div>
 
               <div class="divide-y-2 divide-gray-200">
@@ -146,26 +192,26 @@
                           {{ displayStaticValue(field.key) }}
                         </p>
                       </div>
-                    </div>
+                </div>
 
                     <div class="flex items-center gap-2">
                       <button
                         v-if="field.key === 'email'"
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="changeEmail()"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
                       </button>
                       <button
                         v-else-if="field.key === 'password'"
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="changePassword()"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
                       </button>
                       <button
-                        v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey] && !(isCompanyField(field.key) && !isCompanyOwner)"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="startEdit(field.key as EditableKey)"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
@@ -177,18 +223,44 @@
                     v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
                     class="pl-12"
                   >
-                    <div v-if="field.key === 'sex'">
+                    <div v-if="field.key === 'sex'" class="mb-4 relative">
                       <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
-                      <div class="relative">
-                        <select
-                          v-model="editableValues.sex"
-                          class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
+                      <!-- Custom Dropdown (match RegisterPage style) -->
+                      <div
+                        class="w-full h-10 rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
+                        @click="genderDropdownOpen = !genderDropdownOpen"
+                      >
+                        <span>
+                          {{ getGenderLabel(editableValues.sex) || 'เลือกเพศ' }}
+                        </span>
+                        <svg
+                          class="w-4 h-4 text-slate-500 transition-transform"
+                          :class="genderDropdownOpen ? 'rotate-180' : ''"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <option value="" disabled>เลือกเพศ</option>
-                          <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
-                            {{ opt.label }}
-                          </option>
-                        </select>
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                      <!-- Dropdown -->
+                      <div
+                        v-if="genderDropdownOpen"
+                        class="absolute z-20 mt-0.5 w-full bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
+                      >
+                        <div
+                          v-for="opt in genderOptions"
+                          :key="opt.value"
+                          class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+                          @click="selectGender(opt.value)"
+                        >
+                          {{ opt.label }}
+                        </div>
                       </div>
                     </div>
                     <BaseInput
@@ -204,7 +276,7 @@
                       placeholder="********"
                     />
 
-                    <div class="flex justify-end gap-2 mt-1">
+                    <div class="flex justify-end gap-2">
                       <base-button
                         class="bg-neutral-400 text-neutral-700 hover:bg-neutral-500 px-4"
                         @click="cancelEdit(field.key as EditableKey)"
@@ -232,16 +304,59 @@
                 class="border border-gray-100 rounded-xl p-4 mb-4 shadow-sm"
               >
                 <div class="flex items-center gap-3 mb-3">
-                  <span
-                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
-                  >
-                    <i :class="section.icon"></i>
-                  </span>
+                <span
+                      class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-linear-to-r from-purple-600 to-purple-500 text-white text-lg"
+                >
+                      <i :class="section.icon"></i>
+                </span>
                   <div>
                     <h2 class="text-base font-semibold text-gray-800">{{ section.label }}</h2>
                     <p class="text-xs text-gray-500">{{ section.description }}</p>
                   </div>
                 </div>
+
+                <!-- Company Selector (แสดงเฉพาะเมื่อ section.key === 'company' และมีหลายบริษัท) -->
+        <div
+          v-if="section.key === 'company' && companyStore.companies.length > 1"
+          class="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200"
+        >
+          <label class="block text-sm font-medium text-gray-700 mb-2">เลือกบริษัทที่ต้องการดู/แก้ไข</label>
+          <div class="relative">
+            <div
+              class="w-full h-10 rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
+              @click="companyDropdownOpen = !companyDropdownOpen"
+            >
+              <span class="truncate">{{ selectedCompanyLabel }}</span>
+              <svg
+                class="w-4 h-4 text-slate-500 transition-transform"
+                :class="companyDropdownOpen ? 'rotate-180' : ''"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div
+              v-if="companyDropdownOpen"
+              class="absolute z-30 mt-0.5 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto"
+            >
+              <div
+                v-for="company in companyStore.companies"
+                :key="company.org_id"
+                class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                @click="selectCompany(company.org_id)"
+              >
+                <span class="truncate">{{ company.org_name }}</span>
+                <span v-if="company.owner_user_id === authStore.user?.user_id" class="text-xs text-purple-600 ml-2">(เจ้าของ)</span>
+              </div>
+            </div>
+          </div>
+          <p v-if="!isCompanyOwner && companyStore.selectedCompany" class="text-xs text-amber-600 mt-2 flex items-center gap-1">
+            <i class="mdi mdi-information-outline"></i>
+            คุณสามารถดูข้อมูลได้เท่านั้น ไม่สามารถแก้ไขได้ (เฉพาะเจ้าของบริษัทเท่านั้นที่แก้ไขได้)
+          </p>
+        </div>
 
                 <div class="divide-y-2 divide-gray-200">
                   <div
@@ -249,65 +364,96 @@
                     :key="field.key"
                     class="py-3 flex flex-col gap-2"
                   >
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                          <span
-                            class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
-                          >
-                            <i :class="field.icon" class="text-lg"></i>
-                          </span>
-                          <div>
-                            <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
-                            <p
-                              v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
-                              class="text-gray-600 text-sm"
-                            >
-                              {{ displayStaticValue(field.key) }}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          v-if="field.key === 'email'"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="changeEmail()"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          v-else-if="field.key === 'password'"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="changePassword()"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="startEdit(field.key as EditableKey)"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
-                      </div>
-
-                      <div
-                        v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
-                        class="pl-10"
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                      <span
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
                       >
-                      <div v-if="field.key === 'sex'">
-                        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
-                        <div class="relative">
-                          <select
-                            v-model="editableValues.sex"
-                            class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
+                      <i :class="field.icon" class="text-lg"></i>
+                      </span>
+                        <div>
+                          <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
+                          <p
+                            v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
+                            class="text-gray-600 text-sm"
                           >
-                            <option value="" disabled>เลือกเพศ</option>
-                            <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
-                              {{ opt.label }}
-                            </option>
-                          </select>
+                            {{ displayStaticValue(field.key) }}
+                          </p>
                         </div>
                       </div>
+
+                      <button
+                        v-if="field.key === 'email'"
+                        class="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
+                        @click="changeEmail()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="field.key === 'password'"
+                        class="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
+                        @click="changePassword()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey] && !(isCompanyField(field.key) && !isCompanyOwner)"
+                        class="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
+                        @click="startEdit(field.key as EditableKey)"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <span
+                        v-else-if="isCompanyField(field.key) && !isCompanyOwner"
+                        class="text-xs text-gray-400 italic"
+                      >
+                      </span>
+                    </div>
+
+                    <div
+                      v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
+                      class="pl-10"
+                    >
+                    <div v-if="field.key === 'sex'" class="mb-4 relative">
+                      <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
+                      <!-- Custom Dropdown (match RegisterPage style) -->
+                      <div
+                        class="w-full h-10 rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer flex items-center justify-between transition-all hover:border-purple-400"
+                        @click="genderDropdownOpen = !genderDropdownOpen"
+                      >
+                        <span>
+                          {{ getGenderLabel(editableValues.sex) || 'เลือกเพศ' }}
+                        </span>
+                        <svg
+                          class="w-4 h-4 text-slate-500 transition-transform"
+                          :class="genderDropdownOpen ? 'rotate-180' : ''"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                      <!-- Dropdown -->
+                      <div
+                        v-if="genderDropdownOpen"
+                        class="absolute z-20 mt-0.5 w-full bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden"
+                      >
+                        <div
+                          v-for="opt in genderOptions"
+                          :key="opt.value"
+                          class="px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 cursor-pointer transition"
+                          @click="selectGender(opt.value)"
+                        >
+                          {{ opt.label }}
+                        </div>
+                      </div>
+                    </div>
                       <BaseInput
                         v-else-if="field.key !== 'password'"
                         v-model="editableValues[field.key as EditableKey]"
@@ -347,7 +493,6 @@
         <div v-if="showEmailPopup" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
-
             <BaseInput
               v-model="newEmail"
               type="email"
@@ -355,14 +500,12 @@
               placeholder="example@mail.com"
               class="mb-2"
             />
-
             <BaseInput
               v-model="passwordForEmail"
               type="password"
               label="รหัสผ่านปัจจุบัน (เพื่อยืนยัน)"
               placeholder="********"
             />
-
             <p v-if="emailError" class="text-red-500 text-sm mt-2">{{ emailError }}</p>
 
             <div class="flex justify-end gap-3 mt-2">
@@ -392,11 +535,11 @@
               เปลี่ยนรหัสผ่าน
             </h2>
 
-            <BaseInput v-model="oldPassword" label="รหัสผ่านเดิม" type="password" class="mb-2" />
+        <BaseInput v-model="oldPassword" label="รหัสผ่านเดิม" type="password" class="mb-2" />
 
             <hr class="border-t border-gray-200 mb-4" />
 
-            <BaseInput v-model="newPassword" label="รหัสผ่านใหม่" type="password" class="mb-2" />
+        <BaseInput v-model="newPassword" label="รหัสผ่านใหม่" type="password" class="mb-2" />
 
             <div class="mb-4 p-3 bg-gray-50 rounded-lg">
               <div class="flex items-center gap-2 mb-3">
@@ -421,9 +564,7 @@
                   :class="passwordChecks.hasLength ? 'text-green-600' : 'text-gray-400'"
                 >
                   <i
-                    :class="
-                      passwordChecks.hasLength ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                    "
+                    :class="passwordChecks.hasLength ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"
                     class="text-sm"
                   ></i>
                   อย่างน้อย 6 ตัวอักษร
@@ -433,9 +574,7 @@
                   :class="passwordChecks.hasUpper ? 'text-green-600' : 'text-gray-400'"
                 >
                   <i
-                    :class="
-                      passwordChecks.hasUpper ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                    "
+                    :class="passwordChecks.hasUpper ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"
                     class="text-sm"
                   ></i>
                   ตัวพิมพ์ใหญ่ (A-Z)
@@ -445,9 +584,7 @@
                   :class="passwordChecks.hasLower ? 'text-green-600' : 'text-gray-400'"
                 >
                   <i
-                    :class="
-                      passwordChecks.hasLower ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                    "
+                    :class="passwordChecks.hasLower ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"
                     class="text-sm"
                   ></i>
                   ตัวพิมพ์เล็ก (a-z)
@@ -457,9 +594,7 @@
                   :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-gray-400'"
                 >
                   <i
-                    :class="
-                      passwordChecks.hasNumber ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                    "
+                    :class="passwordChecks.hasNumber ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"
                     class="text-sm"
                   ></i>
                   ตัวเลข (0-9)
@@ -469,9 +604,7 @@
                   :class="passwordChecks.hasSpecial ? 'text-green-600' : 'text-gray-400'"
                 >
                   <i
-                    :class="
-                      passwordChecks.hasSpecial ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                    "
+                    :class="passwordChecks.hasSpecial ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"
                     class="text-sm"
                   ></i>
                   อักขระพิเศษ (!@#$%^&*)
@@ -487,39 +620,39 @@
             />
 
             <div v-if="confirmPassword" class="mb-2 text-xs flex items-center gap-1">
-              <template v-if="newPassword === confirmPassword">
-                <i class="mdi mdi-check-circle text-green-600"></i>
-                <span class="text-green-600">รหัสผ่านตรงกัน</span>
-              </template>
-              <template v-else>
-                <i class="mdi mdi-close-circle text-red-500"></i>
-                <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
-              </template>
-            </div>
+                  <template v-if="newPassword === confirmPassword">
+                    <i class="mdi mdi-check-circle text-green-600"></i>
+                    <span class="text-green-600">รหัสผ่านตรงกัน</span>
+                  </template>
+                  <template v-else>
+                    <i class="mdi mdi-close-circle text-red-500"></i>
+                    <span class="text-red-500">รหัสผ่านไม่ตรงกัน</span>
+                  </template>
+                </div>
 
-            <p v-if="passwordError" class="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
-              <i class="mdi mdi-alert-circle mr-1"></i>
-              {{ passwordError }}
-            </p>
+                <p v-if="passwordError" class="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
+                  <i class="mdi mdi-alert-circle mr-1"></i>
+                  {{ passwordError }}
+                </p>
 
-            <div class="flex gap-3">
-              <base-button
-                class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
-                @click="closePasswordPopup"
-              >
-                ยกเลิก
-              </base-button>
-              <base-button
-                class="flex-1"
-                @click="openPasswordConfirm"
-                :disabled="!isPasswordValid"
-              >
-                บันทึก
-              </base-button>
+                <div class="flex gap-3">
+                  <base-button
+                    class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+                    @click="closePasswordPopup"
+                  >
+                    ยกเลิก
+                  </base-button>
+                  <base-button
+                    class="flex-1"
+                    @click="openPasswordConfirm"
+                    :disabled="!isPasswordValid"
+                  >
+                    บันทึก
+                  </base-button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+            </div>
     </div>
   </div>
 </template>
@@ -528,6 +661,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useCompanyStore } from '@/stores/company'
 import Swal from 'sweetalert2' // ✅ ใช้ SweetAlert2 แทน ConfirmDialog
 // Component Input/Button ยังคงใช้เหมือนเดิม
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -535,6 +669,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const companyStore = useCompanyStore()
 
 // =====================================================
 // FORM MODEL (ข้อมูลฟอร์ม)
@@ -549,9 +684,14 @@ type ProfileForm = {
   user_address_2: string
   user_address_3: string
   profile_image_url: string
-  user_integrate: string
-  user_integrate_url: string
-  user_integrate_provider_id: string
+  company_name: string
+  company_position: string
+  company_address_1: string
+  company_address_2: string
+  company_address_3: string
+  company_integrate_provider: string
+  company_integrate_passcode: string
+  company_integrate_url: string
 }
 
 const form = reactive<ProfileForm>({
@@ -564,15 +704,20 @@ const form = reactive<ProfileForm>({
   user_address_2: '',
   user_address_3: '',
   profile_image_url: '',
-  user_integrate: '',
-  user_integrate_url: '',
-  user_integrate_provider_id: '',
+  company_name: '',
+  company_position: '',
+  company_address_1: '',
+  company_address_2: '',
+  company_address_3: '',
+  company_integrate_provider: '',
+  company_integrate_passcode: '',
+  company_integrate_url: '',
 })
 
 // =====================================================
 // UI STATE สำหรับการ์ดรายละเอียด
 // =====================================================
-type SectionKey = 'personal' | 'address' | 'security'
+type SectionKey = 'personal' | 'address' | 'company' | 'security'
 type EditableKey =
   | 'name'
   | 'surname'
@@ -580,10 +725,16 @@ type EditableKey =
   | 'user_address_1'
   | 'user_address_2'
   | 'user_address_3'
-  | 'user_integrate_provider_id'
-  | 'user_integrate_url'
   | 'email'
   | 'password'
+  | 'company_name'
+  | 'company_position'
+  | 'company_address_1'
+  | 'company_address_2'
+  | 'company_address_3'
+  | 'company_integrate_provider'
+  | 'company_integrate_passcode'
+  | 'company_integrate_url'
 type FieldKey = EditableKey | 'role'
 const formEditableKeys = [
   'name',
@@ -592,8 +743,14 @@ const formEditableKeys = [
   'user_address_1',
   'user_address_2',
   'user_address_3',
-  'user_integrate_provider_id',
-  'user_integrate_url',
+  'company_name',
+  'company_position',
+  'company_address_1',
+  'company_address_2',
+  'company_address_3',
+  'company_integrate_provider',
+  'company_integrate_passcode',
+  'company_integrate_url',
 ] as const
 type FormEditableKey = typeof formEditableKeys[number]
 type FieldConfig = {
@@ -627,6 +784,12 @@ const sectionList: SectionItem[] = [
     description: 'ที่อยู่จัดส่ง/ติดต่อ',
   },
   {
+    key: 'company' as const,
+    label: 'ข้อมูลบริษัท',
+    icon: 'mdi mdi-office-building',
+    description: 'ข้อมูลบริษัทและตำแหน่งงาน',
+  },
+  {
     key: 'security' as const,
     label: 'ความปลอดภัย',
     icon: 'mdi mdi-shield-lock',
@@ -643,8 +806,14 @@ const editableValues = reactive<Record<EditableKey, string>>({
   user_address_3: '',
   email: '',
   password: '',
-  user_integrate_provider_id: '',
-  user_integrate_url: '',
+  company_name: '',
+  company_position: '',
+  company_address_1: '',
+  company_address_2: '',
+  company_address_3: '',
+  company_integrate_provider: '',
+  company_integrate_passcode: '',
+  company_integrate_url: '',
 })
 
 const editState = reactive<Record<EditableKey, boolean>>({
@@ -656,8 +825,14 @@ const editState = reactive<Record<EditableKey, boolean>>({
   user_address_3: false,
   email: false,
   password: false,
-  user_integrate_provider_id: false,
-  user_integrate_url: false,
+  company_name: false,
+  company_position: false,
+  company_address_1: false,
+  company_address_2: false,
+  company_address_3: false,
+  company_integrate_provider: false,
+  company_integrate_passcode: false,
+  company_integrate_url: false,
 })
 
 const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
@@ -672,17 +847,82 @@ const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
     { key: 'user_address_2', label: 'ที่อยู่ 2', icon: 'mdi mdi-office-building-marker-outline' },
     { key: 'user_address_3', label: 'ที่อยู่ 3', icon: 'mdi mdi-map-outline' },
   ],
+  company: [
+    { key: 'company_name', label: 'ชื่อบริษัท', icon: 'mdi mdi-office-building-outline' },
+    { key: 'company_position', label: 'บทบาทของคุณในบริษัท', icon: 'mdi mdi-account-badge', editable: false },
+    { key: 'company_address_1', label: 'ที่อยู่บริษัท 1', icon: 'mdi mdi-map-marker-outline' },
+    { key: 'company_address_2', label: 'ที่อยู่บริษัท 2', icon: 'mdi mdi-office-building-marker-outline' },
+    { key: 'company_address_3', label: 'ที่อยู่บริษัท 3', icon: 'mdi mdi-map-outline' },
+    { key: 'company_integrate_provider', label: 'Integration Provider', icon: 'mdi mdi-identifier', placeholder: 'Provider', type: 'text' },
+    { key: 'company_integrate_passcode', label: 'Integration Passcode', icon: 'mdi mdi-lock-outline', placeholder: 'Passcode', type: 'password' },
+    { key: 'company_integrate_url', label: 'Integration URL', icon: 'mdi mdi-link-variant', placeholder: 'https://...', type: 'url' },
+  ],
   security: [
     { key: 'email', label: 'เปลี่ยนอีเมล', icon: 'mdi mdi-email-outline', type: 'email' },
     { key: 'password', label: 'เปลี่ยนรหัสผ่าน', icon: 'mdi mdi-lock-reset', type: 'password' },
-    { key: 'user_integrate_provider_id', label: 'Provider ID', icon: 'mdi mdi-identifier', placeholder: 'Provider ID', type: 'text' },
-    { key: 'user_integrate_url', label: 'Integration URL', icon: 'mdi mdi-link-variant', placeholder: 'https://...', type: 'url',},
   ],
 }
 
 const currentSection = computed<SectionItem>(() => {
   return sectionList.find((section) => section.key === activeSection.value) ?? sectionList[0]!
 })
+
+// ตรวจสอบว่า user เป็น owner ของบริษัทที่เลือกหรือไม่
+const isCompanyOwner = computed(() => {
+  if (!companyStore.selectedCompany || !authStore.user) return false
+  return companyStore.selectedCompany.owner_user_id === authStore.user.user_id
+})
+
+const mapRoleIdToName = (roleId?: number) => {
+  const roles: Record<number, string> = {
+    1: 'OWNER',
+    2: 'ADMIN',
+    3: 'MEMBER',
+    4: 'VIEWER',
+    5: 'AUDITOR',
+  }
+  return roles[Number(roleId)] || 'UNKNOWN'
+}
+
+const getCompanyRoleLabel = () => {
+  const company = companyStore.selectedCompany
+  if (!company) return ''
+  if (company.role_name) return company.role_name
+  return mapRoleIdToName(company.role_id)
+}
+
+// Dropdown state for company selector
+const companyDropdownOpen = ref(false)
+
+const selectedCompanyLabel = computed(() => {
+  const c = companyStore.selectedCompany
+  if (!c) return 'เลือกบริษัท'
+  const ownerTag = c.owner_user_id === authStore.user?.user_id ? ' (เจ้าของ)' : ''
+  return `${c.org_name || 'ไม่ระบุชื่อ'}${ownerTag}`
+})
+
+const selectCompany = (orgId: string) => {
+  const company = companyStore.companies.find((c) => c.org_id === orgId)
+  if (company) {
+    companyStore.setSelectedCompany(company)
+    loadCompanyData(company)
+  }
+  companyDropdownOpen.value = false
+}
+
+// ตรวจสอบว่าฟิลด์นี้เป็นฟิลด์บริษัทหรือไม่
+const isCompanyField = (fieldKey: FieldKey): boolean => {
+  return [
+    'company_name',
+    'company_position',
+    'company_address_1',
+    'company_address_2',
+    'company_address_3',
+    'company_integrate_provider',
+    'company_integrate_passcode',
+    'company_integrate_url',
+  ].includes(fieldKey)
+}
 
 // =====================================================
 // STATE (ตัวแปรควบคุมสถานะ)
@@ -816,11 +1056,32 @@ const genderOptions = [
   { value: 'O', label: 'อื่น ๆ' },
 ]
 
+const genderDropdownOpen = ref(false)
+
+const getGenderLabel = (value: string) => {
+  const opt = genderOptions.find((o) => o.value === value)
+  return opt?.label || ''
+}
+
+const nonEditableFields: EditableKey[] = ['company_position']
+
+// Validate URL format when user fills Integration URL (ต้องมีโดเมน เช่น .com)
+const isValidUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value)
+    // ต้องมี protocol + host และ host ต้องมีจุด (เช่น .com/.net/.co.th)
+    const hasTld = /\.[a-z]{2,}$/i.test(url.hostname)
+    return Boolean(url.protocol && url.hostname && hasTld)
+  } catch {
+    return false
+  }
+}
+
 const isFormEditableKey = (key: EditableKey): key is FormEditableKey => {
   return formEditableKeys.includes(key as FormEditableKey)
 }
 
-const isEditableField = (key: FieldKey): key is EditableKey => key !== 'role'
+const isEditableField = (key: FieldKey): key is EditableKey => key !== 'role' && !nonEditableFields.includes(key as EditableKey)
 
 const resetEditableValue = (fieldKey: EditableKey) => {
   if (fieldKey === 'email') {
@@ -836,6 +1097,11 @@ const resetEditableValue = (fieldKey: EditableKey) => {
   }
 }
 
+const selectGender = (value: string) => {
+  editableValues.sex = value
+  genderDropdownOpen.value = false
+}
+
 const populateEditableValues = () => {
   ;(['email', 'password', ...formEditableKeys] as EditableKey[]).forEach((key) => {
     resetEditableValue(key)
@@ -846,6 +1112,8 @@ const displayValue = (fieldKey: EditableKey) => {
   if (fieldKey === 'sex') return genderLabel.value
   if (fieldKey === 'email') return authStore.user?.email || '-'
   if (fieldKey === 'password') return '********'
+  if (fieldKey === 'company_position') return getCompanyRoleLabel() || '-'
+  if (fieldKey === 'company_integrate_passcode') return form.company_integrate_passcode ? '********' : '-'
   if (isFormEditableKey(fieldKey)) return form[fieldKey] || '-'
   return '-'
 }
@@ -888,6 +1156,18 @@ const saveField = (fieldKey: EditableKey) => {
 
   if (fieldKey === 'sex') {
     form.sex = (editableValues.sex || '').toUpperCase()
+  } else if (fieldKey === 'company_integrate_url') {
+    const value = (editableValues.company_integrate_url || '').trim()
+    if (value && !isValidUrl(value)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'รูปแบบ URL ไม่ถูกต้อง',
+        text: 'กรุณากรอก Integration URL เป็น URL ที่ถูกต้อง เช่น https://example.com',
+        confirmButtonText: 'ตกลง',
+      })
+      return
+    }
+    form.company_integrate_url = value
   } else if (isFormEditableKey(fieldKey)) {
     form[fieldKey] = editableValues[fieldKey]
   }
@@ -914,6 +1194,44 @@ const onImageUpload = (event: Event) => {
 }
 
 // =====================================================
+// COMPANY SELECTOR (เลือกบริษัท)
+// =====================================================
+const loadCompanyData = (company: { org_name?: string; org_address_1?: string; org_address_2?: string; org_address_3?: string; org_integrate_provider_id?: string; org_integrate_passcode?: string; org_integrate_url?: string }) => {
+  form.company_name = company.org_name || ''
+  form.company_position = getCompanyRoleLabel()
+  form.company_address_1 = company.org_address_1 || ''
+  form.company_address_2 = company.org_address_2 || ''
+  form.company_address_3 = company.org_address_3 || ''
+  form.company_integrate_provider = company.org_integrate_provider_id || ''
+  form.company_integrate_passcode = company.org_integrate_passcode || ''
+  form.company_integrate_url = company.org_integrate_url || ''
+  
+  // รีเซ็ต editState และ editableValues สำหรับฟิลด์บริษัท
+  const companyFields: EditableKey[] = [
+    'company_name',
+    'company_position',
+    'company_address_1',
+    'company_address_2',
+    'company_address_3',
+    'company_integrate_provider',
+    'company_integrate_passcode',
+    'company_integrate_url',
+  ]
+  
+  companyFields.forEach((key) => {
+    editState[key] = false
+    if (key === 'company_name') editableValues[key] = form.company_name
+    else if (key === 'company_position') editableValues[key] = form.company_position
+    else if (key === 'company_address_1') editableValues[key] = form.company_address_1
+    else if (key === 'company_address_2') editableValues[key] = form.company_address_2
+    else if (key === 'company_address_3') editableValues[key] = form.company_address_3
+    else if (key === 'company_integrate_provider') editableValues[key] = form.company_integrate_provider
+    else if (key === 'company_integrate_passcode') editableValues[key] = form.company_integrate_passcode
+    else if (key === 'company_integrate_url') editableValues[key] = form.company_integrate_url
+  })
+}
+
+// =====================================================
 // 1. FLOW: RESET FORM (รีเซ็ตข้อมูล)
 // =====================================================
 
@@ -934,6 +1252,17 @@ const fillFormData = () => {
   form.user_address_2 = u.user_address_2 || ''
   form.user_address_3 = u.user_address_3 || ''
   form.profile_image_url = u.profile_image_url || ''
+  // ดึงข้อมูลบริษัทจาก company store หรือ user object
+  const company = companyStore.selectedCompany || (u as Record<string, unknown>)
+  
+  form.company_name = (company?.org_name as string) || (u as Record<string, unknown>).company_name as string || ''
+  form.company_position = getCompanyRoleLabel()
+  form.company_address_1 = (company?.org_address_1 as string) || (u as Record<string, unknown>).company_address_1 as string || ''
+  form.company_address_2 = (company?.org_address_2 as string) || (u as Record<string, unknown>).company_address_2 as string || ''
+  form.company_address_3 = (company?.org_address_3 as string) || (u as Record<string, unknown>).company_address_3 as string || ''
+  form.company_integrate_provider = (company?.org_integrate_provider_id as string) || (u as Record<string, unknown>).company_integrate_provider as string || ''
+  form.company_integrate_passcode = (company?.org_integrate_passcode as string) || (u as Record<string, unknown>).company_integrate_passcode as string || ''
+  form.company_integrate_url = (company?.org_integrate_url as string) || (u as Record<string, unknown>).company_integrate_url as string || ''
 
   populateEditableValues()
 }
@@ -1200,7 +1529,7 @@ const updateProfile = async () => {
       // เตรียมข้อมูล Full Name
       form.full_name = fullNameComputed.value
 
-      // 4. เรียก API
+      // 4. อัปเดตข้อมูลผู้ใช้
       const apiResult = await authStore.updateProfile({
         name: form.name,
         surname: form.surname,
@@ -1210,12 +1539,70 @@ const updateProfile = async () => {
         user_address_2: form.user_address_2,
         user_address_3: form.user_address_3,
         profile_image_url: form.profile_image_url,
-        // (Optional) ส่งข้อมูลการเชื่อมต่อระบบอื่นไปด้วยถ้า API รองรับ
-        // user_integrate: form.user_integrate,
-        // ...
       })
 
-      if (apiResult.success) {
+      if (!apiResult.success) {
+        throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลผู้ใช้')
+      }
+
+      // 5. อัปเดตข้อมูลบริษัท (ถ้ามี selectedCompany และ user เป็น owner)
+      let companyUpdateSuccess = true
+      let companyError = null
+
+      if (companyStore.selectedCompany?.org_id && isCompanyOwner.value) {
+        // ตรวจ validation ฝั่งฟอร์ม ก่อนยิง API บริษัท
+        if (!form.company_name.trim()) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'ข้อมูลบริษัทไม่ครบถ้วน',
+            text: 'กรุณากรอกชื่อบริษัท',
+            confirmButtonText: 'ตกลง',
+          })
+          return
+        }
+
+        if (form.company_integrate_url && !isValidUrl(form.company_integrate_url.trim())) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'รูปแบบ URL ไม่ถูกต้อง',
+            text: 'กรุณากรอก Integration URL เป็น URL ที่ถูกต้อง เช่น https://example.com (ต้องมี .com หรือโดเมนที่มีจุด)',
+            confirmButtonText: 'ตกลง',
+          })
+          return
+        }
+
+        try {
+          // แปลง empty string เป็น null สำหรับฟิลด์ที่ allowNull: true เพื่อหลีกเลี่ยง validation error
+          const normalizeValue = (value: string) => {
+            return value && value.trim() !== '' ? value.trim() : null
+          }
+
+          const companyUpdateData = {
+            org_name: form.company_name.trim(),
+            org_address_1: normalizeValue(form.company_address_1),
+            org_address_2: normalizeValue(form.company_address_2),
+            org_address_3: normalizeValue(form.company_address_3),
+            org_integrate_provider_id: normalizeValue(form.company_integrate_provider),
+            org_integrate_passcode: normalizeValue(form.company_integrate_passcode),
+            org_integrate_url: normalizeValue(form.company_integrate_url),
+          }
+
+          await companyStore.updateCompanyById(
+            companyStore.selectedCompany.org_id,
+            companyUpdateData
+          )
+
+          // รีเฟรชข้อมูลบริษัท
+          await companyStore.fetchCompanies()
+        } catch (companyErr: unknown) {
+          companyUpdateSuccess = false
+          companyError = companyErr instanceof Error ? companyErr.message : 'ไม่สามารถอัปเดตข้อมูลบริษัทได้'
+          console.error('Error updating company:', companyErr)
+        }
+      }
+
+      // 6. แสดงผลลัพธ์
+      if (companyUpdateSuccess) {
         await Swal.fire({
           icon: 'success',
           title: 'บันทึกสำเร็จ!',
@@ -1224,7 +1611,13 @@ const updateProfile = async () => {
           showConfirmButton: false,
         })
       } else {
-        throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
+        // แสดง warning แต่ไม่ throw error เพื่อให้ข้อมูลผู้ใช้บันทึกสำเร็จ
+        await Swal.fire({
+          icon: 'warning',
+          title: 'บันทึกข้อมูลผู้ใช้สำเร็จ',
+          text: `แต่ไม่สามารถอัปเดตข้อมูลบริษัทได้: ${companyError}`,
+          confirmButtonText: 'ตกลง',
+        })
       }
     } catch (err: unknown) {
       const message =
@@ -1247,6 +1640,10 @@ onMounted(async () => {
   try {
     console.log('🔄 Fetching fresh profile data...')
     await authStore.fetchProfile() // ดึงข้อมูลล่าสุด
+    // ดึงข้อมูลบริษัทถ้ายังไม่มี
+    if (!companyStore.selectedCompany && companyStore.companies.length === 0) {
+      await companyStore.fetchCompanies()
+    }
     fillFormData() // นำข้อมูลใส่ Form
     console.log('✅ Profile updated from API')
   } catch (error) {

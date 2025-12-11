@@ -31,6 +31,14 @@ export interface ChangeEmailData { newEmail: string; password: string; }
 export interface ChangePasswordData { oldPassword: string; newPassword: string; }
 export interface ProfileUpdateData { name: string; surname: string; full_name: string; sex: string; user_address_1: string; user_address_2: string; user_address_3: string; profile_image_url: string; }
 
+// API Response format (axios interceptor returns response.data directly)
+interface ApiResponse<T = unknown> {
+  success: boolean
+  data?: T
+  error?: string
+  message?: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // --- State ---
   const user = ref<User | null>(null)
@@ -76,22 +84,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 1. Initialize Auth
-  // ✅ เพิ่ม lock เพื่อป้องกันการเรียกซ้อน
-  let isInitializing = false
-  
   const initAuth = async () => {
-    // ป้องกัน concurrent calls และ calls หลังจาก init สำเร็จแล้ว
-    if (authReady.value || isInitializing) return
-    isInitializing = true
-    
+    if (authReady.value) return
     try {
       const axiosInstance = await getAxios()
-      // ✅ ใช้ _skipRefresh เพื่อหลีกเลี่ยงการ refresh token ถ้ายังไม่มี session
-      // และ _silent เพื่อไม่แสดง error toast
-      const response = await axiosInstance.get('/auth/profile', {
-        _skipRefresh: true,
-        _silent: true
-      } as import('axios').AxiosRequestConfig & { _skipRefresh?: boolean; _silent?: boolean })
+      // เรียก Profile ตรงๆ เลย ถ้า 401 Interceptor จะทำงานให้เอง!
+      const response = await axiosInstance.get('/auth/profile') as ApiResponse<{ user: User }>
       if (response.success && response.data?.user) {
         user.value = response.data.user
         console.log('✅ Auth initialized')
@@ -102,7 +100,6 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken.value = null
     } finally {
       authReady.value = true
-      isInitializing = false
     }
   }
 
@@ -123,12 +120,14 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.post('/auth/login', credentials)
+      const response = await axiosInstance.post('/auth/login', credentials) as ApiResponse<{ accessToken: string; user: User }>
 
       if (response.success) {
         const data = response.data
-        accessToken.value = data.accessToken
-        user.value = data.user
+        if (data) {
+          accessToken.value = data.accessToken
+          user.value = data.user
+        }
         return { success: true }
       }
       return { success: false, error: 'เข้าสู่ระบบไม่สำเร็จ' }
@@ -168,7 +167,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.post('/auth/register', data)
+      const response = await axiosInstance.post('/auth/register', data) as ApiResponse
       if (response.success) {
         return { success: true, message: 'ลงทะเบียนสำเร็จ' }
       }
@@ -201,7 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
   const fetchProfile = async () => {
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.get('/auth/profile')
+      const response = await axiosInstance.get('/auth/profile') as ApiResponse<{ user: User }>
       if (response.data?.user) {
         user.value = response.data.user
       }
@@ -214,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.put('/auth/change-email', data)
+      const response = await axiosInstance.put('/auth/change-email', data) as ApiResponse
       if (response.success) {
          if (user.value) user.value.email = data.newEmail
          return { success: true }
@@ -229,7 +228,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.put('/auth/change-password', data)
+      const response = await axiosInstance.put('/auth/change-password', data) as ApiResponse
       if (response.success) {
         await logout()
         return { success: true }
@@ -244,7 +243,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     try {
       const axiosInstance = await getAxios()
-      const response = await axiosInstance.put('/auth/update-profile', data)
+      const response = await axiosInstance.put('/auth/update-profile', data) as ApiResponse<{ user: User }>
       if (response.success && response.data?.user) {
         user.value = { ...user.value, ...response.data.user }
         return { success: true }

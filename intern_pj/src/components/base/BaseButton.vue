@@ -27,7 +27,7 @@ const variantClass = computed(() => {
       return 'border border-neutral-300 text-neutral-700 bg-white hover:bg-slate-50 focus:ring-slate-400'
     case 'Submit':
     default:
-      return 'block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-primary-600 border border-transparent rounded-lg active:bg-primary-600 hover:bg-primary-700 focus:outline-none focus:shadow-outline-primary'
+      return 'px-4 py-2 text-sm font-medium leading-5 text-white bg-primary-600 border border-transparent rounded-lg transition-colors duration-150 active:bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500'
   }
 })
 </script>
