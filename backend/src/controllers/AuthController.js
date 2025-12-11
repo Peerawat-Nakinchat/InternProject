@@ -95,6 +95,7 @@ export const createAuthController = (deps = {}) => {
       clientInfo.userAgent || req.headers["user-agent"]
     );
     security.clearFailedLogins(ip);
+
     
     cookies.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     return ResponseHandler.success(res, { user, ...tokens }, "เข้าสู่ระบบสำเร็จ (2FA)");
