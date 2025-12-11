@@ -152,12 +152,111 @@
         @close="showOtpModal = false"
         @verified="onOtpVerified"
       />
+
+      <!-- MFA Verification Modal (ดีไซน์เหมือน OTP Email) -->
+      <Teleport to="body">
+        <Transition name="fade">
+          <div
+            v-if="showMfaModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            @click.self="closeMfaModal"
+          >
+            <div
+              class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all"
+            >
+              <!-- Header -->
+              <div class="bg-gradient-to-r from-purple-600 to-purple-800 px-6 py-5 text-center">
+                <div
+                  class="w-16 h-16 bg-white/20 rounded-full mx-auto mb-3 flex items-center justify-center"
+                >
+                  <i class="mdi mdi-shield-lock text-white text-3xl"></i>
+                </div>
+                <h2 class="text-white text-xl font-semibold">ยืนยันตัวตน (2FA)</h2>
+                <p class="text-purple-200 text-sm mt-1">กรุณากรอกรหัส OTP 6 หลักจาก</p>
+                <p class="text-white font-medium">แอป Authenticator</p>
+              </div>
+
+              <!-- Body -->
+              <div class="p-6">
+                <!-- OTP Input - 6 ช่องแยกกัน -->
+                <div class="flex justify-center gap-2 mb-6">
+                  <input
+                    v-for="(_, index) in 6"
+                    :key="index"
+                    ref="mfaOtpInputs"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="1"
+                    class="w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                    :class="mfaError ? 'border-red-400' : 'border-gray-300'"
+                    :value="mfaOtpDigits[index]"
+                    @input="onMfaOtpInput($event, index)"
+                    @keydown="onMfaOtpKeydown($event, index)"
+                    @paste="onMfaOtpPaste"
+                  />
+                </div>
+
+                <!-- Error Message -->
+                <Transition name="fade">
+                  <div v-if="mfaError" class="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <p class="text-red-600 text-sm text-center">
+                      <i class="mdi mdi-alert-circle mr-1"></i>
+                      {{ mfaError }}
+                    </p>
+                  </div>
+                </Transition>
+
+                <!-- Verify Button -->
+                <button
+                  type="button"
+                  class="w-full py-3 rounded-lg font-medium text-white transition-all flex items-center justify-center"
+                  :class="
+                    isLoading || mfaOtpCode.length !== 6
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-emerald-500 hover:bg-emerald-600 shadow-lg hover:shadow-xl'
+                  "
+                  :disabled="isLoading || mfaOtpCode.length !== 6"
+                  @click="handleMfaVerify"
+                >
+                  <span v-if="isLoading" class="flex items-center">
+                    <i class="mdi mdi-loading mdi-spin mr-2"></i>
+                    กำลังตรวจสอบ...
+                  </span>
+                  <span v-else>
+                    <i class="mdi mdi-check-circle mr-1"></i>
+                    ยืนยันรหัส OTP
+                  </span>
+                </button>
+
+                <!-- Info Box -->
+                <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p class="text-amber-700 text-xs text-center">
+                    <i class="mdi mdi-information-outline mr-1"></i>
+                    รหัส OTP จะเปลี่ยนทุก 30 วินาที
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="px-6 py-4 bg-gray-50 border-t text-center">
+                <button
+                  type="button"
+                  class="text-gray-500 hover:text-gray-700 text-sm"
+                  @click="closeMfaModal"
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </AuthLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, watch } from 'vue'
+import { reactive, ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { toast } from '@/utils/toast' // ✅ Toast Utility
@@ -206,6 +305,52 @@ const rateLimitMinutes = ref<number | undefined>(undefined)
 // OTP Modal states
 const showOtpModal = ref(false)
 const unverifiedEmail = ref('')
+
+// MFA Modal states
+const showMfaModal = ref(false)
+const mfaOtp = ref('')
+const mfaError = ref('')
+const mfaTempToken = ref('')
+const mfaOtpDigits = ref(['', '', '', '', '', ''])
+const mfaOtpInputs = ref<HTMLInputElement[]>([])
+const mfaOtpCode = computed(() => mfaOtpDigits.value.join(''))
+
+// MFA OTP Input Handlers
+const onMfaOtpInput = (event: Event, index: number) => {
+  const input = event.target as HTMLInputElement
+  const value = input.value.replace(/\D/g, '')
+  mfaOtpDigits.value[index] = value.slice(-1)
+
+  // Move to next input
+  if (value && index < 5) {
+    mfaOtpInputs.value[index + 1]?.focus()
+  }
+}
+
+const onMfaOtpKeydown = (event: KeyboardEvent, index: number) => {
+  // Backspace - move to previous input
+  if (event.key === 'Backspace' && !mfaOtpDigits.value[index] && index > 0) {
+    mfaOtpInputs.value[index - 1]?.focus()
+  }
+  // Arrow keys
+  if (event.key === 'ArrowLeft' && index > 0) {
+    mfaOtpInputs.value[index - 1]?.focus()
+  }
+  if (event.key === 'ArrowRight' && index < 5) {
+    mfaOtpInputs.value[index + 1]?.focus()
+  }
+}
+
+const onMfaOtpPaste = (event: ClipboardEvent) => {
+  event.preventDefault()
+  const pastedData = event.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 6) || ''
+  for (let i = 0; i < 6; i++) {
+    mfaOtpDigits.value[i] = pastedData[i] || ''
+  }
+  // Focus last filled input or first empty
+  const lastIndex = Math.min(pastedData.length, 5)
+  mfaOtpInputs.value[lastIndex]?.focus()
+}
 
 const openForgot = () => {
   showForgot.value = true
@@ -303,6 +448,16 @@ const handleLogin = async () => {
       password: form.password,
     })
 
+    // ✅ Handle MFA Required
+    if (result && 'mfaRequired' in result && result.mfaRequired && 'tempToken' in result) {
+      mfaTempToken.value = result.tempToken as string
+      mfaOtp.value = ''
+      mfaError.value = ''
+      showMfaModal.value = true
+      isLoading.value = false
+      return
+    }
+
     if (result?.success) {
       toast.success('เข้าสู่ระบบสำเร็จ!') // ✅ Toast success
       successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
@@ -357,6 +512,46 @@ const handleLogin = async () => {
     if (!successMessage.value) {
       isLoading.value = false
     }
+  }
+}
+
+// ✅ MFA Modal handlers
+const closeMfaModal = () => {
+  showMfaModal.value = false
+  mfaOtp.value = ''
+  mfaError.value = ''
+  mfaTempToken.value = ''
+  mfaOtpDigits.value = ['', '', '', '', '', '']
+}
+
+const handleMfaVerify = async () => {
+  mfaError.value = ''
+  isLoading.value = true
+
+  try {
+    const result = await authStore.verifyMfaLogin(mfaTempToken.value, mfaOtpCode.value)
+
+    if (result.success) {
+      closeMfaModal()
+      toast.success('เข้าสู่ระบบสำเร็จ!')
+      successMessage.value = 'เข้าสู่ระบบสำเร็จ กำลังเปลี่ยนหน้า...'
+
+      setTimeout(() => {
+        const redirectPath = (route.query.redirect as string) || '/'
+        router.push(redirectPath)
+      }, 1000)
+    } else {
+      mfaError.value = result.error || 'รหัส OTP ไม่ถูกต้อง'
+      // Reset OTP inputs on error
+      mfaOtpDigits.value = ['', '', '', '', '', '']
+      nextTick(() => {
+        mfaOtpInputs.value[0]?.focus()
+      })
+    }
+  } catch {
+    mfaError.value = 'เกิดข้อผิดพลาด กรุณาลองใหม่'
+  } finally {
+    isLoading.value = false
   }
 }
 

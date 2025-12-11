@@ -17,6 +17,8 @@ import {
   verifyMfaLogin,
   setupMfa,
   enableMfa,
+  disableMfa,
+  getMfaStatus,
 } from "../controllers/AuthController.js";
 import { sendOtp, verifyOtp, resendOtp } from "../controllers/OtpController.js";
 import passport from "passport";
@@ -60,6 +62,8 @@ export const createAuthRoutes = (deps = {}) => {
     verifyMfaLogin,
     setupMfa,
     enableMfa,
+    disableMfa,
+    getMfaStatus,
   };
   const authMw = deps.authMiddleware || { protect };
   const refreshMw = deps.refreshMiddleware || { refreshAccessToken };
@@ -216,7 +220,7 @@ export const createAuthRoutes = (deps = {}) => {
    */
   router.post(
     "/login/mfa",
-    authMw.protect,
+    // ✅ ไม่ใช้ authMw.protect - controller จะ verify tempToken เอง
     auditMw.auditLog(AUDIT_ACTIONS.AUTH.LOGIN_MFA, "USER", {
       severity: "INFO",
       category: "AUTH",
@@ -279,6 +283,70 @@ export const createAuthRoutes = (deps = {}) => {
       category: "SECURITY",
     }),
     controller.enableMfa,
+  );
+
+  /**
+   * @swagger
+   * /auth/mfa/disable:
+   *   post:
+   *     summary: Disable MFA (requires OTP verification)
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - otp
+   *             properties:
+   *               otp:
+   *                 type: string
+   *                 description: Current 6-digit Authenticator code
+   *     responses:
+   *       200:
+   *         description: MFA Disabled Successfully
+   *       401:
+   *         description: Invalid OTP
+   */
+  router.post(
+    "/mfa/disable",
+    authMw.protect,
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_DISABLE, "USER", {
+      severity: "HIGH",
+      category: "SECURITY",
+    }),
+    controller.disableMfa,
+  );
+
+  /**
+   * @swagger
+   * /auth/mfa/status:
+   *   get:
+   *     summary: Get MFA status for current user
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Returns MFA status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 mfa_enabled:
+   *                   type: boolean
+   */
+  router.get(
+    "/mfa/status",
+    authMw.protect,
+    auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_STATUS, "USER", {
+      category: "SECURITY",
+    }),
+    controller.getMfaStatus,
   );
 
   // Protected Logout

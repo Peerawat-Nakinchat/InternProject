@@ -15,9 +15,7 @@
             </h1>
           </div>
         </div>
-        <p class="text-neutral-500 text-sm mt-1">
-          กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ
-        </p>
+        <p class="text-neutral-500 text-sm mt-1">กรอกข้อมูลสำหรับการแก้ไขโปรไฟล์ในระบบของคุณ</p>
       </div>
 
       <div class="w-full max-w-full mx-auto p-4">
@@ -49,7 +47,9 @@
                 </label>
               </div>
 
-              <div class="flex flex-col md:flex-row items-center md:items-center gap-3 w-full md:w-auto flex-1">
+              <div
+                class="flex flex-col md:flex-row items-center md:items-center gap-3 w-full md:w-auto flex-1"
+              >
                 <div class="flex-1 text-left md:text-left">
                   <h1 class="text-2xl font-bold text-gray-900">
                     {{ form.full_name || userInitials }}
@@ -78,7 +78,9 @@
             <!-- ด้านซ้าย: เมนูหมวด -->
             <div class="hidden md:block md:w-1/3">
               <h3 class="text-lg font-semibold text-black tracking-wide mb-2">เกี่ยวกับ</h3>
-              <div class="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 shadow-inner">
+              <div
+                class="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 shadow-inner"
+              >
                 <button
                   v-for="section in sectionList"
                   :key="section.key"
@@ -103,7 +105,9 @@
                   </div>
                   <i
                     class="mdi text-lg"
-                    :class="activeSection === section.key ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+                    :class="
+                      activeSection === section.key ? 'mdi-chevron-right' : 'mdi-chevron-left'
+                    "
                   ></i>
                 </button>
               </div>
@@ -142,7 +146,10 @@
                       </span>
                       <div>
                         <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
-                        <p v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]" class="text-gray-600 text-sm">
+                        <p
+                          v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
+                          class="text-gray-600 text-sm"
+                        >
                           {{ displayStaticValue(field.key) }}
                         </p>
                       </div>
@@ -163,8 +170,27 @@
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
                       </button>
+                      <!-- MFA Toggle Button -->
+                      <template v-else-if="field.key === 'mfa'">
+                        <button
+                          v-if="!mfaEnabled"
+                          class="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                          @click="openMfaSetup()"
+                        >
+                          <i class="mdi mdi-shield-check mr-1"></i>เปิดใช้งาน
+                        </button>
+                        <button
+                          v-else
+                          class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                          @click="openMfaDisable()"
+                        >
+                          <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
+                        </button>
+                      </template>
                       <button
-                        v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
+                        v-else-if="
+                          isEditableField(field.key) && !editState[field.key as EditableKey]
+                        "
                         class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
                         @click="startEdit(field.key as EditableKey)"
                       >
@@ -174,11 +200,17 @@
                   </div>
 
                   <div
-                    v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
+                    v-if="
+                      field.key === 'email' || field.key === 'password'
+                        ? false
+                        : isEditableField(field.key) && editState[field.key as EditableKey]
+                    "
                     class="pl-12"
                   >
                     <div v-if="field.key === 'sex'">
-                      <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
+                      <label class="block text-sm font-medium text-neutral-700 mb-1">{{
+                        field.label
+                      }}</label>
                       <div class="relative">
                         <select
                           v-model="editableValues.sex"
@@ -211,7 +243,9 @@
                       >
                         ยกเลิก
                       </base-button>
-                      <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                      <base-button class="px-4" @click="saveField(field.key as EditableKey)"
+                        >บันทึก</base-button
+                      >
                     </div>
                   </div>
                 </div>
@@ -219,7 +253,9 @@
 
               <!-- ปุ่มสำหรับ mobile -->
               <div class="mt-6 flex gap-3 md:hidden">
-                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm"
+                  >รีเซ็ต</base-button
+                >
                 <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
               </div>
             </div>
@@ -249,60 +285,91 @@
                     :key="field.key"
                     class="py-3 flex flex-col gap-2"
                   >
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                          <span
-                            class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <span
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-r from-purple-600/10 to-[#1C244B]/10 text-[#1C244B]"
+                        >
+                          <i :class="field.icon" class="text-lg"></i>
+                        </span>
+                        <div>
+                          <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
+                          <p
+                            v-if="
+                              !isEditableField(field.key) || !editState[field.key as EditableKey]
+                            "
+                            class="text-gray-600 text-sm"
                           >
-                            <i :class="field.icon" class="text-lg"></i>
-                          </span>
-                          <div>
-                            <p class="text-sm font-semibold text-gray-800">{{ field.label }}</p>
-                            <p
-                              v-if="!isEditableField(field.key) || !editState[field.key as EditableKey]"
-                              class="text-gray-600 text-sm"
-                            >
-                              {{ displayStaticValue(field.key) }}
-                            </p>
-                          </div>
+                            {{ displayStaticValue(field.key) }}
+                          </p>
                         </div>
-
-                        <button
-                          v-if="field.key === 'email'"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="changeEmail()"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          v-else-if="field.key === 'password'"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="changePassword()"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey]"
-                          class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
-                          @click="startEdit(field.key as EditableKey)"
-                        >
-                          <i class="mdi mdi-pencil text-lg"></i>
-                        </button>
                       </div>
 
-                      <div
-                        v-if="field.key === 'email' || field.key === 'password' ? false : isEditableField(field.key) && editState[field.key as EditableKey]"
-                        class="pl-10"
+                      <button
+                        v-if="field.key === 'email'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changeEmail()"
                       >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <button
+                        v-else-if="field.key === 'password'"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="changePassword()"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                      <!-- MFA Toggle Button (Mobile) -->
+                      <template v-else-if="field.key === 'mfa'">
+                        <button
+                          v-if="!mfaEnabled"
+                          class="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                          @click="openMfaSetup()"
+                        >
+                          <i class="mdi mdi-shield-check mr-1"></i>เปิดใช้งาน
+                        </button>
+                        <button
+                          v-else
+                          class="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                          @click="openMfaDisable()"
+                        >
+                          <i class="mdi mdi-shield-off mr-1"></i>ปิด 2FA
+                        </button>
+                      </template>
+                      <button
+                        v-else-if="
+                          isEditableField(field.key) && !editState[field.key as EditableKey]
+                        "
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        @click="startEdit(field.key as EditableKey)"
+                      >
+                        <i class="mdi mdi-pencil text-lg"></i>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="
+                        field.key === 'email' || field.key === 'password'
+                          ? false
+                          : isEditableField(field.key) && editState[field.key as EditableKey]
+                      "
+                      class="pl-10"
+                    >
                       <div v-if="field.key === 'sex'">
-                        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ field.label }}</label>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">{{
+                          field.label
+                        }}</label>
                         <div class="relative">
                           <select
                             v-model="editableValues.sex"
                             class="w-full rounded-md px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm shadow-sm cursor-pointer transition-all hover:border-purple-400 focus:outline-none focus:border-purple-500"
                           >
                             <option value="" disabled>เลือกเพศ</option>
-                            <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+                            <option
+                              v-for="opt in genderOptions"
+                              :key="opt.value"
+                              :value="opt.value"
+                            >
                               {{ opt.label }}
                             </option>
                           </select>
@@ -328,7 +395,9 @@
                         >
                           ยกเลิก
                         </base-button>
-                        <base-button class="px-4" @click="saveField(field.key as EditableKey)">บันทึก</base-button>
+                        <base-button class="px-4" @click="saveField(field.key as EditableKey)"
+                          >บันทึก</base-button
+                        >
                       </div>
                     </div>
                   </div>
@@ -336,7 +405,9 @@
               </div>
 
               <div class="mt-4 flex gap-3">
-                <base-button class="w-full bg-neutral-400" @click="openResetConfirm">รีเซ็ต</base-button>
+                <base-button class="w-full bg-neutral-400" @click="openResetConfirm"
+                  >รีเซ็ต</base-button
+                >
                 <base-button class="w-full" @click="updateProfile">บันทึก</base-button>
               </div>
             </div>
@@ -344,7 +415,10 @@
         </div>
 
         <!-- Popup: เปลี่ยนอีเมล -->
-        <div v-if="showEmailPopup" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div
+          v-if="showEmailPopup"
+          class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        >
           <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">เปลี่ยนอีเมล</h2>
 
@@ -371,10 +445,7 @@
                 @click="closeEmailPopup"
                 >ยกเลิก</base-button
               >
-              <base-button
-                class="w-full"
-                @click="openEmailConfirm"
-                :disabled="authStore.isLoading"
+              <base-button class="w-full" @click="openEmailConfirm" :disabled="authStore.isLoading"
                 >บันทึก</base-button
               >
             </div>
@@ -509,14 +580,99 @@
               >
                 ยกเลิก
               </base-button>
-              <base-button
-                class="flex-1"
-                @click="openPasswordConfirm"
-                :disabled="!isPasswordValid"
-              >
+              <base-button class="flex-1" @click="openPasswordConfirm" :disabled="!isPasswordValid">
                 บันทึก
               </base-button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popup: MFA Setup -->
+      <div
+        v-if="showMfaSetupPopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="mdi mdi-shield-check text-purple-600 mr-2"></i>
+            ตั้งค่า Two-Factor Authentication (2FA)
+          </h2>
+
+          <div v-if="mfaQrCode" class="text-center mb-4">
+            <p class="text-sm text-gray-600 mb-3">
+              สแกน QR Code นี้ด้วยแอป Google Authenticator หรือ Authy
+            </p>
+            <img
+              :src="mfaQrCode"
+              alt="MFA QR Code"
+              class="mx-auto border rounded-lg p-2 bg-white"
+            />
+            <p class="text-xs text-gray-500 mt-2">
+              หรือใส่รหัสด้วยตนเอง:
+              <code class="bg-gray-100 px-2 py-1 rounded">{{ mfaSecret }}</code>
+            </p>
+          </div>
+
+          <BaseInput v-model="mfaOtp" label="รหัส OTP 6 หลัก" placeholder="123456" class="mb-2" />
+
+          <p v-if="mfaError" class="text-red-500 text-sm mb-2">
+            <i class="mdi mdi-alert-circle mr-1"></i>{{ mfaError }}
+          </p>
+
+          <div class="flex gap-3">
+            <base-button
+              class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+              @click="closeMfaSetupPopup"
+            >
+              ยกเลิก
+            </base-button>
+            <base-button
+              class="flex-1"
+              @click="confirmEnableMfa"
+              :disabled="!mfaOtp || mfaOtp.length !== 6"
+            >
+              เปิดใช้งาน 2FA
+            </base-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popup: MFA Disable -->
+      <div
+        v-if="showMfaDisablePopup"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      >
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="mdi mdi-shield-off text-red-600 mr-2"></i>
+            ปิดใช้งาน Two-Factor Authentication
+          </h2>
+
+          <p class="text-sm text-gray-600 mb-4">
+            กรุณากรอกรหัส OTP จากแอป Authenticator เพื่อยืนยันการปิด 2FA
+          </p>
+
+          <BaseInput v-model="mfaOtp" label="รหัส OTP 6 หลัก" placeholder="123456" class="mb-2" />
+
+          <p v-if="mfaError" class="text-red-500 text-sm mb-2">
+            <i class="mdi mdi-alert-circle mr-1"></i>{{ mfaError }}
+          </p>
+
+          <div class="flex gap-3">
+            <base-button
+              class="flex-1 bg-neutral-400 text-neutral-700 hover:bg-neutral-500"
+              @click="closeMfaDisablePopup"
+            >
+              ยกเลิก
+            </base-button>
+            <base-button
+              class="flex-1 bg-red-600 hover:bg-red-700"
+              @click="confirmDisableMfa"
+              :disabled="!mfaOtp || mfaOtp.length !== 6"
+            >
+              ปิด 2FA
+            </base-button>
           </div>
         </div>
       </div>
@@ -584,7 +740,7 @@ type EditableKey =
   | 'user_integrate_url'
   | 'email'
   | 'password'
-type FieldKey = EditableKey | 'role'
+type FieldKey = EditableKey | 'role' | 'mfa'
 const formEditableKeys = [
   'name',
   'surname',
@@ -595,7 +751,7 @@ const formEditableKeys = [
   'user_integrate_provider_id',
   'user_integrate_url',
 ] as const
-type FormEditableKey = typeof formEditableKeys[number]
+type FormEditableKey = (typeof formEditableKeys)[number]
 type FieldConfig = {
   key: FieldKey
   label: string
@@ -675,8 +831,26 @@ const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
   security: [
     { key: 'email', label: 'เปลี่ยนอีเมล', icon: 'mdi mdi-email-outline', type: 'email' },
     { key: 'password', label: 'เปลี่ยนรหัสผ่าน', icon: 'mdi mdi-lock-reset', type: 'password' },
-    { key: 'user_integrate_provider_id', label: 'Provider ID', icon: 'mdi mdi-identifier', placeholder: 'Provider ID', type: 'text' },
-    { key: 'user_integrate_url', label: 'Integration URL', icon: 'mdi mdi-link-variant', placeholder: 'https://...', type: 'url',},
+    {
+      key: 'mfa' as FieldKey,
+      label: 'Two-Factor Authentication (2FA)',
+      icon: 'mdi mdi-shield-check',
+      editable: false,
+    },
+    {
+      key: 'user_integrate_provider_id',
+      label: 'Provider ID',
+      icon: 'mdi mdi-identifier',
+      placeholder: 'Provider ID',
+      type: 'text',
+    },
+    {
+      key: 'user_integrate_url',
+      label: 'Integration URL',
+      icon: 'mdi mdi-link-variant',
+      placeholder: 'https://...',
+      type: 'url',
+    },
   ],
 }
 
@@ -704,6 +878,15 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
+
+// MFA State
+const showMfaSetupPopup = ref(false)
+const showMfaDisablePopup = ref(false)
+const mfaQrCode = ref('')
+const mfaSecret = ref('')
+const mfaOtp = ref('')
+const mfaError = ref('')
+const mfaEnabled = ref(false)
 
 // =====================================================
 // COMPUTED & HELPERS
@@ -860,6 +1043,9 @@ const displayStaticValue = (fieldKey: FieldKey) => {
       5: 'ผู้ตรวจสอบ (Auditor)',
     }
     return roles[authStore.user?.role_id || 3] || 'ผู้ใช้'
+  }
+  if (fieldKey === 'mfa') {
+    return mfaEnabled.value ? '✅ เปิดใช้งานแล้ว' : '❌ ยังไม่เปิดใช้งาน'
   }
   return displayValue(fieldKey)
 }
@@ -1160,7 +1346,95 @@ const openPasswordConfirm = async () => {
 }
 
 // =====================================================
-// 4. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
+// 4. FLOW: MFA (Two-Factor Authentication)
+// =====================================================
+
+// Load MFA status on mount
+const loadMfaStatus = async () => {
+  const result = await authStore.getMfaStatus()
+  mfaEnabled.value = result.mfa_enabled || false
+}
+
+// Open MFA Setup popup
+const openMfaSetup = async () => {
+  mfaOtp.value = ''
+  mfaError.value = ''
+
+  const result = await authStore.setupMfa()
+  if (result.success) {
+    mfaQrCode.value = result.qrCodeUrl || ''
+    mfaSecret.value = result.secret || ''
+    showMfaSetupPopup.value = true
+  } else {
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: result.error || 'ไม่สามารถตั้งค่า 2FA ได้',
+    })
+  }
+}
+
+const closeMfaSetupPopup = () => {
+  showMfaSetupPopup.value = false
+  mfaQrCode.value = ''
+  mfaSecret.value = ''
+  mfaOtp.value = ''
+  mfaError.value = ''
+}
+
+const confirmEnableMfa = async () => {
+  mfaError.value = ''
+
+  const result = await authStore.enableMfa(mfaOtp.value)
+  if (result.success) {
+    mfaEnabled.value = true
+    closeMfaSetupPopup()
+    Swal.fire({
+      icon: 'success',
+      title: 'เปิดใช้งาน 2FA สำเร็จ',
+      text: 'บัญชีของคุณได้รับการป้องกันด้วย Two-Factor Authentication แล้ว',
+      timer: 2500,
+      showConfirmButton: false,
+    })
+  } else {
+    mfaError.value = result.error || 'รหัส OTP ไม่ถูกต้อง'
+  }
+}
+
+// Open MFA Disable popup
+const openMfaDisable = () => {
+  mfaOtp.value = ''
+  mfaError.value = ''
+  showMfaDisablePopup.value = true
+}
+
+const closeMfaDisablePopup = () => {
+  showMfaDisablePopup.value = false
+  mfaOtp.value = ''
+  mfaError.value = ''
+}
+
+const confirmDisableMfa = async () => {
+  mfaError.value = ''
+
+  const result = await authStore.disableMfa(mfaOtp.value)
+  if (result.success) {
+    mfaEnabled.value = false
+    closeMfaDisablePopup()
+    Swal.fire({
+      icon: 'success',
+      title: 'ปิด 2FA สำเร็จ',
+      text: 'Two-Factor Authentication ถูกปิดแล้ว',
+      timer: 2500,
+      showConfirmButton: false,
+    })
+  } else {
+    mfaError.value = result.error || 'รหัส OTP ไม่ถูกต้อง'
+  }
+}
+
+// =====================================================
+// 5. FLOW: UPDATE PROFILE (บันทึกข้อมูลหลัก)
 // =====================================================
 const updateProfile = async () => {
   // 1. ตรวจสอบข้อมูลเบื้องต้น
@@ -1227,8 +1501,7 @@ const updateProfile = async () => {
         throw new Error(apiResult.error || 'เกิดข้อผิดพลาดในการบันทึก')
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+      const message = err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
       Swal.fire({
         icon: 'error',
         title: 'บันทึกไม่สำเร็จ',
@@ -1248,6 +1521,7 @@ onMounted(async () => {
     console.log('🔄 Fetching fresh profile data...')
     await authStore.fetchProfile() // ดึงข้อมูลล่าสุด
     fillFormData() // นำข้อมูลใส่ Form
+    await loadMfaStatus() // โหลดสถานะ MFA
     console.log('✅ Profile updated from API')
   } catch (error) {
     console.error('❌ Failed to fetch profile:', error)
