@@ -63,15 +63,13 @@ export const signRefreshToken = (payload, expiresIn = null) => {
 // ==========================================
 export const verifyAccessToken = (token) => {
     try {
-        if (!process.env.ACCESS_TOKEN_SECRET) {
-            throw new Error('ACCESS_TOKEN_SECRET not configured');
-        }
+        if (!process.env.ACCESS_TOKEN_SECRET) throw new Error('ACCESS_TOKEN_SECRET not configured');
         return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     } catch (error) {
         if (error.name !== 'TokenExpiredError') {
             logger.error('❌ Token verification failed:', error.message);
         }
-        return null;
+        throw error; 
     }
 };
 

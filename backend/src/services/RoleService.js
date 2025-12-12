@@ -1,12 +1,12 @@
 // src/services/RoleService.js
 import { RoleModel } from "../models/RoleModel.js";
 import { ROLE_ID, ROLE_HIERARCHY, ROLE_PERMISSIONS } from "../constants/roles.js";
+import { createError } from "../middleware/errorHandler.js"; 
 
 const getAllRoles = async () => {
   const roles = await RoleModel.findAllActive();
   const rolesJson = roles.map(r => r.toJSON());
 
-  // Logic: การเรียงลำดับยังคงเป็นหน้าที่ของ Service
   rolesJson.sort((a, b) => {
     const levelA = ROLE_HIERARCHY[a.role_id] || 0;
     const levelB = ROLE_HIERARCHY[b.role_id] || 0;
@@ -18,7 +18,9 @@ const getAllRoles = async () => {
 
 const getRoleById = async (roleId) => {
   const role = await RoleModel.findById(roleId);
-  if (!role) throw new Error(`Role ID ${roleId} not found`);
+  if (!role) {
+      throw createError.notFound(`ไม่พบ Role ID ${roleId}`);
+  }
   return role;
 };
 

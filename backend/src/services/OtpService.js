@@ -17,9 +17,24 @@ export const createOtpService = (deps = {}) => {
   };
 
   /**
-   * ✅ Check rate limit
+   * ✅ Check rate limit using Redis
    */
   const checkRateLimit = async (email, purpose) => {
+    const limitKey = `ratelimit:otp:${purpose}:${email}`;
+    const limitCount = 3;
+    const limitWindow = 300; 
+
+    const currentCount = await redisClient.incr(limitKey);
+
+    if (currentCount === 1) {
+      await redisClient.expire(limitKey, limitWindow);
+    }
+
+    if (currentCount > limitCount) {
+      const ttl = await redisClient.ttl(limitKey);
+      throw createError.tooManyRequests(`ขอ OTP บ่อยเกินไป กรุณารอ ${Math.ceil(ttl / 60)} นาที`);
+    }
+
     return true; 
   };
 
@@ -27,16 +42,15 @@ export const createOtpService = (deps = {}) => {
    * ✅ Send OTP -> Store in Redis
    */
   const sendOtp = async (email, purpose = "email_verification") => {
+    // 1. Check Rate Limit
+    await checkRateLimit(email, purpose);
+
     const otpCode = generateNumericOTP(6);
-    const ttl = 300; // 5 นาที (หน่วยวินาที)
-    
-    // Redis Key Design
+    const ttl = 300; 
     const redisKey = `otp:${purpose}:${email}`;
 
-    // ✅ Atomic Set + Expire
     await redisClient.setEx(redisKey, ttl, otpCode);
 
-    // Prepare Email
     const subjectMap = {
       email_verification: "รหัส OTP ยืนยันอีเมล",
       change_email: "รหัส OTP ยืนยันการเปลี่ยนอีเมล",
@@ -45,9 +59,12 @@ export const createOtpService = (deps = {}) => {
     const expiresAt = new Date(Date.now() + ttl * 1000);
     const subject = subjectMap[purpose] || "รหัส OTP";
     const html = generateOtpEmailHtml(otpCode, purpose, expiresAt);
-
-    // Send Email
-    await mailer(email, subject, html);
+    try {
+        await mailer(email, subject, html);
+    } catch (error) {
+        logger.error(`Failed to send OTP email to ${email}:`, error);
+        throw createError.serviceUnavailable("ไม่สามารถส่งอีเมลได้ในขณะนี้");
+    }
 
     logger.info(`📧 OTP sent to ${email} for ${purpose} (TTL: ${ttl}s)`);
 
@@ -68,8 +85,7 @@ export const createOtpService = (deps = {}) => {
     }
 
     const redisKey = `otp:${purpose}:${email}`;
-    
-    const storedOtp = await redisClient.getDel(redisKey);
+    const storedOtp = await redisClient.get(redisKey);
 
     if (!storedOtp) {
       throw createError.badRequest("รหัส OTP หมดอายุหรือไม่ถูกต้อง");
@@ -79,6 +95,7 @@ export const createOtpService = (deps = {}) => {
       throw createError.badRequest("รหัส OTP ไม่ถูกต้อง");
     }
 
+    await redisClient.del(redisKey);
 
     return {
       success: true,
@@ -91,11 +108,12 @@ export const createOtpService = (deps = {}) => {
    * ✅ Resend OTP
    */
   const resendOtp = async (email, purpose = "email_verification") => {
+    // การ Resend ก็ต้องติด Rate Limit เดียวกัน
     return await sendOtp(email, purpose);
   };
 
   /**
-   * ✅ Generate HTML
+   * ✅ Generate HTML 
    */
   const generateOtpEmailHtml = (otpCode, purpose, expiresAt) => {
     const purposeText =

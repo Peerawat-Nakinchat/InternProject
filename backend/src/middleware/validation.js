@@ -169,6 +169,19 @@ export const validateMemberRole = [
   handleValidationErrors,
 ];
 
+/**
+ * Otp validation
+ */
+export const validateOtp = [
+  body('otp')
+    .notEmpty().withMessage('กรุณาระบุรหัส OTP')
+    .isString().withMessage('รูปแบบ OTP ไม่ถูกต้อง')
+    .trim()
+    .isLength({ min: 6, max: 6 }).withMessage('รหัส OTP ต้องมี 6 หลัก')
+    .isNumeric().withMessage('รหัส OTP ต้องเป็นตัวเลขเท่านั้น'),
+  handleValidationErrors,
+];
+
 export default {
   validateRegister,
   validateLogin,
@@ -180,5 +193,6 @@ export default {
   validateEmail,
   validateCompanyCreate,
   validateMemberRole,
+  validateOtp,
   handleValidationErrors,
 };

@@ -23,9 +23,6 @@ const generateMfaSecret = async (userId, email) => {
   // otpauth://totp/{issuer}:{accountName}?secret={secret}&issuer={issuer}
   const otpauth = authenticator.keyuri(email, serviceName, secret);
 
-  console.log("🔐 Generated otpauth URL:", otpauth);
-  console.log("🔐 Secret:", secret);
-
   const qrCodeUrl = await QRCode.toDataURL(otpauth);
   await UserModel.saveMfaSecret(userId, secret);
 

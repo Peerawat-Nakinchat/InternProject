@@ -35,6 +35,7 @@ import {
   validateChangeEmail,
   validateChangePassword,
   validateUpdateProfile,
+  validateOtp
 } from "../middleware/validation.js";
 import {
   sendOtpLimiter,
@@ -81,6 +82,7 @@ export const createAuthRoutes = (deps = {}) => {
     validateChangeEmail,
     validateChangePassword,
     validateUpdateProfile,
+    validateOtp
   };
   const auditMw = deps.auditMiddleware || { auditLog, auditChange };
   const userModel = deps.UserModel || UserModel;
@@ -226,7 +228,7 @@ export const createAuthRoutes = (deps = {}) => {
    */
   router.post(
     "/login/mfa",
-    // ✅ ไม่ใช้ authMw.protect - controller จะ verify tempToken เอง
+    valMw.validateOtp,
     auditMw.auditLog(AUDIT_ACTIONS.AUTH.LOGIN_MFA, "USER", {
       severity: "INFO",
       category: "AUTH",
@@ -284,6 +286,7 @@ export const createAuthRoutes = (deps = {}) => {
   router.post(
     "/mfa/enable",
     authMw.protect,
+    valMw.validateOtp,
     auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_ENABLE, "USER", {
       severity: "HIGH",
       category: "SECURITY",
@@ -320,6 +323,7 @@ export const createAuthRoutes = (deps = {}) => {
   router.post(
     "/mfa/disable",
     authMw.protect,
+    valMw.validateOtp,
     auditMw.auditLog(AUDIT_ACTIONS.AUTH.MFA_DISABLE, "USER", {
       severity: "HIGH",
       category: "SECURITY",
