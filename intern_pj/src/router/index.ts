@@ -26,9 +26,9 @@ const router = createRouter({
           component: () => import('@/pages/CompanyPage.vue')
         },
         {
-          path: 'isoPage',
-          name: 'isoPage',
-          component: () => import('@/pages/isoPage.vue')
+          path: 'ModulePage',
+          name: 'ModulePage',
+          component: () => import('@/pages/ModulePage.vue')
         }
       ]
     },
