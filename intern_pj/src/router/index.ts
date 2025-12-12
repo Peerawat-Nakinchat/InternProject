@@ -26,14 +26,9 @@ const router = createRouter({
           component: () => import('@/pages/CompanyPage.vue')
         },
         {
-          path: 'ModulePage',
-          name: 'ModulePage',
-          component: () => import('@/pages/ModulePage.vue')
-        },
-        {
           path: 'system_config/module',
           name: 'system-config-module',
-          component: () => import('@/pages/SystemConfigModulePage.vue')
+          component: () => import('@/pages/Module/ModulePage.vue')
         },
         {
           path: 'system_config/menu',

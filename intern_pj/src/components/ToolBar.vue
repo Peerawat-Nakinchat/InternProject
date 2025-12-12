@@ -10,7 +10,7 @@
     <!-- Right side -->
     <div class="flex items-center gap-3">
       <!-- ISO Page Actions -->
-      <template v-if="route.name === 'ModulePage'">
+      <template v-if="route.name === 'system-config-module'">
         <!-- Filter Dropdown -->
         <div class="relative" ref="filterDropdownRef">
           <button
