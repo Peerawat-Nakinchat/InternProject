@@ -17,6 +17,7 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 export const createAuthController = (deps = {}) => {
   const service = deps.service || AuthService;
   const mfaService = deps.mfaService || MfaService;
+  const logger = deps.logger || securityLogger;
   const security = deps.security || { recordFailedLogin, clearFailedLogins };
   const cookies = deps.cookies || {
     setAuthCookies,
