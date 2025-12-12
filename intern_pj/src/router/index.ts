@@ -28,7 +28,12 @@ const router = createRouter({
         {
           path: 'ModulePage',
           name: 'ModulePage',
-          component: () => import('@/pages/ModulePage.vue')
+          component: () => import('@/pages/Module/ModulePage.vue')
+        },
+        {
+          path: 'ModuleManagement',
+          name: 'ModuleManagement',
+          component: () => import('@/pages/Module/ModuleManagementPage.vue')
         }
       ]
     },

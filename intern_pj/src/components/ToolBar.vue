@@ -52,7 +52,7 @@
 
         <!-- Add Button -->
         <button
-          @click="$emit('add-module')"
+          @click="dispatchModuleAction('add')"
           class="action-btn bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
           title="เพิ่ม Module"
         >
@@ -62,7 +62,7 @@
 
         <!-- Edit Button -->
         <button
-          @click="$emit('edit-module')"
+          @click="dispatchModuleAction('edit')"
           class="action-btn bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300"
           title="แก้ไข Module"
         >
@@ -72,7 +72,7 @@
 
         <!-- Delete Button -->
         <button
-          @click="$emit('delete-module')"
+          @click="dispatchModuleAction('delete')"
           class="action-btn bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
           title="ลบ Module"
         >
@@ -82,7 +82,7 @@
 
         <!-- Profile/Details Button -->
         <button
-          @click="$emit('view-module')"
+          @click="dispatchModuleAction('view')"
           class="action-btn bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
           title="ดูรายละเอียด"
         >
@@ -165,6 +165,13 @@ const selectFilter = (value: string) => {
   filterStatus.value = value
   isFilterOpen.value = false
   emit('filter-change', value)
+  // Also dispatch window event for pages that listen
+  window.dispatchEvent(new CustomEvent('filter-change', { detail: value }))
+}
+
+// Dispatch module action events to window for ModulePage to listen
+const dispatchModuleAction = (action: string) => {
+  window.dispatchEvent(new CustomEvent('module-action', { detail: action }))
 }
 
 // Close dropdown when clicking outside
