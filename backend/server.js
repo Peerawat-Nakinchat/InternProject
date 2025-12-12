@@ -48,6 +48,7 @@ import companyRoutes from "./src/routes/companyRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
 import auditLogRoutes from "./src/routes/auditLogRoutes.js";
+import moduleRoutes from "./src/routes/moduleRoutes.js";
 
 // Invitation
 import { startQueueSystem } from "./src/services/queueService.js";
@@ -207,6 +208,7 @@ app.use("/api/company", companyRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/modules", moduleRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

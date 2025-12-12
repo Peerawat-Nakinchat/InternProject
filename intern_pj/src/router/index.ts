@@ -24,6 +24,11 @@ const router = createRouter({
           path: 'company',
           name: 'company',
           component: () => import('@/pages/CompanyPage.vue')
+        },
+        {
+          path: 'isoPage',
+          name: 'isoPage',
+          component: () => import('@/pages/isoPage.vue')
         }
       ]
     },
@@ -77,11 +82,11 @@ router.beforeEach(async (to, from, next) => {
   await authStore.waitForAuthReady()
 
   const isAuthenticated = authStore.isAuthenticated
-  console.log('🛡️ Router guard:', { 
-    path: to.path, 
-    requiresAuth: to.meta.requiresAuth, 
+  console.log('🛡️ Router guard:', {
+    path: to.path,
+    requiresAuth: to.meta.requiresAuth,
     isAuthenticated,
-    user: authStore.user?.email 
+    user: authStore.user?.email
   })
 
   if (to.meta.requiresAuth && !isAuthenticated) {
