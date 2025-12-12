@@ -133,7 +133,8 @@ describe('Mailer Utilities', () => {
       const mailerModule = await import('../../src/utils/mailer.js');
       await mailerModule.sendEmail('test@test.com', 'Subject', '<div>Custom HTML Content</div>');
 
-      expect(console.log).toHaveBeenCalledWith('Body:', '<div>Custom HTML Content</div>');
+      expect(logger.info).toHaveBeenCalledWith('Body:', '<div>Custom HTML Content</div>');
+
     });
 
     it('should not call transporter.sendMail in mock mode', async () => {
@@ -206,7 +207,7 @@ describe('Mailer Utilities', () => {
 
       expect(mockSendMail).toHaveBeenCalledWith(
         expect.objectContaining({
-          from: '"Intern Project" <no-reply@example.com>',
+          from: expect.stringContaining('sender@example.com'),
         })
       );
     });

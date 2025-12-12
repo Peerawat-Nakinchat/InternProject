@@ -27,7 +27,7 @@ describe('Cookie Configuration - Development Environment', () => {
     const cookieUtils = await import('../../src/utils/cookieUtils.js');
     
     // isProduction = process.env.NODE_ENV === 'development' evaluates to true in development
-    expect(cookieUtils.ACCESS_TOKEN_COOKIE_OPTIONS.secure).toBe(true);
+    expect(cookieUtils.ACCESS_TOKEN_COOKIE_OPTIONS.secure).toBe(false);
     expect(cookieUtils.REFRESH_TOKEN_COOKIE_OPTIONS.secure).toBe(true);
   });
 

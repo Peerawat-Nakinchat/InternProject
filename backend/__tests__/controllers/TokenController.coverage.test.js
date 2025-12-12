@@ -1,48 +1,136 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { createTokenController } from '../../src/controllers/TokenController.js';
+/**
+ * TokenController Coverage Tests
+ * Targets 100% Code Coverage
+ */
 
-describe('TokenController (Full Coverage)', () => {
-  let controller, mockAuthService, mockReq, mockRes, mockNext;
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// ✅ 1. Setup Absolute Paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const tokenControllerPath = path.resolve(__dirname, '../../src/controllers/TokenController.js');
+const authServicePath = path.resolve(__dirname, '../../src/services/AuthService.js');
+const responseHandlerPath = path.resolve(__dirname, '../../src/utils/responseHandler.js');
+const errorHandlerPath = path.resolve(__dirname, '../../src/middleware/errorHandler.js');
+
+// ✅ 2. Mock Modules
+await jest.unstable_mockModule(authServicePath, () => ({
+  default: {}
+}));
+
+await jest.unstable_mockModule(responseHandlerPath, () => ({
+  ResponseHandler: {
+    success: jest.fn(),
+    error: jest.fn((res, msg, code) => res.status(code).json({ error: msg }))
+  }
+}));
+
+await jest.unstable_mockModule(errorHandlerPath, () => ({
+  asyncHandler: (fn) => fn // Pass-through
+}));
+
+// ✅ 3. Import Module Under Test
+const { createTokenController, default: DefaultController } = await import(tokenControllerPath);
+const { ResponseHandler } = await import(responseHandlerPath);
+
+describe('TokenController', () => {
+  let mockAuthService;
+  let controller;
+  let req;
+  let res;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthService = { refreshToken: jest.fn() };
+
+    // Prepare Dependencies
+    mockAuthService = {
+      refreshToken: jest.fn()
+    };
+
+    // Inject Dependencies
     controller = createTokenController({ authService: mockAuthService });
-    mockReq = { body: {}, query: {} };
-    mockRes = { json: jest.fn() };
-    mockNext = jest.fn();
+
+    // Mock Req/Res
+    req = {
+      body: {},
+      cookies: {},
+    };
+
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+  });
+
+  describe('Initialization', () => {
+    it('should use default dependencies if none provided', () => {
+      // Test default parameter: (deps = {}) -> const authService = deps.authService || AuthService;
+      const defaultCtrl = createTokenController();
+      expect(defaultCtrl).toBeDefined();
+      expect(defaultCtrl.createNewAccessToken).toBeDefined();
+      expect(DefaultController).toBeDefined();
+    });
   });
 
   describe('createNewAccessToken', () => {
-    it('should accept token from req.body', async () => {
-      mockReq.body.token = 'body-token';
-      mockAuthService.refreshToken.mockResolvedValue({ accessToken: 'new' });
+    it('should return 401 if no token provided (cookies undefined, body empty)', async () => {
+      // Test Branch: token is undefined (req.cookies is undefined)
+      req.cookies = undefined;
+      req.body = {};
 
-      await controller.createNewAccessToken(mockReq, mockRes, mockNext);
+      await controller.createNewAccessToken(req, res);
+
+      expect(ResponseHandler.error).toHaveBeenCalledWith(res, "Refresh Token Required", 401);
+    });
+
+    it('should return 401 if no token provided (cookies empty, body empty)', async () => {
+      // Test Branch: token is undefined (req.cookies exists but empty)
+      req.cookies = {};
+      req.body = {};
+
+      await controller.createNewAccessToken(req, res);
+
+      expect(ResponseHandler.error).toHaveBeenCalledWith(res, "Refresh Token Required", 401);
+    });
+
+    it('should retrieve token from cookies (Priority 1)', async () => {
+      // Test Branch: req.cookies.refreshToken exists
+      req.cookies = { refreshToken: 'cookie-token' };
+      req.body = { token: 'body-token' }; // Should be ignored in favor of cookie
+
+      const mockResult = { accessToken: 'new-access' };
+      mockAuthService.refreshToken.mockResolvedValue(mockResult);
+
+      await controller.createNewAccessToken(req, res);
+
+      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('cookie-token');
+      expect(ResponseHandler.success).toHaveBeenCalledWith(res, mockResult);
+    });
+
+    it('should retrieve token from body if cookie missing (Priority 2)', async () => {
+      // Test Branch: req.cookies.refreshToken missing, use req.body.token
+      req.cookies = {};
+      req.body = { token: 'body-token' };
+
+      const mockResult = { accessToken: 'new-access' };
+      mockAuthService.refreshToken.mockResolvedValue(mockResult);
+
+      await controller.createNewAccessToken(req, res);
 
       expect(mockAuthService.refreshToken).toHaveBeenCalledWith('body-token');
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(ResponseHandler.success).toHaveBeenCalledWith(res, mockResult);
     });
 
-    it('should accept token from req.query if body is empty', async () => {
-      mockReq.body = {}; // Empty body
-      mockReq.query.token = 'query-token'; // Token in query
-      mockAuthService.refreshToken.mockResolvedValue({ accessToken: 'new' });
-
-      await controller.createNewAccessToken(mockReq, mockRes, mockNext);
-
-      // Verify it picked up the query token
-      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('query-token');
-    });
-
-    it('should call next() on service error', async () => {
-      mockReq.body.token = 'bad';
-      const error = new Error('Invalid');
+    it('should handle service errors', async () => {
+      req.body = { token: 'invalid-token' };
+      const error = new Error('Invalid Token');
       mockAuthService.refreshToken.mockRejectedValue(error);
 
-      await controller.createNewAccessToken(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
+      // เนื่องจากเราใช้ asyncHandler แบบ pass-through เราจึง expect ให้มัน throw error ออกมา
+      await expect(controller.createNewAccessToken(req, res)).rejects.toThrow('Invalid Token');
     });
   });
 });

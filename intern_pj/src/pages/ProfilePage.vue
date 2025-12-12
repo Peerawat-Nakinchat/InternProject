@@ -246,7 +246,7 @@
 
                         v-else-if="isEditableField(field.key) && !editState[field.key as EditableKey] && !(isCompanyField(field.key) && !isCompanyOwner)"
                        
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
 
                         @click="startEdit(field.key as EditableKey)"
                       >
@@ -432,14 +432,14 @@
 
                       <button
                         v-if="field.key === 'email'"
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="changeEmail()"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
                       </button>
                       <button
                         v-else-if="field.key === 'password'"
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="changePassword()"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
@@ -474,7 +474,7 @@
                         v-else-if="
                           isEditableField(field.key) && !editState[field.key as EditableKey]
                         "
-                        class="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+                        class="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-500"
                         @click="startEdit(field.key as EditableKey)"
                       >
                         <i class="mdi mdi-pencil text-lg"></i>
@@ -1022,6 +1022,8 @@ type ProfileForm = {
   company_integrate_provider: string
   company_integrate_passcode: string
   company_integrate_url: string
+  user_integrate_provider_id: string
+  user_integrate_url: string
 }
 
 const form = reactive<ProfileForm>({
@@ -1042,6 +1044,8 @@ const form = reactive<ProfileForm>({
   company_integrate_provider: '',
   company_integrate_passcode: '',
   company_integrate_url: '',
+  user_integrate_provider_id: '',
+  user_integrate_url: '',
 })
 
 // =====================================================
@@ -1065,6 +1069,8 @@ type EditableKey =
   | 'company_integrate_provider'
   | 'company_integrate_passcode'
   | 'company_integrate_url'
+  | 'user_integrate_provider_id'
+  | 'user_integrate_url'
 type FieldKey = EditableKey | 'role' | 'mfa' | 'trusted_devices'
 
 const formEditableKeys = [
@@ -1075,13 +1081,14 @@ const formEditableKeys = [
   'user_address_2',
   'user_address_3',
   'company_name',
-  'company_position',
   'company_address_1',
   'company_address_2',
   'company_address_3',
   'company_integrate_provider',
   'company_integrate_passcode',
   'company_integrate_url',
+  'user_integrate_provider_id',
+  'user_integrate_url',
 ] as const
 type FormEditableKey = (typeof formEditableKeys)[number]
 type FieldConfig = {
@@ -1145,6 +1152,8 @@ const editableValues = reactive<Record<EditableKey, string>>({
   company_integrate_provider: '',
   company_integrate_passcode: '',
   company_integrate_url: '',
+  user_integrate_provider_id: '',
+  user_integrate_url: '',
 })
 
 const editState = reactive<Record<EditableKey, boolean>>({
@@ -1164,6 +1173,8 @@ const editState = reactive<Record<EditableKey, boolean>>({
   company_integrate_provider: false,
   company_integrate_passcode: false,
   company_integrate_url: false,
+  user_integrate_provider_id: false,
+  user_integrate_url: false,
 })
 
 const sectionFields: Record<SectionKey, Array<FieldConfig>> = {
@@ -1435,8 +1446,6 @@ const getGenderLabel = (value: string) => {
   return opt?.label || ''
 }
 
-const nonEditableFields: EditableKey[] = ['company_position']
-
 // Validate URL format when user fills Integration URL (ต้องมีโดเมน เช่น .com)
 const isValidUrl = (value: string): boolean => {
   try {
@@ -1450,7 +1459,7 @@ const isValidUrl = (value: string): boolean => {
 }
 
 // Helper to check if a key is in formEditableKeys
-const isFormEditableKey = (key: any): key is FormEditableKey => {
+const isFormEditableKey = (key: FieldKey | EditableKey | string): key is FormEditableKey => {
   return formEditableKeys.includes(key as FormEditableKey)
 }
 

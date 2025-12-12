@@ -1,107 +1,151 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { createMemberController } from '../../src/controllers/MemberController.js';
+/**
+ * MemberController Coverage Tests
+ */
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// 1. Setup Paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const controllerPath = path.resolve(__dirname, '../../src/controllers/MemberController.js');
+const errorHandlerPath = path.resolve(__dirname, '../../src/middleware/errorHandler.js');
+
+// 2. Mock Error Handler
+class CustomError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+await jest.unstable_mockModule(errorHandlerPath, () => ({
+  // Mock asyncHandler to behave like real middleware: catch error and pass to next
+  asyncHandler: (fn) => async (req, res, next) => {
+    try {
+      await fn(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  },
+  createError: {
+    badRequest: jest.fn((msg) => new CustomError(msg, 400)),
+    unauthorized: jest.fn((msg) => new CustomError(msg, 401)),
+  }
+}));
+
+// 3. Import Controller
+const { createMemberController } = await import(controllerPath);
+
+// Mock Service
+const mockMemberService = {
+  getMembers: jest.fn(),
+  inviteMember: jest.fn(),
+  changeMemberRole: jest.fn(),
+  removeMember: jest.fn(),
+  transferOwner: jest.fn()
+};
 
 describe('MemberController (Full Coverage)', () => {
-  let controller, mockService, mockReq, mockRes, mockNext;
+  let controller;
+  let req, res, next;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockService = {
-      inviteMember: jest.fn(),
-      getMembers: jest.fn(),
-      changeMemberRole: jest.fn(),
-      removeMember: jest.fn(),
-      transferOwner: jest.fn()
-    };
-    controller = createMemberController(mockService);
+    controller = createMemberController(mockMemberService);
     
-    // Default req structure
-    mockReq = {
-      user: { user_id: 'u1', current_org_id: 'org-context', org_role_id: 1 },
-      body: {},
-      params: {},
-      query: {}
+    req = {
+      params: { orgId: 'org-123' },
+      user: { 
+        user_id: 'user-1',
+        current_org_id: 'org-default',
+        org_role_id: 'admin'
+      },
+      body: {}
     };
-    mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-    mockNext = jest.fn();
+    
+    res = {
+      json: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+    
+    next = jest.fn();
   });
 
   describe('listMembers', () => {
-    it('should use orgId from params if provided (ignoring user context)', async () => {
-      mockReq.params.orgId = 'org-param';
-      mockService.getMembers.mockResolvedValue([]);
-
-      await controller.listMembers(mockReq, mockRes, mockNext);
-
-      // Verify service called with 'org-param'
-      expect(mockService.getMembers).toHaveBeenCalledWith('org-param', 1);
+    it('should use orgId from params if provided', async () => {
+      req.params.orgId = 'org-param';
+      await controller.listMembers(req, res, next);
+      expect(mockMemberService.getMembers).toHaveBeenCalledWith('org-param', 'admin');
     });
 
-    it('should fallback to user.current_org_id if params.orgId is missing', async () => {
-      mockReq.params.orgId = undefined; // Empty params
-      mockService.getMembers.mockResolvedValue([]);
-
-      await controller.listMembers(mockReq, mockRes, mockNext);
-
-      // Verify service called with 'org-context'
-      expect(mockService.getMembers).toHaveBeenCalledWith('org-context', 1);
+    it('should fallback to user.current_org_id if params missing', async () => {
+      req.params.orgId = undefined;
+      await controller.listMembers(req, res, next);
+      expect(mockMemberService.getMembers).toHaveBeenCalledWith('org-default', 'admin');
     });
 
     it('should throw BadRequest if no orgId found anywhere', async () => {
-      mockReq.params.orgId = undefined;
-      mockReq.user.current_org_id = undefined;
-
-      await controller.listMembers(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({
-        message: expect.stringMatching(/required/i)
+      req.params.orgId = undefined;
+      req.user.current_org_id = undefined;
+      
+      await controller.listMembers(req, res, next);
+      
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        message: expect.stringMatching(/required/i),
+        statusCode: 400
       }));
     });
   });
 
   describe('inviteMemberToCompany', () => {
     it('should invite successfully', async () => {
-      mockReq.body = { invitedUserId: 'u2', roleId: 3 };
-      mockService.inviteMember.mockResolvedValue({ id: 'm1' });
-
-      await controller.inviteMemberToCompany(mockReq, mockRes, mockNext);
-
-      expect(mockService.inviteMember).toHaveBeenCalled();
-      expect(mockRes.status).toHaveBeenCalledWith(201);
+      req.body = { invitedUserId: 'u2', roleId: 'viewer' };
+      mockMemberService.inviteMember.mockResolvedValue({ status: 'ok' });
+      
+      await controller.inviteMemberToCompany(req, res, next);
+      
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalled();
     });
 
     it('should handle service errors via next()', async () => {
+      req.body = { invitedUserId: 'u2', roleId: 'viewer' };
       const error = new Error('Conflict');
-      mockService.inviteMember.mockRejectedValue(error);
+      mockMemberService.inviteMember.mockRejectedValue(error);
       
-      await controller.inviteMemberToCompany(mockReq, mockRes, mockNext);
-      expect(mockNext).toHaveBeenCalledWith(error);
+      await controller.inviteMemberToCompany(req, res, next);
+      
+      // ✅ This should now pass because asyncHandler mock catches and calls next
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 
-  // Test branch coverage for other methods similarly
   describe('changeMemberRole', () => {
     it('should change role successfully', async () => {
-      mockReq.params.memberId = 'm1';
-      mockReq.body = { newRoleId: 2 };
-      await controller.changeMemberRole(mockReq, mockRes, mockNext);
-      expect(mockRes.json).toHaveBeenCalled();
+      req.params.memberId = 'm1';
+      req.body.newRoleId = 'editor';
+      await controller.changeMemberRole(req, res, next);
+      expect(mockMemberService.changeMemberRole).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalled();
     });
   });
 
   describe('removeMember', () => {
     it('should remove member successfully', async () => {
-      mockReq.params.memberId = 'm1';
-      await controller.removeMember(mockReq, mockRes, mockNext);
-      expect(mockRes.json).toHaveBeenCalled();
+      req.params.memberId = 'm1';
+      await controller.removeMember(req, res, next);
+      expect(mockMemberService.removeMember).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalled();
     });
   });
 
   describe('transferOwner', () => {
     it('should transfer owner successfully', async () => {
-      mockReq.body = { newOwnerUserId: 'u2' };
-      await controller.transferOwner(mockReq, mockRes, mockNext);
-      expect(mockRes.json).toHaveBeenCalled();
+      req.body.newOwnerUserId = 'new-owner';
+      await controller.transferOwner(req, res, next);
+      expect(mockMemberService.transferOwner).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalled();
     });
   });
 });

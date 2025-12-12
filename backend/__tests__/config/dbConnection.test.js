@@ -157,7 +157,7 @@ describe('dbConnection Configuration - Branch Coverage', () => {
       const env = process.env.NODE_ENV || 'development';
       const dbConfig = config[env];
       
-      expect(dbConfig.logging).toBe(false);
+      expect(dbConfig.logging).toEqual(expect.any(Function));
     });
 
     it('should select production config when NODE_ENV is production', async () => {

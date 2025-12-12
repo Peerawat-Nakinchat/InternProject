@@ -1,4 +1,3 @@
-// test/routes/authRoutes.coverage.test.js
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
@@ -14,6 +13,11 @@ describe('Auth Routes (100% Coverage)', () => {
       controller: {
         registerUser: jest.fn((req, res) => res.send()),
         loginUser: jest.fn((req, res) => res.send()),
+        // ✅ Fix: Add likely missing MFA methods
+        loginMfa: jest.fn((req, res) => res.send()),
+        setupMfa: jest.fn((req, res) => res.send()),
+        verifyMfa: jest.fn((req, res) => res.send()),
+        
         logoutUser: jest.fn((req, res) => res.send()),
         forgotPassword: jest.fn((req, res) => res.send()),
         verifyResetToken: jest.fn((req, res) => res.send()),
@@ -35,7 +39,9 @@ describe('Auth Routes (100% Coverage)', () => {
         validateResetPassword: jest.fn((req, res, next) => next()),
         validateUpdateProfile: jest.fn((req, res, next) => next()),
         validateChangeEmail: jest.fn((req, res, next) => next()),
-        validateChangePassword: jest.fn((req, res, next) => next())
+        validateChangePassword: jest.fn((req, res, next) => next()),
+        // Add MFA validation mock if needed
+        validateMfa: jest.fn((req, res, next) => next()),
       },
       auditMiddleware: {
         auditLog: jest.fn(() => (req, res, next) => next()),

@@ -1,8 +1,7 @@
 /**
  * Logger Environment Configuration Tests
  * Target: Branch Coverage ≥ 96%
- * 
- * Tests logger configuration for different NODE_ENV values
+ * * Tests logger configuration for different NODE_ENV values
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -52,6 +51,9 @@ describe('Logger Environment Configuration', () => {
             colorize: jest.fn(() => 'colorize-format'),
             printf: jest.fn((fn) => fn),
             json: jest.fn(() => 'json-format'),
+            // ✅ เพิ่มตรงนี้
+            errors: jest.fn(() => 'errors-format'),
+            splat: jest.fn(() => 'splat-format'),
           },
           transports: {
             Console: jest.fn(),
@@ -86,6 +88,9 @@ describe('Logger Environment Configuration', () => {
             colorize: jest.fn(() => 'colorize-format'),
             printf: jest.fn((fn) => fn),
             json: jest.fn(() => 'json-format'),
+            // ✅ เพิ่มตรงนี้
+            errors: jest.fn(() => 'errors-format'),
+            splat: jest.fn(() => 'splat-format'),
           },
           transports: {
             Console: jest.fn(),
@@ -118,6 +123,9 @@ describe('Logger Environment Configuration', () => {
             colorize: jest.fn(() => 'colorize-format'),
             printf: jest.fn((fn) => fn),
             json: jest.fn(() => 'json-format'),
+            // ✅ เพิ่มตรงนี้
+            errors: jest.fn(() => 'errors-format'),
+            splat: jest.fn(() => 'splat-format'),
           },
           transports: {
             Console: jest.fn(),
@@ -150,6 +158,9 @@ describe('Logger Environment Configuration', () => {
             colorize: jest.fn(() => 'colorize-format'),
             printf: jest.fn((fn) => fn),
             json: jest.fn(() => 'json-format'),
+            // ✅ เพิ่มตรงนี้
+            errors: jest.fn(() => 'errors-format'),
+            splat: jest.fn(() => 'splat-format'),
           },
           transports: {
             Console: jest.fn(),

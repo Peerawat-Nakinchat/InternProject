@@ -5,29 +5,20 @@
 
 export default {
   testEnvironment: 'node',
-  
-  // ES Modules support
   transform: {},
-  extensionsToTreatAsEsm: [],
-  
+
   roots: ['<rootDir>/__tests__', '<rootDir>/src'],
   moduleDirectories: ['node_modules', '<rootDir>/__tests__/__mocks__'],
 
-  // Test file patterns
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.spec.js'
   ],
-  
-  // Coverage configuration
+
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
-  
-  // Coverage thresholds (ISO 27001 requirement: comprehensive testing)
-  // Note: Unit tests cover isolated modules; integration tests (requiring DB) would increase coverage
-  // Current thresholds reflect unit test coverage for core utilities and middleware
-  // Files with 100% coverage: cookieUtils.js, token.js (core security modules)
+
   coverageThreshold: {
     global: {
       branches: 0,
@@ -36,44 +27,26 @@ export default {
       statements: 0
     }
   },
-  
-  // Files to collect coverage from
-  // Note: Files with immediate side effects on import (DB connections, passport setup) 
-  // are excluded as they cannot be properly unit tested without mocking the entire module system
+
   collectCoverageFrom: [
     'src/**/*.js',
-    '!src/config/loadEnv.js',      // Runs dotenv.config() on import
-    '!src/config/swaggerConfig.js', // Configuration file
-    '!src/config/dbConnection.js', // Creates DB connection and calls testConnection() on import
-    '!src/config/passport.js',     // Registers passport strategy on import
+    '!src/config/loadEnv.js',
+    '!src/config/swaggerConfig.js',
+    '!src/config/dbConnection.js',
+    '!src/config/passport.js',
     '!**/node_modules/**'
   ],
-  
-  // Setup files
+
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.js'],
 
   moduleNameMapper: {
     '^isomorphic-dompurify$': '<rootDir>/__tests__/__mocks__/isomorphic-dompurify.js'
   },
-  
-  // REMOVED moduleNameMapper to allow jest.unstable_mockModule to work properly
-  // The .js extension is handled by Node.js ESM resolution
-  
-  // Test timeout (30 seconds for async operations)
+
   testTimeout: 30000,
-  
-  // Verbose output
   verbose: true,
-  
-  // Force exit after tests complete
   forceExit: true,
-  
-  // Detect open handles
   detectOpenHandles: true,
-  
-  // Clear mocks between tests
   clearMocks: true,
-  
-  // Restore mocks after each test
   restoreMocks: true
 };

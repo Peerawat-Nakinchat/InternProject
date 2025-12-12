@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>1/1</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>1/1</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -135,9 +135,39 @@
 <a name='L70'></a><a href='#L70'>70</a>
 <a name='L71'></a><a href='#L71'>71</a>
 <a name='L72'></a><a href='#L72'>72</a>
-<a name='L73'></a><a href='#L73'>73</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -209,84 +239,99 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/constants/AuditActions.js
 &nbsp;
-export const AUDIT_ACTIONS = {
+export const AUDIT_ACTIONS = <span class="cstat-no" title="statement not covered" >{</span>
   // ==================== AUTHENTICATION ====================
   AUTH: {
-    REGISTER: 'USER_REGISTER',
-    LOGIN: 'USER_LOGIN',
-    LOGOUT: 'USER_LOGOUT',
-    LOGOUT_ALL: 'LOGOUT_ALL',
-    FORGOT_PASSWORD: 'FORGOT_PASSWORD',
-    VERIFY_RESET_TOKEN: 'VERIFY_RESET_TOKEN',
-    RESET_PASSWORD: 'RESET_PASSWORD',
-    GOOGLE_OAUTH_START: 'GOOGLE_OAUTH_START',
-    GOOGLE_OAUTH_CALLBACK: 'GOOGLE_OAUTH_CALLBACK',
-    REFRESH_TOKEN: 'REFRESH_TOKEN',
-    REFRESH_TOKEN_ALT: 'REFRESH_TOKEN_ALT',
-    GET_PROFILE: 'GET_PROFILE',
-    UPDATE_PROFILE: 'UPDATE_PROFILE',
-    CHANGE_EMAIL: 'CHANGE_EMAIL',
-    CHANGE_PASSWORD: 'CHANGE_PASSWORD'
+    REGISTER: "USER_REGISTER",
+    LOGIN: "USER_LOGIN",
+    LOGIN_MFA: "USER_LOGIN_MFA",
+    LOGOUT: "USER_LOGOUT",
+    LOGOUT_ALL: "LOGOUT_ALL",
+    FORGOT_PASSWORD: "FORGOT_PASSWORD",
+    VERIFY_RESET_TOKEN: "VERIFY_RESET_TOKEN",
+    RESET_PASSWORD: "RESET_PASSWORD",
+    GOOGLE_OAUTH_START: "GOOGLE_OAUTH_START",
+    GOOGLE_OAUTH_CALLBACK: "GOOGLE_OAUTH_CALLBACK",
+    REFRESH_TOKEN: "REFRESH_TOKEN",
+    REFRESH_TOKEN_ALT: "REFRESH_TOKEN_ALT",
+    GET_PROFILE: "GET_PROFILE",
+    UPDATE_PROFILE: "UPDATE_PROFILE",
+    CHANGE_EMAIL: "CHANGE_EMAIL",
+    CHANGE_PASSWORD: "CHANGE_PASSWORD",
+    // MFA Actions
+    MFA_SETUP: "MFA_SETUP",
+    MFA_ENABLE: "MFA_ENABLE",
+    MFA_DISABLE: "MFA_DISABLE",
+    MFA_STATUS: "MFA_STATUS",
   },
 &nbsp;
   // ==================== COMPANY MANAGEMENT ====================
   COMPANY: {
-    CREATE: 'CREATE_COMPANY',
-    VIEW_MY_COMPANIES: 'VIEW_MY_COMPANIES',
-    VIEW_DETAIL: 'VIEW_COMPANY_DETAIL',
-    UPDATE: 'UPDATE_COMPANY',
-    DELETE: 'DELETE_COMPANY'
+    CREATE: "CREATE_COMPANY",
+    VIEW_MY_COMPANIES: "VIEW_MY_COMPANIES",
+    VIEW_DETAIL: "VIEW_COMPANY_DETAIL",
+    UPDATE: "UPDATE_COMPANY",
+    DELETE: "DELETE_COMPANY",
   },
 &nbsp;
   // ==================== MEMBER MANAGEMENT ====================
   MEMBER: {
-    VIEW_ALL: 'VIEW_MEMBERS',
-    INVITE: 'INVITE_MEMBER',
-    CHANGE_ROLE: 'CHANGE_MEMBER_ROLE',
-    REMOVE: 'REMOVE_MEMBER',
-    TRANSFER_OWNERSHIP: 'TRANSFER_OWNERSHIP'
+    VIEW_ALL: "VIEW_MEMBERS",
+    INVITE: "INVITE_MEMBER",
+    CHANGE_ROLE: "CHANGE_MEMBER_ROLE",
+    REMOVE: "REMOVE_MEMBER",
+    TRANSFER_OWNERSHIP: "TRANSFER_OWNERSHIP",
   },
 &nbsp;
   // ==================== INVITATIONS ====================
   INVITATION: {
-    SEND: 'SEND_INVITATION',
-    RESEND: 'RESEND_INVITATION',
-    ACCEPT: 'ACCEPT_INVITATION',
-    CANCEL: 'CANCEL_INVITATION'
+    SEND: "SEND_INVITATION",
+    RESEND: "RESEND_INVITATION",
+    ACCEPT: "ACCEPT_INVITATION",
+    CANCEL: "CANCEL_INVITATION",
+  },
+&nbsp;
+  // ==================== OTP VERIFICATION ====================
+  OTP: {
+    SEND: "SEND_OTP",
+    VERIFY: "VERIFY_OTP",
+    RESEND: "RESEND_OTP",
+    VERIFY_FAILED: "VERIFY_OTP_FAILED",
   },
 &nbsp;
   // ==================== AUDIT LOG ACCESS (ADMIN) ====================
   AUDIT_ACCESS: {
-    VIEW_MY_ACTIVITY: 'VIEW_MY_ACTIVITY',
-    VIEW_ALL: 'VIEW_ALL_LOGS',
-    VIEW_RECENT: 'VIEW_RECENT_LOGS',
-    VIEW_SECURITY: 'VIEW_SECURITY_LOGS',
-    VIEW_FAILED: 'VIEW_FAILED_LOGS',
-    VIEW_SUSPICIOUS: 'VIEW_SUSPICIOUS_LOGS',
-    VIEW_STATS: 'VIEW_LOG_STATS',
-    EXPORT: 'EXPORT_LOGS',
-    VIEW_USER_LOGS: 'VIEW_USER_LOGS',
-    VIEW_CORRELATED: 'VIEW_CORRELATED_LOGS',
-    CLEANUP: 'CLEANUP_LOGS'
+    VIEW_MY_ACTIVITY: "VIEW_MY_ACTIVITY",
+    VIEW_ALL: "VIEW_ALL_LOGS",
+    VIEW_RECENT: "VIEW_RECENT_LOGS",
+    VIEW_SECURITY: "VIEW_SECURITY_LOGS",
+    VIEW_FAILED: "VIEW_FAILED_LOGS",
+    VIEW_SUSPICIOUS: "VIEW_SUSPICIOUS_LOGS",
+    VIEW_STATS: "VIEW_LOG_STATS",
+    EXPORT: "EXPORT_LOGS",
+    VIEW_USER_LOGS: "VIEW_USER_LOGS",
+    VIEW_CORRELATED: "VIEW_CORRELATED_LOGS",
+    CLEANUP: "CLEANUP_LOGS",
   },
 &nbsp;
   // ==================== SYSTEM &amp; SECURITY ====================
   SYSTEM: {
-    STARTUP: 'SYSTEM_STARTUP',
-    SHUTDOWN: 'SYSTEM_SHUTDOWN',
-    BACKUP: 'DATABASE_BACKUP',
-    SUSPICIOUS_ACTIVITY: 'SUSPICIOUS_ACTIVITY',
-    FAILED_LOGIN: 'FAILED_LOGIN',
-    OTHER: 'OTHER'
-  }
-};</pre></td></tr></table></pre>
+    STARTUP: "SYSTEM_STARTUP",
+    SHUTDOWN: "SYSTEM_SHUTDOWN",
+    BACKUP: "DATABASE_BACKUP",
+    SUSPICIOUS_ACTIVITY: "SUSPICIOUS_ACTIVITY",
+    FAILED_LOGIN: "FAILED_LOGIN",
+    OTHER: "OTHER",
+  },
+};
+&nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-03T09:34:32.971Z
+                at 2025-12-11T11:09:34.799Z
             </div>
         <script src="../prettify.js"></script>
         <script>
