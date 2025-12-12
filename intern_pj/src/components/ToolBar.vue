@@ -91,6 +91,90 @@
         </button>
       </template>
 
+
+  <!-- ของUserManagement.vue -->
+       <template v-if="route.name === 'UserManagement'">
+        <!-- Filter Dropdown -->
+        <div class="relative" ref="filterDropdownRef">
+          <button
+            @click="toggleFilterDropdown"
+            class="flex items-center justify-center gap-2 h-9 w-28 px-3 py-2 rounded-lg shadow-md font-medium text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all duration-300 ease-in-out"
+          >
+            <i class="mdi mdi-filter-variant text-lg"></i>
+            <span class="text-sm font-semibold">{{ filterStatusLabel }}</span>
+            <i
+              class="mdi mdi-chevron-down text-sm transition-transform duration-200"
+              :class="{ 'rotate-180': isFilterOpen }"
+            ></i>
+          </button>
+
+          <!-- Filter Dropdown Panel -->
+          <transition name="dropdown">
+            <div
+              v-if="isFilterOpen"
+              class="absolute left-0 mt-2 w-28 bg-[#1C244B] border border-purple-500/40 rounded-lg shadow-2xl z-50 overflow-hidden"
+            >
+              <div class="py-1">
+                <button
+                  v-for="option in filterOptions"
+                  :key="option.value"
+                  @click="selectFilter(option.value)"
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-purple-600/40 transition-colors cursor-pointer"
+                  :class="{ 'bg-purple-600/30': filterStatus === option.value }"
+                >
+                  <span class="w-2 h-2 rounded-full" :class="option.dotClass"></span>
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <!-- Divider -->
+        <div class="h-6 w-px bg-white/20"></div>
+
+        <!-- Add Button -->
+        <button
+          @click="dispatchModuleAction('add')"
+          class="action-btn bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
+          title="เพิ่ม Module"
+        >
+          <i class="mdi mdi-plus text-lg"></i>
+          <span class="hidden lg:inline ml-2 text-sm font-semibold">เพิ่ม</span>
+        </button>
+
+        <!-- Edit Button -->
+        <button
+          @click="dispatchModuleAction('edit')"
+          class="action-btn bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300"
+          title="แก้ไข Module"
+        >
+          <i class="mdi mdi-pencil-outline text-lg"></i>
+          <span class="hidden lg:inline ml-2 text-sm font-semibold">แก้ไข</span>
+        </button>
+
+        <!-- Delete Button -->
+        <button
+          @click="dispatchModuleAction('delete')"
+          class="action-btn bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
+          title="ลบ Module"
+        >
+          <i class="mdi mdi-trash-can-outline text-lg"></i>
+          <span class="hidden lg:inline ml-2 text-sm font-semibold">ลบ</span>
+        </button>
+
+        <!-- Profile/Details Button -->
+        <button
+          @click="dispatchModuleAction('view')"
+          class="action-btn bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
+          title="สิทธิ์ของเมนู"
+        >
+          <i class="mdi mdi-eye-outline text-lg"></i>
+          <span class="hidden lg:inline ml-2 text-sm font-semibold">สิทธิ์ของเมนู</span>
+        </button>
+      </template>
+
+
       <!-- Invite Button (Home/Company page) -->
       <transition name="invite-button">
         <button
@@ -98,7 +182,8 @@
             ((companyStore.selectedCompany?.role_id === 1 ||
               companyStore.selectedCompany?.role_id === 2) &&
               route.name === 'home') ||
-            route.name === 'company'
+            route.name === 'company' || 
+            route.name === 'UserManagement'
           "
           @click="isInviteModalOpen = true"
           class="flex items-center justify-center h-9 w-9 md:w-auto md:px-4 md:py-2 lg:h-10 lg:px-4 lg:py-2 rounded-full md:rounded-lg shadow-md font-medium text-white bg-linear-to-r from-[#682DB5] to-[#8F3ED0] hover:from-[#7F39D1] hover:to-[#9B5DE5] transition-all duration-300 ease-in-out overflow-hidden"

@@ -14,7 +14,7 @@ class ApiClient {
     this.baseURL = baseURL
   }
 
-  private async request<T = any>(
+  async request<T = any>(
     endpoint: string,
     options: RequestInit = {},
     retryCount: number = 0 // ✅ เพิ่ม retry counter เพื่อป้องกัน infinite loop

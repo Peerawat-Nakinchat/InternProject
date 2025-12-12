@@ -44,6 +44,11 @@ const router = createRouter({
           path: 'module/work',
           name: 'ModuleWork',
           component: () => import('@/pages/Module/ModuleWorkPage.vue')
+        },
+        {
+          path: '/UserManagement',
+          name: 'UserManagement',
+          component: () => import('@/pages/UserManagement.vue'),
         }
       ]
     },

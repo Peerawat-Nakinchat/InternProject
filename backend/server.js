@@ -209,6 +209,7 @@ app.use("/api/invitations", invitationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/modules", moduleRoutes);
+app.use("/api/members", userRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
