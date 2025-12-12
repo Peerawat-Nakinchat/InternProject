@@ -93,15 +93,19 @@ const fetchMembers = async () => {
   }
 }
 
-// กำหนด columns สำหรับ DataTable
+const showCheckbox = computed(() => {
+  const roleId = selectedCompany.value?.role_id
+  return roleId === 1 || roleId === 2
+})
+
 const colDefs: TableColumn[] = [
   {
     headerName: 'ชื่อ - นามสกุล',
     field: 'fullname',
     minWidth: 200,
     flex: 2,
-    checkboxSelection: true, // ✅ ให้มี checkbox ที่คอลัมน์นี้
-    headerCheckboxSelection: true, // ✅ ให้มี checkbox ที่หัวตาราง
+    checkboxSelection: showCheckbox.value, // ✅ เงื่อนไข
+    headerCheckboxSelection: showCheckbox.value,
     pinned: 'left',
   },
   { headerName: 'อีเมล', field: 'email', minWidth: 220, flex: 2 },
@@ -153,8 +157,8 @@ const handleToolbarEvent = (event: CustomEvent) => {
     case 'delete':
       // handle delete
       break
-    case 'view':
-      // handle view
+    case 'menuRights':
+      // handle menuRights
       break
   }
 }

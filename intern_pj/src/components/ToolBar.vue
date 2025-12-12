@@ -93,7 +93,7 @@
 
 
   <!-- ของUserManagement.vue -->
-       <template v-if="route.name === 'UserManagement'">
+       <template v-if="route.name === 'UserManagement' && (companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2)">
         <!-- Filter Dropdown -->
         <div class="relative" ref="filterDropdownRef">
           <button
@@ -107,7 +107,6 @@
               :class="{ 'rotate-180': isFilterOpen }"
             ></i>
           </button>
-
           <!-- Filter Dropdown Panel -->
           <transition name="dropdown">
             <div
@@ -129,10 +128,8 @@
             </div>
           </transition>
         </div>
-
         <!-- Divider -->
         <div class="h-6 w-px bg-white/20"></div>
-
         <!-- Add Button -->
         <button
           @click="dispatchModuleAction('add')"
@@ -165,7 +162,7 @@
 
         <!-- Profile/Details Button -->
         <button
-          @click="dispatchModuleAction('view')"
+          @click="dispatchModuleAction('menuRights')"
           class="action-btn bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
           title="สิทธิ์ของเมนู"
         >
@@ -179,11 +176,9 @@
       <transition name="invite-button">
         <button
           v-if="
-            ((companyStore.selectedCompany?.role_id === 1 ||
-              companyStore.selectedCompany?.role_id === 2) &&
-              route.name === 'home') ||
-            route.name === 'company' || 
-            route.name === 'UserManagement'
+            (route.name === 'home' && (companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2)) ||
+            (route.name === 'company' && (companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2)) ||
+            (route.name === 'UserManagement' && (companyStore.selectedCompany?.role_id === 1 || companyStore.selectedCompany?.role_id === 2))
           "
           @click="isInviteModalOpen = true"
           class="flex items-center justify-center h-9 w-9 md:w-auto md:px-4 md:py-2 lg:h-10 lg:px-4 lg:py-2 rounded-full md:rounded-lg shadow-md font-medium text-white bg-linear-to-r from-[#682DB5] to-[#8F3ED0] hover:from-[#7F39D1] hover:to-[#9B5DE5] transition-all duration-300 ease-in-out overflow-hidden"
