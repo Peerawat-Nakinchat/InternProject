@@ -29,6 +29,16 @@ const router = createRouter({
           path: 'ModulePage',
           name: 'ModulePage',
           component: () => import('@/pages/ModulePage.vue')
+        },
+        {
+          path: 'system_config/module',
+          name: 'system-config-module',
+          component: () => import('@/pages/SystemConfigModulePage.vue')
+        },
+        {
+          path: 'system_config/menu',
+          name: 'system-config-menu',
+          component: () => import('@/pages/SystemConfigMenuPage.vue')
         }
       ]
     },
