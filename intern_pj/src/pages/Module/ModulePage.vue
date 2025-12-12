@@ -31,17 +31,22 @@
         search-placeholder="🔍 ค้นหา Module..."
         @grid-ready="onGridReady"
         @row-clicked="onRowClicked"
+        @selection-changed="onSelectionChanged"
       />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { GridApi } from 'ag-grid-community'
 
 import DataTable, { type TableColumn } from '@/components/base/DataTable.vue'
 import { moduleService, type Module } from '@/services/moduleService'
+import { toast } from '@/utils/toast' // ✅ ใช้ Toast Utility เหมือนหน้าอื่นๆ
+
+const router = useRouter()
 
 const railState = ref(true)
 const toggleRail = () => {
@@ -65,6 +70,7 @@ interface ModuleRow {
 const gridApi = ref<GridApi | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+const selectedModule = ref<ModuleRow | null>(null)
 
 // กำหนด columns สำหรับหน้านี้
 const colDefs: TableColumn[] = [
@@ -79,7 +85,7 @@ const colDefs: TableColumn[] = [
   { headerName: 'ชื่อ Module', field: 'module_name', minWidth: 300, flex: 2 },
   { headerName: 'รายละเอียด', field: 'description', minWidth: 400, flex: 3 },
   { headerName: 'เวอร์ชัน', field: 'standard_version', minWidth: 50, flex: 1 },
-  { headerName: 'วันที่สร้าง', field: 'create_date', minWidth: 50 ,flex: 1 },
+  { headerName: 'วันที่สร้าง', field: 'create_date', minWidth: 50, flex: 1 },
 ]
 
 // ----------------- Data -----------------
@@ -102,9 +108,34 @@ const formatDate = (dateString: string): string => {
   }
 }
 
-// Format is_active สำหรับแสดงผล
-const formatActive = (isActive: string): string => {
-  return isActive === 't' ? 'ใช้งาน' : 'ปิดใช้งาน'
+// Format is_active สำหรับแสดงผล (รองรับทั้ง boolean และ string)
+const formatActive = (isActive: string | boolean): string => {
+  // Handle boolean true/false
+  if (isActive === true || isActive === 't' || String(isActive) === 'true') {
+    return 'ใช้งาน'
+  }
+  return 'ปิดใช้งาน'
+}
+
+// เก็บข้อมูลทั้งหมดไว้สำหรับ filter
+const allModules = ref<ModuleRow[]>([])
+const currentFilter = ref<string>('all')
+
+// Apply filter
+const applyFilter = () => {
+  if (currentFilter.value === 'all') {
+    rowData.value = [...allModules.value]
+  } else if (currentFilter.value === 'active') {
+    rowData.value = allModules.value.filter((m) => m.is_active === 'ใช้งาน')
+  } else if (currentFilter.value === 'inactive') {
+    rowData.value = allModules.value.filter((m) => m.is_active === 'ปิดใช้งาน')
+  }
+}
+
+// Handle filter change from ToolBar
+const handleFilterChange = (filter: string) => {
+  currentFilter.value = filter
+  applyFilter()
 }
 
 // ดึงข้อมูลจาก API
@@ -119,7 +150,7 @@ const loadModules = async () => {
     })
 
     // Transform data สำหรับแสดงใน table
-    rowData.value = result.modules.map((module: Module) => ({
+    allModules.value = result.modules.map((module: Module) => ({
       module_id: module.module_id,
       module_code: module.module_code,
       module_name: module.module_name,
@@ -129,6 +160,9 @@ const loadModules = async () => {
       create_date: formatDate(module.create_date),
       update_date: formatDate(module.update_date),
     }))
+
+    // Apply current filter
+    applyFilter()
   } catch (err) {
     console.error('Error loading modules:', err)
     error.value = 'ไม่สามารถโหลดข้อมูล Module ได้ กรุณาลองใหม่อีกครั้ง'
@@ -143,10 +177,100 @@ const onGridReady = (api: GridApi) => {
 
 const onRowClicked = (data: Record<string, unknown>) => {
   const moduleData = data as unknown as ModuleRow
+  selectedModule.value = moduleData
   console.log('Row clicked:', moduleData)
+}
+
+const onSelectionChanged = (selectedRows: Record<string, unknown>[]) => {
+  if (selectedRows.length > 0) {
+    selectedModule.value = selectedRows[0] as unknown as ModuleRow
+  } else {
+    selectedModule.value = null
+  }
+}
+
+// Toolbar action handlers
+const handleAddModule = () => {
+  router.push({ name: 'ModuleManagement', query: { mode: 'add' } })
+}
+
+const handleEditModule = () => {
+  if (!selectedModule.value) {
+    toast.warning('กรุณาเลือก Module ที่ต้องการแก้ไข')
+    return
+  }
+  router.push({
+    name: 'ModuleManagement',
+    query: { mode: 'edit', id: selectedModule.value.module_id },
+  })
+}
+
+const handleViewModule = () => {
+  if (!selectedModule.value) {
+    toast.warning('กรุณาเลือก Module ที่ต้องการดูรายละเอียด')
+    return
+  }
+  router.push({
+    name: 'ModuleManagement',
+    query: { mode: 'view', id: selectedModule.value.module_id },
+  })
+}
+
+const handleDeleteModule = async () => {
+  if (!selectedModule.value) {
+    toast.warning('กรุณาเลือก Module ที่ต้องการลบ')
+    return
+  }
+
+  // ใช้ confirmDelete จาก toast utility
+  const confirmed = await toast.confirmDelete(selectedModule.value.module_code)
+
+  if (confirmed) {
+    try {
+      await moduleService.delete(selectedModule.value.module_id)
+      await loadModules()
+      selectedModule.value = null
+      toast.success('ลบ Module สำเร็จ')
+    } catch (err) {
+      console.error('Error deleting module:', err)
+      toast.error('ไม่สามารถลบ Module ได้')
+    }
+  }
+}
+
+// Provide handlers for ToolBar
+provide('addModule', handleAddModule)
+provide('editModule', handleEditModule)
+provide('viewModule', handleViewModule)
+provide('deleteModule', handleDeleteModule)
+
+// Listen for toolbar events via custom events
+const handleToolbarEvent = (event: CustomEvent) => {
+  switch (event.detail) {
+    case 'add':
+      handleAddModule()
+      break
+    case 'edit':
+      handleEditModule()
+      break
+    case 'view':
+      handleViewModule()
+      break
+    case 'delete':
+      handleDeleteModule()
+      break
+  }
 }
 
 onMounted(() => {
   loadModules()
+  window.addEventListener('module-action', handleToolbarEvent as EventListener)
+  window.addEventListener('filter-change', ((event: CustomEvent) => {
+    handleFilterChange(event.detail)
+  }) as EventListener)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('module-action', handleToolbarEvent as EventListener)
 })
 </script>
