@@ -219,12 +219,19 @@ const goBack = () => {
 }
 
 const navigateTo = (category: 'master' | 'transaction' | 'report') => {
-  // TODO: Navigate to specific category page when implemented
-  console.log(`Navigate to ${category} for module ${moduleCode.value}`, {
-    moduleId: moduleId.value,
-    category,
+  const menuTypeMap = {
+    master: 'M',
+    transaction: 'T',
+    report: 'R',
+  }
+
+  router.push({
+    name: 'ModuleCategory',
+    params: {
+      moduleCode: moduleCode.value,
+      menuType: menuTypeMap[category],
+    },
   })
-  // Future: router.push({ name: 'ModuleCategory', query: { ... } })
 }
 </script>
 
