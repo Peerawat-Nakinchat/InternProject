@@ -49,6 +49,7 @@ import invitationRoutes from "./src/routes/invitationRoutes.js";
 import profileRoutes from "./src/routes/profileRoutes.js";
 import auditLogRoutes from "./src/routes/auditLogRoutes.js";
 import moduleRoutes from "./src/routes/moduleRoutes.js";
+import isoMenuRoutes from "./src/routes/isoMenuRoutes.js";
 
 // Invitation
 import { startQueueSystem } from "./src/services/queueService.js";
@@ -209,6 +210,7 @@ app.use("/api/invitations", invitationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/modules", moduleRoutes);
+app.use("/api/iso-menus", isoMenuRoutes);
 app.use("/api/members", userRoutes);
 
 // Health check

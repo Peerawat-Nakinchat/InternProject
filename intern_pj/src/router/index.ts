@@ -46,6 +46,31 @@ const router = createRouter({
           component: () => import('@/pages/Module/ModuleWorkPage.vue')
         },
         {
+          path: 'module/:moduleCode/:menuType',
+          name: 'ModuleCategory',
+          component: () => import('@/pages/Module/ModuleCategoryPage.vue')
+        },
+        {
+          path: 'module/page',
+          name: 'ModuleBlankPage',
+          component: () => import('@/pages/Module/ModuleBlankPage.vue')
+        },
+        {
+          path: 'master_data',
+          name: 'MasterData',
+          component: () => import('@/pages/SidebarCategoryPage.vue')
+        },
+        {
+          path: 'transaction',
+          name: 'Transaction',
+          component: () => import('@/pages/SidebarCategoryPage.vue')
+        },
+        {
+          path: 'report',
+          name: 'Report',
+          component: () => import('@/pages/SidebarCategoryPage.vue')
+        },
+        {
           path: '/UserManagement',
           name: 'UserManagement',
           component: () => import('@/pages/UserManagement.vue'),

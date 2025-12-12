@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen">
     <!-- Header Section -->
-    <div class="mb-8">
+    <!-- <div class="mb-8">
       <div class="flex items-center gap-4 mb-2">
         <div
           class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30"
@@ -19,7 +19,7 @@
           </p>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- Section Title -->
     <div class="flex items-center justify-between mb-6">

@@ -8,8 +8,7 @@
       </template>
       <template v-else>
         <div
-          class="text-center font-bold truncate
-                text-xs sm:text-sm md:text-sm lg:text-md xl:text-md"
+          class="text-center font-bold truncate text-xs sm:text-sm md:text-sm lg:text-md xl:text-md"
         >
           ISO MANAGEMENT SYSTEM
         </div>
@@ -19,7 +18,6 @@
 
     <nav class="mt-2 flex flex-col space-y-1">
       <template v-for="(item, index) in menuItems" :key="index">
-
         <Tooltip v-if="rail" :text="item.title">
           <button
             v-if="item.children && item.children.length > 0"
@@ -32,7 +30,7 @@
           <router-link
             v-else
             :to="item.to"
-            class="flex items-center justify-center w-full p-2 hover:bg-purple-600 "
+            class="flex items-center justify-center w-full p-2 hover:bg-purple-600"
           >
             <i :class="`${item.icon} text-xl`"></i>
           </router-link>
@@ -45,7 +43,9 @@
           >
             <div class="flex items-center">
               <i :class="`${item.icon} text-xl mr-2`"></i>
-              <span class="text-sm sm:text-sm md:text-sm lg:text-md xl:text-md">{{ item.title }}</span>
+              <span class="text-sm sm:text-sm md:text-sm lg:text-md xl:text-md">{{
+                item.title
+              }}</span>
             </div>
             <i
               :class="`mdi mdi-chevron-down text-sm transition-transform duration-200 ${
@@ -55,7 +55,10 @@
           </button>
           <transition name="slide-down">
             <div v-if="expandedMenus[item.value]" class="relative ml-4 mt-1 space-y-1">
-              <div class="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-400 opacity-70 z-10" aria-hidden="true"></div>
+              <div
+                class="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-400 opacity-70 z-10"
+                aria-hidden="true"
+              ></div>
 
               <router-link
                 v-for="(child, childIndex) in item.children"
@@ -66,12 +69,14 @@
               >
                 <div
                   class="absolute left-0 w-3 h-0.5 bg-gray-400 opacity-70 z-10"
-                  style="top: 50%; transform: translateY(-50%);"
+                  style="top: 50%; transform: translateY(-50%)"
                   aria-hidden="true"
                 ></div>
                 <div class="flex items-center pl-3">
                   <i :class="`${child.icon || 'mdi mdi-circle-small'} text-lg mr-2`"></i>
-                  <span class="text-sm sm:text-sm md:text-sm lg:text-md xl:text-md">{{ child.title }}</span>
+                  <span class="text-sm sm:text-sm md:text-sm lg:text-md xl:text-md">{{
+                    child.title
+                  }}</span>
                 </div>
               </router-link>
             </div>
@@ -120,7 +125,7 @@ const toggleSubmenu = (value: string) => {
 }
 
 // 💡 Function ใหม่สำหรับจัดการการคลิกที่ไอคอนของเมนูหลักใน Rail Mode (ลบการนำทางออก)
-const handleRailParentClick = (item: { value: string, children: { to: string }[] }) => {
+const handleRailParentClick = (item: { value: string; children: { to: string }[] }) => {
   // 1. เปิด Sidebar
   if (toggleRail) {
     toggleRail()
@@ -142,23 +147,18 @@ const menuItems = ref([
     to: '/company',
   },
   {
-    title: 'E-Tax Invoice',
-    icon: 'mdi mdi-receipt-text-outline',
-    value: 'e-tax-invoice',
-    to: '/e_tax_invoice',
+    title: 'Master Data',
+    icon: 'mdi mdi-database',
+    value: 'master-data',
+    to: '/master_data',
   },
-  { title: 'Send Email', icon: 'mdi mdi-send', value: 'send-email', to: '/send_email' },
+  { title: 'Transaction', icon: 'mdi mdi-cash', value: 'transaction', to: '/transaction' },
+  { title: 'Report', icon: 'mdi mdi-chart-bar', value: 'report', to: '/report' },
   {
     title: 'User Management',
     icon: 'mdi mdi-account-multiple-outline',
     value: 'user-management',
     to: '/UserManagement',
-  },
-  {
-    title: 'Form Dictionary',
-    icon: 'mdi mdi-form-select',
-    value: 'form-dictionary',
-    to: '/form_dictionary',
   },
   {
     title: 'System Config',
