@@ -2,7 +2,7 @@
 import { sequelize } from "../models/dbModels.js";
 import { OrganizationModel } from "../models/CompanyModel.js";
 import { MemberModel } from "../models/MemberModel.js";
-import { createError } from "../middleware/errorHandler.js"; // ✅ Import Helper
+import { createError } from "../middleware/errorHandler.js"; 
 
 export const createCompanyService = (deps = {}) => {
   const OrgModel = deps.OrganizationModel || OrganizationModel;
@@ -61,7 +61,7 @@ export const createCompanyService = (deps = {}) => {
 
   const getCompanyById = async (orgId) => {
     const company = await OrgModel.findById(orgId);
-    if (!company) throw createError.notFound("ไม่พบบริษัทนี้"); // ✅ 404 Not Found
+    if (!company) throw createError.notFound("ไม่พบบริษัทนี้");
     return company;
   };
 
@@ -94,8 +94,10 @@ export const createCompanyService = (deps = {}) => {
   };
 
   const updateCompany = async (orgId, userId, userOrgRoleId, updates) => {
-    if (userOrgRoleId !== 1) {
-      throw createError.forbidden("เฉพาะ OWNER เท่านั้นที่แก้ไขข้อมูลได้"); // ✅ 403 Forbidden
+    const isOwner = await OrgModel.isOwner(orgId, userId);
+    
+    if (!isOwner) {
+      throw createError.forbidden("Security Alert: คุณไม่ใช่เจ้าของบริษัทนี้ (Verification Failed)");
     }
 
     if (updates.org_code) {
@@ -112,19 +114,21 @@ export const createCompanyService = (deps = {}) => {
   };
 
   const deleteCompany = async (orgId, userId, userOrgRoleId) => {
-    if (userOrgRoleId !== 1) {
-      throw createError.forbidden("อนุญาตเฉพาะ OWNER เท่านั้น"); // ✅ 403 Forbidden
+    const isOwner = await OrgModel.isOwner(orgId, userId);
+    
+    if (!isOwner) {
+      throw createError.forbidden("Security Alert: คุณไม่ใช่เจ้าของบริษัทนี้");
     }
 
     const t = await db.transaction();
 
     try {
-      const deleted = await OrgModel.deleteById(orgId, t); // แก้ชื่อ method ให้ตรงกับ Model (deleteById)
+      const deleted = await OrgModel.deleteById(orgId, t);  (deleteById)
       if (!deleted) {
         throw createError.notFound("ไม่พบบริษัทนี้"); // ✅ 404 Not Found
       }
 
-      await MemModel.removeAllByOrganization(orgId, t); // แก้ชื่อ method ให้ตรงกับ Model
+      await MemModel.removeAllByOrganization(orgId, t); 
       await t.commit();
 
       return { success: true };
@@ -135,21 +139,21 @@ export const createCompanyService = (deps = {}) => {
   };
 
   const searchOrganizations = async (filters = {}, options = {}) => {
-    return await OrgModel.search(filters, options); // แก้ชื่อ method ให้ตรงกับ Model (search)
+    return await OrgModel.search(filters, options);  (search)
   };
 
   const getOrganizationStats = async (orgId) => {
-    const stats = await OrgModel.findByIdWithStats(orgId); // แก้ชื่อ method ให้ตรงกับ Model
+    const stats = await OrgModel.findByIdWithStats(orgId); 
     if (!stats) throw createError.notFound("ไม่พบบริษัทนี้"); // ✅ 404 Not Found
     return stats;
   };
 
   const verifyMembership = async (orgId, userId) => {
-    return await MemModel.exists(orgId, userId); // แก้ชื่อ method ให้ตรงกับ Model
+    return await MemModel.exists(orgId, userId); 
   };
 
   const getUserRoleInOrganization = async (orgId, userId) => {
-    return await MemModel.getRole(orgId, userId); // แก้ชื่อ method ให้ตรงกับ Model
+    return await MemModel.getRole(orgId, userId); 
   };
 
   return {

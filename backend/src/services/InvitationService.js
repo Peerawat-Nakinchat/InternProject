@@ -10,7 +10,6 @@ import { renderEmail } from "../utils/emailGenerator.js";
 import { addEmailJob } from "./queueService.js";
 import { ROLE_ID } from "../constants/roles.js";
 import AuditLogModel from "../models/AuditLogModel.js";
-import { AUDIT_ACTIONS } from "../constants/AuditActions.js";
 import logger from "../utils/logger.js";
 import { RoleModel } from "../models/RoleModel.js";
 
@@ -67,6 +66,8 @@ export const createInvitationService = (deps = {}) => {
       }
     }
 
+    let emailJobData = null; // ✅ ตัวแปรสำหรับเก็บข้อมูลส่งอีเมล
+
     const t = await db.transaction();
     try {
       const existingInvitations = await Invitation.findByEmail(email, org_id);
@@ -119,32 +120,32 @@ export const createInvitationService = (deps = {}) => {
       const html = await renderEmail("invitation", {
         companyName,
         inviterImageUrl,
-        inviterMember, // 🔥 แก้ไข 1: เปลี่ยนจาก inviteMember เป็น inviterMember (แก้ Typo)
+        inviterMember, 
         inviteLink,
         email,
         year: new Date().getFullYear(),
-        role_name: roleThaiLabel, //ส่งชื่อไทยเข้า template
+        role_name: roleThaiLabel, 
       });
 
-      try {
-        await addEmailJob({
+      // ✅ FIX: เตรียมข้อมูลส่งเมลไว้ แต่ยังไม่ส่งจริงจนกว่า Commit ผ่าน
+      emailJobData = {
           to: email,
           subject: `คำเชิญเข้าร่วมบริษัท ${companyName}`,
           html: html,
-        });
-        logger.info(`✅ Invitation email queued successfully for: ${email}`);
-      } catch (emailError) {
-        if (!t.finished) await t.rollback();
-        logger.error(
-          "❌ Failed to queue invitation email:",
-          emailError.message,
-        );
-        throw createError.internal(
-          "ไม่สามารถส่งอีเมลคำเชิญได้ กรุณาลองใหม่อีกครั้ง",
-        );
-      }
+      };
 
-      await t.commit();
+      await t.commit(); // Commit DB
+
+      // ✅ ส่งเมลหลังจาก Transaction เสร็จสมบูรณ์
+      if (emailJobData) {
+          try {
+              await addEmailJob(emailJobData);
+              logger.info(`✅ Invitation email queued successfully for: ${email}`);
+          } catch (emailError) {
+              // ถ้าส่งเมลไม่ผ่าน ไม่ต้อง Rollback DB (User กด Resend ได้)
+              logger.error("❌ Failed to queue invitation email:", emailError.message);
+          }
+      }
 
       return {
         success: true,
@@ -194,7 +195,7 @@ export const createInvitationService = (deps = {}) => {
     };
   };
 
-  // 🔥 แก้ไข 2: เพิ่ม parameter clientInfo = {} เพื่อรับ IP/UserAgent
+  // ✅ Modified: เพิ่ม parameter clientInfo = {} เพื่อรับ IP/UserAgent
   const acceptInvitation = async (token, userId, clientInfo = {}) => {
     const hashedToken = hashToken(token);
     const invitation = await Invitation.findByToken(hashedToken);
