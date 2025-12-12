@@ -1,6 +1,5 @@
 // src/middleware/sequelizeSecurity.js
 import DOMPurify from 'isomorphic-dompurify';
-import { createError } from './errorHandler.js';
 
 export const createSequelizeSecurityMiddleware = (deps = {}) => {
   const purifier = deps.DOMPurify || DOMPurify;
@@ -8,7 +7,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
   const sequelize = deps.sequelize;
   const logger = deps.logger || console;
 
-  // --- Helpers ---
   const doSanitize = (value) => {
     if (typeof value === 'string') {
       return purifier.sanitize(value, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
@@ -19,9 +17,18 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
   const sanitizeObject = (obj) => {
     if (!obj) return obj;
     const sanitized = {};
+    
+    const ignoreFields = ['password', 'confirm_password', 'oldPassword', 'newPassword', 'password_confirmation'];
+
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key];
+        
+        if (ignoreFields.includes(key)) {
+            sanitized[key] = value;
+            continue; 
+        }
+
         if (Array.isArray(value)) {
           sanitized[key] = value.map(item => 
             (typeof item === 'object' && item !== null) ? sanitizeObject(item) : doSanitize(item)
@@ -36,7 +43,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     return sanitized;
   };
 
-  // 1. Sanitize Input Middleware
   const sanitizeInput = (req, res, next) => {
     try {
       if (req.body) req.body = sanitizeObject(req.body);
@@ -49,7 +55,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     }
   };
 
-  // 2. Handle Validation Errors Middleware
   const handleValidationErrors = (req, res, next) => {
     if (!validationResult) return next();
     
@@ -64,7 +69,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     next();
   };
 
-  // 3. Prevent Mass Assignment Middleware
   const preventMassAssignment = (allowedFields = []) => (req, res, next) => {
     if (!req.body || typeof req.body !== 'object') return next();
 
@@ -82,7 +86,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     next();
   };
 
-  // 4. Transaction Wrapper Middleware
   const withTransaction = (handler) => async (req, res, next) => {
     if (!sequelize) {
         return res.status(500).json({ error: 'Database configuration error' });
@@ -100,7 +103,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     }
   };
 
-  // 5. Log Suspicious Queries (Basic SQL Injection Prevention)
   const logSuspiciousQueries = () => (req, res, next) => {
     const sqlPattern = /(\bUNION\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|--|;)/i;
     
@@ -113,7 +115,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     next();
   };
 
-  // 6. User Rate Limit (Simple In-Memory for demonstration/testing)
   const rateLimitStore = new Map();
   const userRateLimit = (options = { max: 100 }) => (req, res, next) => {
     if (!req.user || !req.user.user_id) return next();
@@ -129,7 +130,6 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
     next();
   };
 
-  // 7. Audit Log Middleware
   const auditLog = (action) => (req, res, next) => {
     res.on('finish', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -152,15 +152,14 @@ export const createSequelizeSecurityMiddleware = (deps = {}) => {
 
 const defaultInstance = createSequelizeSecurityMiddleware();
 
-// Export all middleware functions individually
 export const { 
     sanitizeInput, 
     handleValidationErrors, 
     preventMassAssignment, 
     withTransaction, 
-    logSuspiciousQueries,
-    userRateLimit,
-    auditLog
+    logSuspiciousQueries, 
+    userRateLimit, 
+    auditLog 
 } = defaultInstance;
 
 export default defaultInstance;
