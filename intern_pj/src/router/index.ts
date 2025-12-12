@@ -39,6 +39,11 @@ const router = createRouter({
           path: 'ModuleManagement',
           name: 'ModuleManagement',
           component: () => import('@/pages/Module/ModuleManagementPage.vue')
+        },
+        {
+          path: 'module/work',
+          name: 'ModuleWork',
+          component: () => import('@/pages/Module/ModuleWorkPage.vue')
         }
       ]
     },

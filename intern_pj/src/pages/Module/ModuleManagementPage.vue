@@ -157,7 +157,7 @@ const modulePointError = ref('')
 
 // Methods
 const goBack = () => {
-  router.push({ name: 'ModulePage' })
+  router.push({ name: 'system-config-module' })
 }
 
 const formatDate = (dateString: string): string => {
