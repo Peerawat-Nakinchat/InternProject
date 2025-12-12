@@ -28,6 +28,7 @@ export interface MemberRegisterResponse {
 }
 
 export const memberService = {
+  // ✅ 1. ฟังก์ชันสมัครสมาชิก
   async register(payload: MemberRegisterPayload): Promise<MemberRegisterResponse> {
   try {
     const response = await api.post<MemberRegisterResponse>('/api/members/register', payload)
@@ -45,6 +46,7 @@ export const memberService = {
   }
 },
 
+  // ✅ 2. ฟังก์ชันตรวจสอบอีเมล
   async checkEmailExists(email: string): Promise<boolean> {
   try {
     const response = await api.get<{ exists: boolean }>(
@@ -56,6 +58,7 @@ export const memberService = {
   }
 }
 ,
+  // ✅ 3. ฟังก์ชันดึงข้อมูลสมาชิกรายคน
   async getMember(memberId: string) {
     try {
       const response = await api.get(`/api/members/${memberId}`)
@@ -64,6 +67,7 @@ export const memberService = {
       throw new Error(error.response?.data?.message || 'ไม่สามารถดึงข้อมูลสมาชิกได้')
     }
   },
+  // ✅ 4. ฟังก์ชันอัพเดทข้อมูลสมาชิก
   async updateMember(memberId: string, payload: Partial<MemberRegisterPayload>) {
     try {
       const response = await api.put(`/api/members/${memberId}`, payload)
@@ -72,12 +76,28 @@ export const memberService = {
       throw new Error(error.response?.data?.message || 'ไม่สามารถอัพเดทข้อมูลสมาชิกได้')
     }
   },
+  // ✅ 5. ฟังก์ชันลบสมาชิก
   async deleteMember(memberId: string) {
     try {
       const response = await api.delete(`/api/members/${memberId}`)
       return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'ไม่สามารถลบสมาชิกได้')
+    }
+  },
+  // ✅ 6. ฟังก์ชันดึงรายชื่อสมาชิกทั้งหมดในองค์กร
+  async getMembersByOrganization(orgId: string) {
+    try {
+      const response = await api.request(`/members/${orgId}`, {
+        method: 'GET',
+        headers: {
+          'x-org-id': orgId
+        }
+      })
+      return response.data || response
+    } catch (error: any) {
+      console.error('Error fetching members:', error)
+      throw new Error(error.response?.data?.message || 'ไม่สามารถดึงรายชื่อสมาชิกได้')
     }
   }
 }

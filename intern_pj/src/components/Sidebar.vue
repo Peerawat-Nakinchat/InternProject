@@ -152,7 +152,7 @@ const menuItems = ref([
     title: 'User Management',
     icon: 'mdi mdi-account-multiple-outline',
     value: 'user-management',
-    to: '/user_management',
+    to: '/UserManagement',
   },
   {
     title: 'Form Dictionary',

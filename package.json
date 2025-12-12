@@ -19,6 +19,7 @@
     "install:all": "npm install --workspaces"
   },
   "dependencies": {
-    "@mdi/font": "^7.4.47"
+    "@mdi/font": "^7.4.47",
+    "dayjs": "^1.11.19"
   }
 }
